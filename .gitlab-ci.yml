@@ -1,0 +1,55 @@
+# Copyright 2023 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+#
+# Luca Valente  <luca.valente@unibo.it>
+
+before_script:
+  - export PATH=/home/ci-pulp/:$PATH
+  - cp -r /home/ci-pulp/s27ks0641/ ./models
+
+stages:
+  - compile
+  - simulate-simple
+  - simulate-random
+
+vsim-compile:
+  stage: compile
+  script:
+    - make clean
+    - bender update
+    - make scripts/compile.tcl
+    - make build
+    - (! grep -n "Error:" transcript)
+    - (! grep -n "Fatal:" transcript)
+  artifacts:
+      expire_in: 1 week
+      paths:
+        - work
+
+vsim-simple:
+  stage: simulate-simple
+  needs:
+    - vsim-compile
+  script:
+    - vsim -c hyperbus_tb -t 1ps -voptargs=+acc -classdebug -logfile hyperbus.vsim.log -do "run -all" 
+    - (! grep -n "Error:" hyperbus.vsim.log)
+    - (! grep -n "Fatal:" hyperbus.vsim.log)
+    - (! grep -n "Unexpected" hyperbus.vsim.log)
+  artifacts:
+      paths:
+        - hyperbus.vsim.log
+
+vsim-random:
+  stage: simulate-random
+  needs:
+    - vsim-compile
+  script:
+    - vsim -c axi_hyper_tb -t 1ps -voptargs=+acc -classdebug -logfile hyperbus-rnd.vsim.log -do "run -all" 
+    - (! grep -n "Error:" hyperbus-rnd.vsim.log)
+    - (! grep -n "Fatal:" hyperbus-rnd.vsim.log)
+    - (! grep -n "Unexpected" hyperbus-rnd.vsim.log)
+  artifacts:
+      paths:
+        - hyperbus-rnd.vsim.log
+        

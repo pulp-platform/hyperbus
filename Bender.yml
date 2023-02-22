@@ -1,0 +1,51 @@
+# Copyright 2023 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+package:
+  name: hyperbus
+  authors:
+    - "Armin Berger <bergerar@ethz.ch>"
+    - "Stephan Keck <kecks@ethz.ch>"
+    - "Thomas Benz <tbenz@iis.ee.ethz.ch>"
+    - "Paul Scheffler <paulsc@iis.ee.ethz.ch>"
+    - "Luca Valente <luca.valente@unibo.it>"   # current maintainer
+
+dependencies:
+  common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 1.21.0        }
+  axi:                 { git: "https://github.com/pulp-platform/axi.git",                version: 0.39.0-beta.4 }
+  tech_cells_generic:  { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.4         }
+  register_interface:  { git: "https://github.com/pulp-platform/register_interface.git", version: 0.3.2         }
+
+sources:
+  files:
+    - target: all(fpga,xilinx)
+      defines:
+        FPGA_EMUL: ~
+      files:
+        - models/generic_delay_D4_O1_3P750_CG0.fpga.sv
+    - target: test
+      files:
+        - models/generic_delay_D4_O1_3P750_CG0.behav.sv
+    - src/hyperbus_pkg.sv
+    - src/hyperbus_clk_gen.sv
+    - src/hyperbus_clock_diff_out.sv
+    - src/hyperbus_w2phy.sv
+    - src/hyperbus_phy2r.sv
+    - src/hyperbus_ddr_out.sv
+    - src/hyperbus_delay.sv
+    - src/hyperbus_trx.sv
+    - src/hyperbus_cfg_regs.sv
+    - src/hyperbus_phy.sv
+    - src/hyperbus_phy_if.sv
+    - src/hyperbus_axi.sv
+    - target: test
+      files:
+        # Device models. TODO: extend
+        - models/s27ks0641/s27ks0641.v
+        # Testbench
+        - test/fixture_hyperbus.sv
+        - test/hyperbus_tb.sv
+        - test/dut_if.sv
+        - test/axi_hyper_tb.sv
+    - src/hyperbus.sv
