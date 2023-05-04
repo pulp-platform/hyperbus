@@ -255,6 +255,7 @@ module hyperbus_axi #(
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
     always_comb begin
+        trans_o.burst= NumPhys;
         if (rr_out_req_ax.size > NumPhys) begin
            ax_blen_inc   = 1'b1;
            if( ((rr_out_req_ax.addr>>rr_out_req_ax.size)<<rr_out_req_ax.size) != rr_out_req_ax.addr) begin
