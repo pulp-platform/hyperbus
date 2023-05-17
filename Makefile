@@ -15,6 +15,12 @@ clean: sim_clean
 # Ensure half-built targets are purged
 .DELETE_ON_ERROR:
 
+ifdef gui
+VSIM_ARGS := -do
+else
+VSIM_ARGS := -c -do
+endif
+
 # --------------
 # RTL SIMULATION
 # --------------
@@ -35,15 +41,14 @@ sim_clean:
 	rm -rf scripts/compile.tcl
 	rm -rf work
 
+models/s27ks0641:
+	git clone git@iis-git.ee.ethz.ch:carfield/hyp_vip.git $@
+
 scripts/compile.tcl: Bender.yml
-	$(call generate_vsim, $@, -t rtl -t test,..)
+	$(call generate_vsim, $@, -t rtl -t test -t hyper_test,..)
 
 build:
 	$(VSIM) -c -do "source scripts/compile.tcl; exit"
 
 run:
-	$(VSIM) -do "source scripts/start.tcl"
-
-run_nogui:
-	$(VSIM) -c -do "source scripts/start.tcl; run -all; exit"
-
+	$(VSIM) $(VSIM_ARGS) "source scripts/start.tcl"

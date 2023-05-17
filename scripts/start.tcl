@@ -9,3 +9,5 @@ set NumericStdNoWarnings 1
 log -r /*
 
 delete wave *
+
+run -all

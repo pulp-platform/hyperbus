@@ -36,9 +36,11 @@ The `clk_phy` and `clk_phy_90` have a 90 degree difference in phase. To obtain t
 To run a simulation you need [Bender](https://github.com/pulp-platform/bender) and Questasim. Export your path to include your bender binary, and then:
 
 ```
+bender update
 make scripts/compile.tcl
+make models/s27ks0641 (if you have access to iis gitlab)
 make build
-make run_nogui
+make run
 ```
 
 ## ToDos
