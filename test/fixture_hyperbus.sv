@@ -217,7 +217,7 @@ module fixture_hyperbus #(
              s27ks0641 #(
                /*.mem_file_name ( "s27ks0641.mem"    ),*/
                .TimingModel   ( "S27KS0641DPBHI020"    )
-             ) i_s27ks0641 (
+             ) dut (
                .DQ7           ( pad_hyper_dq[i][7]  ),
                .DQ6           ( pad_hyper_dq[i][6]  ),
                .DQ5           ( pad_hyper_dq[i][5]  ),
@@ -241,7 +241,7 @@ module fixture_hyperbus #(
           for (genvar l=0; l<NumChips; l++) begin : sdf_annotation
              initial begin
                 automatic string sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
-                $sdf_annotate(sdf_file_path, hyperrams[p].chips[l].i_s27ks0641);
+                $sdf_annotate(sdf_file_path, hyperrams[p].chips[l].dut);
                 $display("Mem (%d,%d)",p,l);
              end
          end

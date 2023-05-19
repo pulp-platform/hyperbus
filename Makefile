@@ -41,12 +41,10 @@ sim_clean:
 	rm -rf scripts/compile.tcl
 	rm -rf work
 
-models/s27ks0641:
-	mkdir -p $@
-
 # Download (partially non-free) simulation models from publically available sources;
 # by running these targets or targets depending on them, you accept this (see README.md).
-models/s27ks0641/s27ks0641.v: models/s27ks0641
+models/s27ks0641:
+	mkdir -p $@
 	rm -rf model_tmp && mkdir model_tmp
 	cd model_tmp; wget https://www.infineon.com/dgdl/Infineon-S27KL0641_S27KS0641_VERILOG-SimulationModels-v05_00-EN.zip?fileId=8ac78c8c7d0d8da4017d0f6349a14f68
 	cd model_tmp; mv 'Infineon-S27KL0641_S27KS0641_VERILOG-SimulationModels-v05_00-EN.zip?fileId=8ac78c8c7d0d8da4017d0f6349a14f68' model.zip
@@ -57,7 +55,7 @@ models/s27ks0641/s27ks0641.v: models/s27ks0641
 	cp model_tmp/exe_folder/S27ks0641/model/s27ks0641_verilog.sdf models/s27ks0641/s27ks0641.sdf
 	rm -rf model_tmp
 
-scripts/compile.tcl: Bender.yml models/s27ks0641/s27ks0641.v
+scripts/compile.tcl: Bender.yml models/s27ks0641
 	$(call generate_vsim, $@, -t rtl -t test -t hyper_test,..)
 
 build: scripts/compile.tcl
