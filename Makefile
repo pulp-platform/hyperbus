@@ -54,6 +54,7 @@ models/s27ks0641/s27ks0641.v: models/s27ks0641
 	cd model_tmp; mv 'S27KL0641 S27KS0641' exe_folder
 	cd model_tmp/exe_folder; unzip S27ks0641.exe
 	cp model_tmp/exe_folder/S27ks0641/model/s27ks0641.v $@
+	cp model_tmp/exe_folder/S27ks0641/model/s27ks0641_verilog.sdf models/s27ks0641/s27ks0641.sdf
 	rm -rf model_tmp
 
 scripts/compile.tcl: Bender.yml models/s27ks0641/s27ks0641.v
