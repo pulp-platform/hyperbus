@@ -42,13 +42,25 @@ sim_clean:
 	rm -rf work
 
 models/s27ks0641:
-	git clone git@iis-git.ee.ethz.ch:carfield/hyp_vip.git $@
+	mkdir -p $@
 
-scripts/compile.tcl: Bender.yml
+# Download (partially non-free) simulation models from publically available sources;
+# by running these targets or targets depending on them, you accept this (see README.md).
+models/s27ks0641/s27ks0641.v: models/s27ks0641
+	rm -rf model_tmp && mkdir model_tmp
+	cd model_tmp; wget https://www.infineon.com/dgdl/Infineon-S27KL0641_S27KS0641_VERILOG-SimulationModels-v05_00-EN.zip?fileId=8ac78c8c7d0d8da4017d0f6349a14f68
+	cd model_tmp; mv 'Infineon-S27KL0641_S27KS0641_VERILOG-SimulationModels-v05_00-EN.zip?fileId=8ac78c8c7d0d8da4017d0f6349a14f68' model.zip
+	cd model_tmp; unzip model.zip
+	cd model_tmp; mv 'S27KL0641 S27KS0641' exe_folder
+	cd model_tmp/exe_folder; unzip S27ks0641.exe
+	cp model_tmp/exe_folder/S27ks0641/model/s27ks0641.v $@
+	rm -rf model_tmp
+
+scripts/compile.tcl: Bender.yml models/s27ks0641/s27ks0641.v
 	$(call generate_vsim, $@, -t rtl -t test -t hyper_test,..)
 
-build:
+build: scripts/compile.tcl
 	$(VSIM) -c -do "source scripts/compile.tcl; exit"
 
-run:
+run: clean build
 	$(VSIM) $(VSIM_ARGS) "source scripts/start.tcl"

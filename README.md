@@ -33,14 +33,13 @@ The `clk_phy` and `clk_phy_90` have a 90 degree difference in phase. To obtain t
 
 ## Simulation
 
+† * `models/s27ks0641/s27ks0641.v` will download externally provided peripheral simulation models, some proprietary and with non-free license terms, from their publically accessible sources; see `Makefile` for details. By running `models/s27ks0641/s27ks0641.v` or the default target `run`, you accept this.*
+
 To run a simulation you need [Bender](https://github.com/pulp-platform/bender) and Questasim. Export your path to include your bender binary, and then:
 
-```
+```bash
 bender update
-make scripts/compile.tcl
-make models/s27ks0641 (if you have access to iis gitlab)
-make build
-make run
+make run #(will download proprietary models from Infineon !!)
 ```
 
 ## ToDos
