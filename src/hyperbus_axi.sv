@@ -434,7 +434,7 @@ module hyperbus_axi #(
 //        else $fatal (1, "The address of a non-byte-size access must be 2-byte aligned.");
 
     burst_type : assert property(
-      @(posedge clk_i) trans_handshake |-> rr_out_req_ax.burst == axi_pkg::BURST_INCR)
+      @(posedge clk_i) trans_handshake |-> ( (rr_out_req_ax.burst == axi_pkg::BURST_INCR) || ((rr_out_req_ax.burst == axi_pkg::BURST_FIXED) &&  (rr_out_req_ax.len == '0)) ) )
         else $fatal (1, "Non-incremental burst passed; this is currently not supported.");
     `endif
     // pragma translate_on
