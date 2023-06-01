@@ -14,7 +14,7 @@ module hyperbus_axi #(
     parameter type         axi_rsp_t     = logic,
     parameter int unsigned NumChips    	 = -1,
     parameter int unsigned NumPhys       = -1,
-    parameter type         hyper_tx_t    = logic,   
+    parameter type         hyper_tx_t    = logic,
     parameter type         hyper_rx_t    = logic,
     parameter type         rule_t        = logic
 ) (
@@ -70,7 +70,7 @@ module hyperbus_axi #(
        axi_ax_t ax_data;
        logic    write;
     } ax_channel_spill_t;
-   
+
     typedef struct packed {
         logic               valid;
         axi_data_t          data;
@@ -84,7 +84,7 @@ module hyperbus_axi #(
         logic [AxiUserWidth-1:0]   user;
         logic                      last;
     } axi_w_chan_t;
-   
+
     typedef struct packed {
         logic [7:0]         data;
         logic               strb;
@@ -195,11 +195,11 @@ module hyperbus_axi #(
         .data_o     ( spill_rr_out_req_ax     ),
         .idx_o      ( spill_rr_out_req_write  )
     );
-   
+
     // Cut paths between serializer and rr arb tree
     assign spill_ax_channel_in.ax_data = spill_rr_out_req_ax;
     assign spill_ax_channel_in.write = spill_rr_out_req_write;
-    
+
     spill_register #(
          .T ( ax_channel_spill_t )
          ) ax_spill_register (
@@ -212,10 +212,10 @@ module hyperbus_axi #(
          .ready_i (ax_ready),
          .data_o  (spill_ax_channel_out)
          );
-    
+
     assign rr_out_req_ax = spill_ax_channel_out.ax_data;
     assign rr_out_req_write = spill_ax_channel_out.write;
-                                             
+
     assign trans_valid_o    = ax_valid & ~trans_active_q;
     assign ax_ready         = trans_ready_i & ~trans_active_q;
 
@@ -256,6 +256,7 @@ module hyperbus_axi #(
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
     always_comb begin
         trans_o.burst= NumPhys;
+        ax_blen_inc   = 1'b1;
         if (rr_out_req_ax.size > NumPhys) begin
            ax_blen_inc   = 1'b1;
            if( ((rr_out_req_ax.addr>>rr_out_req_ax.size)<<rr_out_req_ax.size) != rr_out_req_ax.addr) begin
@@ -272,7 +273,7 @@ module hyperbus_axi #(
         end else if (rr_out_req_ax.size == NumPhys) begin
            trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1));
         end else begin
-           ax_blen_inc = 1'b1; 
+           ax_blen_inc = 1'b1;
            if (ax_blen_postinc==1) begin
               trans_o.burst= NumPhys;
            end else begin
@@ -285,18 +286,18 @@ module hyperbus_axi #(
         end
     end
 
-    assign ax_blen_postinc = rr_out_req_ax.len + hyperbus_pkg::hyper_blen_t'(ax_blen_inc) ; 
-   
+    assign ax_blen_postinc = rr_out_req_ax.len + hyperbus_pkg::hyper_blen_t'(ax_blen_inc) ;
+
     // ============================
     //    R channel
     // ============================
 
     assign ser_out_rsp.r.data   = s_r_split.data;
-    assign ser_out_rsp.r.last   = s_r_split.last; 
+    assign ser_out_rsp.r.last   = s_r_split.last;
     assign ser_out_rsp.r.resp   = s_r_split.error ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
     assign ser_out_rsp.r.id     = '0;
     assign ser_out_rsp.r.user   = '0;
-   
+
     hyperbus_phy2r #(
         .AxiDataWidth  ( AxiDataWidth                  ),
         .BurstLength   ( hyperbus_pkg::HyperBurstWidth ),
@@ -329,7 +330,7 @@ module hyperbus_axi #(
     assign w_data_fifo_in.strb = ser_out_req.w.strb;
     assign w_data_fifo_in.last = ser_out_req.w.last;
     assign w_data_fifo_in.user = ser_out_req.w.user;
-   
+
     stream_fifo #(
         .FALL_THROUGH ( 1'b0         ),
         .T            ( axi_w_chan_t ),
@@ -347,7 +348,7 @@ module hyperbus_axi #(
         .valid_o    ( w_data_valid        ),
         .ready_i    ( w_data_ready        )
         );
-   
+
     hyperbus_w2phy #(
         .AxiDataWidth ( AxiDataWidth                  ),
         .BurstLength  ( hyperbus_pkg::HyperBurstWidth ),
@@ -404,7 +405,7 @@ module hyperbus_axi #(
         if (trans_wready_reset) trans_wready_d = 1'b0;
         if (trans_wready_set)   trans_wready_d = 1'b1;
     end
-     
+
     // =========================
     //    Registers
     // =========================
