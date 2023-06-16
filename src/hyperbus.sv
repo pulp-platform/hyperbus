@@ -115,6 +115,7 @@ module hyperbus #(
     // Config register File
     hyperbus_cfg_regs #(
         .NumChips       ( NumChips      ),
+        .NumPhys        ( NumPhys       ),
         .RegAddrWidth   ( RegAddrWidth  ),
         .RegDataWidth   ( RegDataWidth  ),
         .reg_req_t      ( reg_req_t     ),
@@ -172,6 +173,7 @@ module hyperbus #(
         .trans_ready_i   ( axi_trans_ready      ),
 
         .chip_rules_i    ( chip_rules           ),
+        .phys_in_use_i   ( cfg.phys_in_use      ),
         .addr_mask_msb_i ( cfg.address_mask_msb ),
         .addr_space_i    ( cfg.address_space    ),
         .trans_active_o  ( trans_active         )

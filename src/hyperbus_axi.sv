@@ -49,6 +49,7 @@ module hyperbus_axi #(
     input  logic                    trans_ready_i,
 
     input  rule_t [NumChips-1:0]    chip_rules_i,
+    input  logic                    phys_in_use_i,
     input  logic [4:0]              addr_mask_msb_i,
     input  logic                    addr_space_i,
     output logic                    trans_active_o
@@ -139,6 +140,10 @@ module hyperbus_axi #(
     logic           trans_active_set, trans_active_reset;
     logic           trans_wready_d, trans_wready_q;
     logic           trans_wready_set, trans_wready_reset;
+
+    logic [1:0]      phys_in_use;
+
+    assign phys_in_use = (NumPhys==2) ? (phys_in_use_i + 1) : 1;
 
     // ============================
     //    Serialize requests
@@ -288,22 +293,25 @@ module hyperbus_axi #(
     assign trans_o.write            = rr_out_req_write;
     assign trans_o.burst_type       = 1'b1;             // Wrapping bursts not (yet) supported
     assign trans_o.address_space    = addr_space_i;
-    assign trans_o.address          = (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( NumPhys );
+    assign trans_o.address          = (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( phys_in_use );
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
     assign ax_blen_inc   = 1'b1;
     always_comb begin
-        trans_o.burst= NumPhys;
-        if (rr_out_req_ax.size == NumPhys) begin
+        trans_o.burst= phys_in_use;
+        if (rr_out_req_ax.size == phys_in_use) begin
            trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1));
         end else begin
            if (ax_blen_postinc==1) begin
-              trans_o.burst= NumPhys;
+              trans_o.burst= phys_in_use;
            end else begin
               if ( aligned_addr(rr_out_req_ax.addr,rr_out_req_ax.size) != rr_out_req_ax.addr) begin
-                 trans_o.burst = ( ( ( (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
+                 trans_o.burst = ( ( ( (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> phys_in_use ) + 1 ) << (phys_in_use-1);
               end else begin
-                 trans_o.burst = ( ( ( rr_out_req_ax.addr[NumPhys-1:0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
+                 if(phys_in_use_i)
+                   trans_o.burst = ( ( ( rr_out_req_ax.addr[1:0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> phys_in_use ) + 1 ) << (phys_in_use-1);
+                 else
+                   trans_o.burst = ( ( ( rr_out_req_ax.addr[0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> phys_in_use ) + 1 ) << (phys_in_use-1);
               end
            end
         end
