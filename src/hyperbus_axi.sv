@@ -54,6 +54,8 @@ module hyperbus_axi #(
     output logic                    trans_active_o
 );
 
+    import axi_pkg::aligned_addr;
+
     localparam AxiPhyDataWidth = NumPhys*16;
     localparam AxiPhyDataBytes = AxiPhyDataWidth/8;
     localparam AxiBusAddrWidth = $clog2(AxiPhyDataBytes);
@@ -289,30 +291,16 @@ module hyperbus_axi #(
     assign trans_o.address          = (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( NumPhys );
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
+    assign ax_blen_inc   = 1'b1;
     always_comb begin
         trans_o.burst= NumPhys;
-        ax_blen_inc   = 1'b1;
-        if (rr_out_req_ax.size > NumPhys) begin
-           ax_blen_inc   = 1'b1;
-           if( ((rr_out_req_ax.addr>>rr_out_req_ax.size)<<rr_out_req_ax.size) != rr_out_req_ax.addr) begin
-              if (rr_out_req_ax.size==2) begin
-                 trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1)) - 1;
-              end else if (rr_out_req_ax.size==3) begin
-                 trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1)) - (rr_out_req_ax.addr[2]<<1) - (rr_out_req_ax.addr[1] && (NumPhys==1));
-              end else if (rr_out_req_ax.size==4) begin
-                   trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1)) - (rr_out_req_ax.addr[3:2]<<1) - (rr_out_req_ax.addr[1] && (NumPhys==1));
-              end
-           end else begin
-              trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1));
-           end
-        end else if (rr_out_req_ax.size == NumPhys) begin
+        if (rr_out_req_ax.size == NumPhys) begin
            trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1));
         end else begin
-           ax_blen_inc = 1'b1;
            if (ax_blen_postinc==1) begin
               trans_o.burst= NumPhys;
            end else begin
-              if ( ((rr_out_req_ax.addr>>rr_out_req_ax.size)<<rr_out_req_ax.size) != rr_out_req_ax.addr) begin
+              if ( aligned_addr(rr_out_req_ax.addr,rr_out_req_ax.size) != rr_out_req_ax.addr) begin
                  trans_o.burst = ( ( ( (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
               end else begin
                  trans_o.burst = ( ( ( rr_out_req_ax.addr[NumPhys-1:0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
