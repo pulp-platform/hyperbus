@@ -38,11 +38,6 @@ module hyperbus_phy2r #(
 
    hyper_splitter_state_t state_d, state_q;
    
-   localparam  int unsigned NumAxiBytes = AxiDataWidth/8;
-   localparam  int unsigned NumPhyBytes = NumPhys*2;
-   localparam  int unsigned AxiBytesInPhyBeat = NumAxiBytes/NumPhyBytes;
-   localparam  int unsigned WordCntWidth = (AxiBytesInPhyBeat==1) ? 1 : $clog2(AxiBytesInPhyBeat);
-   
    logic [BurstLength-1:0] byte_axi_addr_d, byte_axi_addr_q;
    logic [BurstLength-1:0] byte_phy_cnt_d, byte_phy_cnt_q;
    logic [BurstLength-1:0] last_addr_d, last_addr_q;
@@ -51,14 +46,8 @@ module hyperbus_phy2r #(
    T data_buffer_d, data_buffer_q;
 
    logic                        is_16_bw, is_8_bw;
-   logic [WordCntWidth-1:0]     word_cnt;
-   logic                        enough_data;
    logic                        sent_available_data;
-   logic [BurstLength-1:0]      next_axi_addr;
-   
-   assign word_cnt = (AxiBytesInPhyBeat==1) ? '0 : byte_phy_cnt_q[($clog2(NumPhys)+1) +:WordCntWidth];
-   assign next_axi_addr = ((byte_axi_addr_q>>size_d)<< size_d) + (1<<size_d);
-   assign enough_data = byte_phy_cnt_d >= next_axi_addr;
+
    assign sent_available_data = byte_axi_addr_d >= byte_phy_cnt_q;
    assign data_o.data = data_buffer_q.data;
    assign data_o.error = data_buffer_q.error;
@@ -92,7 +81,7 @@ module hyperbus_phy2r #(
          data_buffer_d.last = 1'b0;
          data_buffer_d.data = '0; // for debug
       end else if (phy_ready_o && phy_valid_i) begin
-         data_buffer_d.data[word_cnt*(16*NumPhys) +: (16*NumPhys)] = data_i;
+         data_buffer_d.data = data_i;
          data_buffer_d.error = error_i;
          data_buffer_d.last = last_i;
       end
@@ -111,14 +100,12 @@ module hyperbus_phy2r #(
         WaitData: begin
            phy_ready_o = 1'b1;
            if (phy_valid_i) begin
-              state_d = Sample;
+              state_d = CntReady;
            end
         end
         Sample: begin
            phy_ready_o = 1'b1;
-           if(enough_data) begin
-              state_d = CntReady;
-           end
+           state_d = CntReady;
         end
         CntReady: begin
            phy_ready_o = 1'b0;
