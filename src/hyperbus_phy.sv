@@ -55,6 +55,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     output logic                hyper_reset_no
 );
 
+    logic [1:0]                  phys_in_use;
+
+    assign phys_in_use = (NumPhys==2) ? (cfg_i.phys_in_use + 1) : 1;
+
     // PHY state
     hyper_phy_state_t       state_d,    state_q;
     logic [TimerWidth-1:0]  timer_d,    timer_q;
@@ -221,7 +225,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // cfg_i.latency_addentional overwrites the trx_rwds_sample. Be careful.
     assign ctl_add_latency      = trx_rwds_sample | cfg_i.en_latency_additional;
 
-    assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == NumPhys);
+    assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == phys_in_use);
     assign ctl_tf_burst_done    = (tf_q.burst == 0);
 
     assign ctl_timer_rwr_done   = (timer_q <= 3);
@@ -294,7 +298,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (ctl_rclk_ena) begin
                     trx_clk_ena     = 1'b1;
                     r_outstand_inc  = 1'b1;
-                    tf_d.burst      = tf_q.burst - NumPhys;
+                    tf_d.burst      = tf_q.burst - phys_in_use;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         state_d = WaitXfer;
@@ -309,7 +313,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Dataflow handled outside FSM
                 if (ctl_wclk_ena) begin
                     trx_clk_ena = 1'b1;
-                    tf_d.burst  = tf_q.burst - NumPhys;
+                    tf_d.burst  = tf_q.burst - phys_in_use;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         b_pending_set   = 1'b1;

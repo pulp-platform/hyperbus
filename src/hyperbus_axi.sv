@@ -5,6 +5,9 @@
 // Thomas Benz <tbenz@iis.ee.ethz.ch>
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
+`include "axi/typedef.svh"
+`include "common_cells/registers.svh"
+
 module hyperbus_axi #(
     parameter int unsigned AxiDataWidth  = -1,
     parameter int unsigned AxiAddrWidth  = -1,
@@ -42,6 +45,7 @@ module hyperbus_axi #(
     input  logic                    trans_ready_i,
 
     input  rule_t [NumChips-1:0]    chip_rules_i,
+    input  logic                    phys_in_use_i,
     input  logic [4:0]              addr_mask_msb_i,
     input  logic                    addr_space_i,
     output logic                    trans_active_o
@@ -49,6 +53,8 @@ module hyperbus_axi #(
 
     localparam AxiDataBytes    = AxiDataWidth/8;
     localparam AxiBusAddrWidth = $clog2(AxiDataBytes);
+    localparam PhyDataWidth    = NumPhys*16;
+    localparam PhyDataBytes    = PhyDataWidth/8;
     localparam ChipSelWidth    = cf_math_pkg::idx_width(NumChips);
     localparam ByteCntWidth    = cf_math_pkg::idx_width(AxiDataBytes);
 
@@ -119,17 +125,38 @@ module hyperbus_axi #(
     // R channel
     axi_r_t         s_r_split;
 
+    // R channel merge when phys_in_use != NumPhys
+    logic [PhyDataWidth-1:0]   s_rx_data;
+    logic [PhyDataWidth/2-1:0] s_rx_data_lower_d, s_rx_data_lower_q;
+    logic                      s_rx_error;
+    logic                      s_rx_last;
+    logic                      s_rx_valid;
+    logic                      s_rx_ready;
+    logic                      merge_r_d, merge_r_q;
+
     // W channel
     logic w_data_valid;
     logic w_data_ready;
     axi_w_chan_t w_data_fifo;
     axi_w_chan_t w_data_fifo_in;
 
+    // W channel split when phys_in_use != NumPhys
+    logic [PhyDataWidth-1:0]  s_tx_data;
+    logic [PhyDataBytes-1:0]  s_tx_strb;
+    logic                     s_tx_last;
+    logic                     s_tx_valid;
+    logic                     s_tx_ready;
+    logic                     split_w_d, split_w_q;
+
     // Whether a transfer is currently active
     logic           trans_active_d, trans_active_q;
     logic           trans_active_set, trans_active_reset;
     logic           trans_wready_d, trans_wready_q;
     logic           trans_wready_set, trans_wready_reset;
+
+    logic [1:0]      phys_in_use;
+
+    assign phys_in_use = (NumPhys==2) ? (phys_in_use_i + 1) : 1;
 
     // ============================
     //    Serialize requests
@@ -251,7 +278,7 @@ module hyperbus_axi #(
     assign trans_o.write            = rr_out_req_write;
     assign trans_o.burst_type       = 1'b1;             // Wrapping bursts not (yet) supported
     assign trans_o.address_space    = addr_space_i;
-    assign trans_o.address          = (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( NumPhys );
+    assign trans_o.address          = ( (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( NumPhys ) ) << ( (NumPhys==2) & ~phys_in_use_i );
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
     always_comb begin
@@ -298,6 +325,29 @@ module hyperbus_axi #(
     assign ser_out_rsp.r.id     = '0;
     assign ser_out_rsp.r.user   = '0;
 
+    always_comb begin
+       s_rx_valid = rx_valid_i;
+       rx_ready_o = s_rx_ready;
+       s_rx_data = rx_i.data;
+       s_rx_last = rx_i.last;
+       s_rx_error = rx_i.error;
+       s_rx_data_lower_d = s_rx_data_lower_q;
+       merge_r_d = merge_r_q;
+       if( (NumPhys==2) & (~phys_in_use_i) ) begin
+          if(rx_valid_i & s_rx_ready) begin
+             merge_r_d = merge_r_q + 1;
+          end
+          s_rx_data = { rx_i.data[NumPhys*16/2-1:0] , s_rx_data_lower_q };
+          s_rx_valid = rx_valid_i & merge_r_q;
+          rx_ready_o = s_rx_ready;
+          s_rx_last = rx_i.last & merge_r_q;
+          s_rx_error = rx_i.error;
+          if(~merge_r_q) begin
+             s_rx_data_lower_d = rx_i.data[PhyDataWidth/2-1:0];
+          end
+       end
+    end
+
     hyperbus_phy2r #(
         .AxiDataWidth  ( AxiDataWidth                  ),
         .BurstLength   ( hyperbus_pkg::HyperBurstWidth ),
@@ -311,16 +361,18 @@ module hyperbus_axi #(
         .start_addr      ( rr_out_req_ax.addr[AxiBusAddrWidth-1:0] ),
         .burst_len       ( ax_blen_postinc                         ),
         .is_a_read       ( !rr_out_req_write                       ),
-        .phy_valid_i     ( rx_valid_i                              ),
-        .phy_ready_o     ( rx_ready_o                              ),
-        .data_i          ( rx_i.data                               ),
-        .last_i          ( rx_i.last                               ),
-        .error_i         ( rx_i.error                              ),
+        .phy_valid_i     ( s_rx_valid                              ),
+        .phy_ready_o     ( s_rx_ready                              ),
+        .data_i          ( s_rx_data                               ),
+        .last_i          ( s_rx_last                               ),
+        .error_i         ( s_rx_error                              ),
         .axi_valid_o     ( ser_out_rsp.r_valid                     ),
         .axi_ready_i     ( ser_out_req.r_ready                     ),
         .data_o          ( s_r_split                               )
     );
 
+    `FFARN(merge_r_q,merge_r_d,1'b0,clk_i,rst_ni)
+    `FFARN(s_rx_data_lower_q,s_rx_data_lower_d,'0,clk_i,rst_ni)
 
     // =========================================================
     //    W channel: Buffer. Cuts path and upsamples when needed
@@ -365,13 +417,37 @@ module hyperbus_axi #(
         .data_i          ( w_data_fifo                             ),
         .axi_valid_i     ( w_data_valid                            ),
         .axi_ready_o     ( w_data_ready                            ),
-        .data_o          ( tx_o.data                               ),
-        .last_o          ( tx_o.last                               ),
-        .strb_o          ( tx_o.strb                               ),
-        .phy_valid_o     ( tx_valid_o                              ),
-        .phy_ready_i     ( tx_ready_i                              )
+        .data_o          ( s_tx_data                               ),
+        .last_o          ( s_tx_last                               ),
+        .strb_o          ( s_tx_strb                               ),
+        .phy_valid_o     ( s_tx_valid                              ),
+        .phy_ready_i     ( s_tx_ready                              )
     );
 
+    always_comb begin
+       tx_o.data = s_tx_data;
+       tx_o.strb = s_tx_strb;
+       tx_o.last = s_tx_last;
+       tx_valid_o = s_tx_valid;
+       s_tx_ready = tx_ready_i;
+       split_w_d = split_w_q;
+       if( (NumPhys==2) & (~phys_in_use_i) ) begin
+          if(s_tx_valid & tx_ready_i) begin
+             split_w_d = split_w_q+1;
+          end
+          tx_o.last = s_tx_last & split_w_q;
+          tx_valid_o = s_tx_valid;
+          s_tx_ready = tx_ready_i & split_w_q;
+          tx_o.data = { s_tx_data[16-1:0] , s_tx_data[16-1:0] };
+          tx_o.strb = { s_tx_strb[1:0] , s_tx_strb[1:0] };
+          if(split_w_q) begin
+             tx_o.data = { s_tx_data[NumPhys*16-1:NumPhys*16/2] , s_tx_data[NumPhys*16-1:NumPhys*16/2] };
+             tx_o.strb = { s_tx_strb[NumPhys*2-1:NumPhys] , s_tx_strb[NumPhys*2-1:NumPhys] };
+          end
+       end
+    end
+
+    `FFARN(split_w_q,split_w_d,1'b0,clk_i,rst_ni)
 
     // ============================
     //    B channel: passthrough
