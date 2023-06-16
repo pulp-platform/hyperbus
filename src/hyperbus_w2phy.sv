@@ -30,10 +30,6 @@ module hyperbus_w2phy #(
   output logic [2*NumPhys-1:0]  strb_o
 );
 
-   localparam  int unsigned NumAxiBytes = AxiDataWidth/8;
-   localparam  int unsigned NumPhyBytes = NumPhys*2;
-   localparam  int unsigned AxiBytesInPhyBeat = NumAxiBytes/NumPhyBytes;
-   localparam  int unsigned WordCntWidth = (AxiBytesInPhyBeat==1) ? 1 : $clog2(AxiBytesInPhyBeat);
    // Cutting the combinatorial path between AXI master and cdc fifo
    typedef enum logic [2:0] {
        Idle,
@@ -58,7 +54,6 @@ module hyperbus_w2phy #(
    
 
    logic [NumPhys*2-1:0]         mask_strobe_d, mask_strobe_q;
-   logic [WordCntWidth-1:0]      word_cnt;   
    logic [AddrWidth-1:0]         byte_idx_d, byte_idx_q;
    logic [3:0]                   size_d, size_q;
    logic [AddrWidth-1:0]         cnt_data_phy_d, cnt_data_phy_q;
@@ -70,32 +65,25 @@ module hyperbus_w2phy #(
    assign upsize = (is_16_bw && (NumPhys==2)) | is_8_bw ;
    assign upsize_q = ( (size_q==1) && (NumPhys==2)) | (size_q==0) ;
    assign enough_data = !upsize;
-   assign keep_sampling = (size_d<($clog2(NumPhys)+1)) && (byte_idx_d[NumPhys-1:0]!='0);
-   assign keep_sending =  (size_d>($clog2(NumPhys)+1)) && (cnt_data_phy_d != byte_idx_q);
-   assign word_cnt = cnt_data_phy_q>>($clog2(NumPhys)+1);
-   
+   assign keep_sampling = (byte_idx_d!='0);
+   assign keep_sending =  (byte_idx_q!='0);
 
-   assign data_o = data_buffer_q.data[(16*NumPhys)*word_cnt +:(16*NumPhys)];
-   assign strb_o = data_buffer_q.strb[ (2*NumPhys)*word_cnt +: (2*NumPhys)] & mask_strobe_q;
+   assign data_o = data_buffer_q.data;
+   assign strb_o = data_buffer_q.strb & mask_strobe_q;
    assign last_o = data_buffer_q.last && (!keep_sending || upsize_q);
                         
    always_comb begin : counter
       byte_idx_d = byte_idx_q;
       size_d = size_q;
-      cnt_data_phy_d = cnt_data_phy_q;
       first_tx_d = first_tx_q;
       if (trans_handshake & is_a_write) begin
          byte_idx_d = start_addr;
          size_d = size;
-         cnt_data_phy_d = (start_addr>>NumPhys)<<NumPhys;
          first_tx_d = 1'b1;
       end
       if ( axi_valid_i & axi_ready_o ) begin
          byte_idx_d = ((byte_idx_q>>size_d)<< size_d) + (1<<size_d);
          first_tx_d = 1'b0;
-      end
-      if ( phy_valid_o & phy_ready_i ) begin
-         cnt_data_phy_d = cnt_data_phy_q + NumPhys*2;
       end
    end 
    
@@ -117,9 +105,14 @@ module hyperbus_w2phy #(
                for (int i=0; i<byte_idx_q; i++)
                  data_buffer_d.strb[i]='0;
             end
-         end else begin
-            data_buffer_d.strb[byte_idx_q +: (2*NumPhys)] = data_i.strb[byte_idx_q +: (2*NumPhys)];
-            data_buffer_d.data[byte_idx_q*8 +: (8*NumPhys)] = data_i.data[byte_idx_q*8 +: (8*NumPhys)];
+         end else begin // if (!upsize)
+            // for each byte
+            for(int i = 0; i < NumPhys*2; i++) begin
+               if( (i>=byte_idx_q) || (i<=(byte_idx_q+(2*NumPhys)))) begin
+                  data_buffer_d.strb[i] = data_i.strb[i];
+                  data_buffer_d.data[i*8 +: 8] = data_i.data[i*8 +: 8];
+               end
+            end
             data_buffer_d.last = data_i.last;
             if(first_tx_q) begin
                for (int j=0; j<byte_idx_q; j++)
@@ -163,27 +156,10 @@ module hyperbus_w2phy #(
            axi_ready_o = 1'b0;
            phy_valid_o = 1'b1;
            if(phy_ready_i) begin
-              if(last_o) begin
-                 if(trans_handshake) begin
-                    state_d = Sample;
-                 end else begin
-                    state_d = Idle;
-                 end
-              end else if (size_d>=NumPhys) begin
-                 if (cnt_data_phy_d != byte_idx_q) begin
-                   state_d = CntReady;
-                 end else if (axi_valid_i) begin
-                    axi_ready_o = 1'b1;
-                    state_d = enough_data ? CntReady : Sample;
-                 end else begin
-                   state_d = Sample;
-                 end
-              end else if (size_d<NumPhys) begin
-                 if (cnt_data_phy_d[NumPhys-1:0]=='0) begin
-                    axi_ready_o = !upsize;
-                    state_d = Sample;
-                 end 
-              end
+              if(last_o & ~trans_handshake)
+                state_d = Idle;
+              else
+                state_d = Sample;
            end
         end
       endcase 
@@ -196,7 +172,6 @@ module hyperbus_w2phy #(
            state_q <= Idle;
            byte_idx_q <= '0;
            size_q <= '0;
-           cnt_data_phy_q <= '0;
            first_tx_q <= '0;
            mask_strobe_q <= '0;
        end else begin
@@ -204,7 +179,6 @@ module hyperbus_w2phy #(
            data_buffer_q <= data_buffer_d;
            byte_idx_q <= byte_idx_d;
            size_q <= size_d;
-           cnt_data_phy_q <= cnt_data_phy_d;
            first_tx_q <= first_tx_d;
            mask_strobe_q <= mask_strobe_d;
        end
