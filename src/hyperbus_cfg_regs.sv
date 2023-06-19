@@ -92,7 +92,7 @@ module hyperbus_cfg_regs #(
                 'h5: cfg_d.t_tx_clk_delay           = (~wmask & cfg_q.t_tx_clk_delay          ) | (wmask & reg_req_i.wdata);
                 'h6: cfg_d.address_mask_msb         = (~wmask & cfg_q.address_mask_msb        ) | (wmask & reg_req_i.wdata);
                 'h7: cfg_d.address_space            = (~wmask & cfg_q.address_space           ) | (wmask & reg_req_i.wdata);
-                'h8: cfg_d.phys_in_use              = (~wmask & cfg_q.phys_in_use             ) | (wmask & reg_req_i.wdata);
+                'h8: cfg_d.phys_in_use              = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.phys_in_use ) | (wmask & reg_req_i.wdata) );
                 default: begin
                     {sel_chip, chip_reg} = sel_reg - NumBaseRegs;
                     crange_d[sel_chip][chip_reg] = (~wmask & crange_q[sel_chip][chip_reg]) |  (wmask & reg_req_i.wdata);
