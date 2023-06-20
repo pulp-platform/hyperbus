@@ -28,7 +28,7 @@ module hyperbus_cfg_regs #(
     `include "common_cells/registers.svh"
 
     // Internal Parameters
-    localparam int unsigned NumBaseRegs     = 9;
+    localparam int unsigned NumBaseRegs     = 10;
     localparam int unsigned NumRegs         = 2*NumChips + NumBaseRegs;
     localparam int unsigned RegsBits        = cf_math_pkg::idx_width(NumRegs);
     localparam int unsigned RegStrbWidth    = RegDataWidth/8;                   // TODO ASSERT: Must be power of two >= 16!!
@@ -57,6 +57,7 @@ module hyperbus_cfg_regs #(
         if (sel_reg_mapped) begin
             rfield = {
                 crange_q,
+                reg_data_t'(cfg_q.which_phy),
                 reg_data_t'(cfg_q.phys_in_use),
                 reg_data_t'(cfg_q.address_space),
                 reg_data_t'(cfg_q.address_mask_msb),
@@ -93,6 +94,7 @@ module hyperbus_cfg_regs #(
                 'h6: cfg_d.address_mask_msb         = (~wmask & cfg_q.address_mask_msb        ) | (wmask & reg_req_i.wdata);
                 'h7: cfg_d.address_space            = (~wmask & cfg_q.address_space           ) | (wmask & reg_req_i.wdata);
                 'h8: cfg_d.phys_in_use              = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.phys_in_use ) | (wmask & reg_req_i.wdata) );
+                'h9: cfg_d.which_phy                = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.which_phy   ) | (wmask & reg_req_i.wdata) );
                 default: begin
                     {sel_chip, chip_reg} = sel_reg - NumBaseRegs;
                     crange_d[sel_chip][chip_reg] = (~wmask & crange_q[sel_chip][chip_reg]) |  (wmask & reg_req_i.wdata);
@@ -111,7 +113,8 @@ module hyperbus_cfg_regs #(
         t_tx_clk_delay:             'h8,
         address_mask_msb:           'd25,       // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
         address_space:              'b0,
-        phys_in_use:                NumPhys-1
+        phys_in_use:                NumPhys-1,
+        which_phy:                  NumPhys-1
     };
 
     for (genvar i = 0; unsigned'(i) < NumChips; i++) begin : gen_crange_rstval

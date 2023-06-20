@@ -19,6 +19,7 @@ package hyperbus_pkg;
         logic [4:0]     address_mask_msb;
         logic           address_space;
         logic           phys_in_use;
+        logic           which_phy;
     } hyper_cfg_t;
 
     typedef struct packed {
