@@ -168,7 +168,7 @@ module hyperbus_axi #(
     // ============================
 
     // Block unsupported atomics
-    axi_atop_filter #(
+/*    axi_atop_filter #(
         .AxiIdWidth         ( AxiIdWidth    ),
         .AxiMaxWriteTxns    ( 1             ),
         .axi_req_t          ( axi_req_t     ),
@@ -181,7 +181,7 @@ module hyperbus_axi #(
         .mst_req_o  ( atop_out_req  ),
         .mst_resp_i ( atop_out_rsp  )
     );
-
+*/
     // Ensure we only handle one ID (master) at a time
     axi_serializer #(
         .MaxReadTxns    ( 1             ),
@@ -192,8 +192,10 @@ module hyperbus_axi #(
     ) i_axi_serializer (
         .clk_i,
         .rst_ni,
-        .slv_req_i  ( atop_out_req  ),
-        .slv_resp_o ( atop_out_rsp  ),
+//        .slv_req_i  ( atop_out_req  ),
+//        .slv_resp_o ( atop_out_rsp  ),
+        .slv_req_i  ( axi_req_i     ),
+        .slv_resp_o ( axi_rsp_o     ),
         .mst_req_o  ( ser_out_req   ),
         .mst_resp_i ( ser_out_rsp   )
     );
@@ -311,25 +313,22 @@ module hyperbus_axi #(
     assign trans_o.write            = rr_out_req_write;
     assign trans_o.burst_type       = 1'b1;             // Wrapping bursts not (yet) supported
     assign trans_o.address_space    = addr_space_i;
-    assign trans_o.address          = (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( phys_in_use );
+    assign trans_o.address          = ( (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( NumPhys ) ) << ( (NumPhys==2) & ~phys_in_use_i );
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
     assign ax_blen_inc   = 1'b1;
     always_comb begin
-        trans_o.burst= phys_in_use;
-        if (rr_out_req_ax.size == phys_in_use) begin
+        trans_o.burst= NumPhys;
+        if (rr_out_req_ax.size == NumPhys) begin
            trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1));
         end else begin
            if (ax_blen_postinc==1) begin
-              trans_o.burst= phys_in_use;
+              trans_o.burst= NumPhys;
            end else begin
               if ( aligned_addr(rr_out_req_ax.addr,rr_out_req_ax.size) != rr_out_req_ax.addr) begin
-                 trans_o.burst = ( ( ( (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> phys_in_use ) + 1 ) << (phys_in_use-1);
+                 trans_o.burst = ( ( ( (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
               end else begin
-                 if(phys_in_use_i)
-                   trans_o.burst = ( ( ( rr_out_req_ax.addr[1:0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> phys_in_use ) + 1 ) << (phys_in_use-1);
-                 else
-                   trans_o.burst = ( ( ( rr_out_req_ax.addr[0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> phys_in_use ) + 1 ) << (phys_in_use-1);
+                 trans_o.burst = ( ( ( rr_out_req_ax.addr[NumPhys-1:0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
               end
            end
         end
@@ -356,16 +355,14 @@ module hyperbus_axi #(
        s_rx_data_lower_d = s_rx_data_lower_q;
        merge_r_d = merge_r_q;
        if( (NumPhys==2) & (~phys_in_use_i) ) begin
-          if(trans_handshake & ~rr_out_req_write) begin
-             merge_r_d = rr_out_req_ax.addr[1];
-          end else if(rx_valid_i & s_rx_ready) begin
+          if(rx_valid_i & s_rx_ready) begin
              merge_r_d = merge_r_q + 1;
           end
           s_rx_data = { rx_i.data[NumPhys*16-1:NumPhys*16/2] , s_rx_data_lower_d };
-          s_rx_valid = rx_valid_i & (merge_r_q | rx_i.last);
+          s_rx_valid = rx_valid_i & merge_r_q;
           rx_ready_o = s_rx_ready;
           s_rx_data = rx_i.data;
-          s_rx_last = rx_i.last;
+          s_rx_last = rx_i.last & merge_r_q;
           s_rx_error = rx_i.error;
           if(~merge_r_q) begin
              s_rx_data_lower_d = rx_i.data[AxiPhyDataWidth/2-1:0];
@@ -462,7 +459,7 @@ module hyperbus_axi #(
           end
           tx_o.last = s_tx_last & split_w_q;
           tx_valid_o = s_tx_valid;
-          s_tx_ready = tx_ready_i  & split_w_q;
+          s_tx_ready = tx_ready_i & split_w_q;
           tx_o.data[NumPhys*16-1:NumPhys*16/2] = s_tx_data[NumPhys*16/2-1:0];
           tx_o.data[NumPhys*16/2-1:0] = s_tx_data[NumPhys/2*16-1:0];
           if(~split_w_q) begin
