@@ -53,6 +53,8 @@ module hyperbus_axi #(
 
     localparam AxiDataBytes    = AxiDataWidth/8;
     localparam AxiBusAddrWidth = $clog2(AxiDataBytes);
+    localparam PhyDataWidth    = NumPhys*16;
+    localparam PhyDataBytes    = PhyDataWidth/8;
     localparam ChipSelWidth    = cf_math_pkg::idx_width(NumChips);
     localparam ByteCntWidth    = cf_math_pkg::idx_width(AxiDataBytes);
 
@@ -124,13 +126,13 @@ module hyperbus_axi #(
     axi_r_t         s_r_split;
 
     // R channel merge when phys_in_use != NumPhys
-    axi_data_t                    s_rx_data;
-    logic [AxiPhyDataWidth/2-1:0] s_rx_data_lower_d, s_rx_data_lower_q;
-    logic                         s_rx_error;
-    logic                         s_rx_last;
-    logic                         s_rx_valid;
-    logic                         s_rx_ready;
-    logic                         merge_r_d, merge_r_q;
+    logic [PhyDataWidth-1:0]   s_rx_data;
+    logic [PhyDataWidth/2-1:0] s_rx_data_lower_d, s_rx_data_lower_q;
+    logic                      s_rx_error;
+    logic                      s_rx_last;
+    logic                      s_rx_valid;
+    logic                      s_rx_ready;
+    logic                      merge_r_d, merge_r_q;
 
     // W channel
     logic w_data_valid;
@@ -139,12 +141,12 @@ module hyperbus_axi #(
     axi_w_chan_t w_data_fifo_in;
 
     // W channel split when phys_in_use != NumPhys
-    axi_data_t                   s_tx_data;
-    logic [AxiPhyDataBytes-1:0]  s_tx_strb;
-    logic                        s_tx_last;
-    logic                        s_tx_valid;
-    logic                        s_tx_ready;
-    logic                        split_w_d, split_w_q;
+    logic [PhyDataWidth-1:0]  s_tx_data;
+    logic [PhyDataBytes-1:0]  s_tx_strb;
+    logic                     s_tx_last;
+    logic                     s_tx_valid;
+    logic                     s_tx_ready;
+    logic                     split_w_d, split_w_q;
 
     // Whether a transfer is currently active
     logic           trans_active_d, trans_active_q;
@@ -279,16 +281,30 @@ module hyperbus_axi #(
     assign trans_o.address          = ( (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( NumPhys ) ) << ( (NumPhys==2) & ~phys_in_use_i );
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
-    assign ax_blen_inc   = 1'b1;
     always_comb begin
         trans_o.burst= NumPhys;
-        if (rr_out_req_ax.size == NumPhys) begin
+        ax_blen_inc   = 1'b1;
+        if (rr_out_req_ax.size > NumPhys) begin
+           ax_blen_inc   = 1'b1;
+           if( ((rr_out_req_ax.addr>>rr_out_req_ax.size)<<rr_out_req_ax.size) != rr_out_req_ax.addr) begin
+              if (rr_out_req_ax.size==2) begin
+                 trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1)) - 1;
+              end else if (rr_out_req_ax.size==3) begin
+                 trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1)) - (rr_out_req_ax.addr[2]<<1) - (rr_out_req_ax.addr[1] && (NumPhys==1));
+              end else if (rr_out_req_ax.size==4) begin
+                   trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1)) - (rr_out_req_ax.addr[3:2]<<1) - (rr_out_req_ax.addr[1] && (NumPhys==1));
+              end
+           end else begin
+              trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1));
+           end
+        end else if (rr_out_req_ax.size == NumPhys) begin
            trans_o.burst = (ax_blen_postinc << (rr_out_req_ax.size-1));
         end else begin
+           ax_blen_inc = 1'b1;
            if (ax_blen_postinc==1) begin
               trans_o.burst= NumPhys;
            end else begin
-              if ( aligned_addr(rr_out_req_ax.addr,rr_out_req_ax.size) != rr_out_req_ax.addr) begin
+              if ( ((rr_out_req_ax.addr>>rr_out_req_ax.size)<<rr_out_req_ax.size) != rr_out_req_ax.addr) begin
                  trans_o.burst = ( ( ( (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
               end else begin
                  trans_o.burst = ( ( ( rr_out_req_ax.addr[NumPhys-1:0] + (ax_blen_postinc<<rr_out_req_ax.size) - 1 ) >> NumPhys ) + 1 ) << (NumPhys-1);
@@ -327,7 +343,7 @@ module hyperbus_axi #(
           s_rx_last = rx_i.last & merge_r_q;
           s_rx_error = rx_i.error;
           if(~merge_r_q) begin
-             s_rx_data_lower_d = rx_i.data[AxiPhyDataWidth/2-1:0];
+             s_rx_data_lower_d = rx_i.data[PhyDataWidth/2-1:0];
           end
        end
     end
