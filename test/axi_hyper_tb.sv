@@ -57,6 +57,8 @@ module axi_hyper_tb
   localparam int unsigned TbDramDataWidth = 8;
   localparam int unsigned TbDramLenWidth  = 32'h80000;
 
+  logic                  end_of_sim;
+
   ////////////////////////////////
   // Stimuli generator typedefs //
   ////////////////////////////////
@@ -133,11 +135,13 @@ module axi_hyper_tb
   logic [31:0] reg_read;
      
   initial begin : proc_sim_crtl
+
     automatic axi_scoreboard_mst_t   mst_scoreboard  = new( score_mst_intf_dv );
     automatic axi_rand_master_t      axi_master      = new( axi_mst_intf_dv   );
     automatic reg_bus_master_t       reg_master      = new( reg_bus_mst       );
 
     // Reset the AXI drivers and scoreboards
+    end_of_sim = 1'b0;
     mst_scoreboard.reset();
     axi_master.reset();
     reg_master.reset_master();
@@ -175,6 +179,8 @@ module axi_hyper_tb
        reg_master.send_write(32'h20,1'b0,'1,s_reg_error);
        if (s_reg_error != 1'b0) $error("unexpected error");
 
+       axi_master.reset();
+
        $display("===========================");
        $display("= Random AXI transactions =");
        $display("===========================");
@@ -187,6 +193,7 @@ module axi_hyper_tb
 
     end // if (NumPhys==2)
 
+    end_of_sim = 1'b1;
     $finish();
   end
 
@@ -194,6 +201,7 @@ module axi_hyper_tb
   // Design under test //
   ///////////////////////
   dut_if  #(
+    .TbTestTime      ( TbTestTime         ),
     .AxiDataWidth    ( TbAxiDataWidthFull ),
     .AxiAddrWidth    ( TbAxiAddrWidthFull ),
     .AxiIdWidth      ( TbAxiIdWidthFull   ),
@@ -210,6 +218,7 @@ module axi_hyper_tb
     // clk and rst signal
     .clk_i      ( clk             ),
     .rst_ni     ( rst_n           ),
+    .end_sim_i  ( end_of_sim      ),
     .axi_slv_if ( axi_mst_intf_dv ),
     .reg_slv_if ( reg_bus_mst     )
   );
