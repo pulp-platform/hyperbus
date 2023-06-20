@@ -13,6 +13,7 @@
 
 module dut_if 
 #(
+  parameter time TbTestTime      = 4ns,
   parameter int  AxiDataWidth    = -1,
   parameter int  AxiAddrWidth    = -1,
   parameter int  AxiIdWidth      = -1,
@@ -28,6 +29,7 @@ module dut_if
 )(
  input logic clk_i,
  input logic rst_ni,
+ input logic end_sim_i,
 
  AXI_BUS_DV.Slave axi_slv_if,
  REG_BUS.in       reg_slv_if
@@ -86,6 +88,40 @@ module dut_if
     wire  [NumPhys-1:0]                pad_hyper_reset;
     wire  [NumPhys-1:0][7:0]           pad_hyper_dq;
    
+  axi_chan_logger #(
+    .aw_chan_t ( axi_aw_chan_t ),
+    .w_chan_t  ( axi_w_chan_t  ),
+    .b_chan_t  ( axi_b_chan_t  ),
+    .ar_chan_t ( axi_ar_chan_t ),
+    .r_chan_t  ( axi_r_chan_t  ),
+    .TestTime  ( TbTestTime    )
+  ) i_chan_logger
+    (
+    .clk_i      ( clk_i             ),
+    .rst_ni     ( rst_ni            ),
+    .end_sim_i  ( end_sim_i         ),
+
+    .aw_chan_i  ( axi_req.aw        ),
+    .aw_valid_i ( axi_req.aw_valid  ),
+    .aw_ready_i ( axi_resp.aw_ready ),
+
+    .w_chan_i   ( axi_req.w         ),
+    .w_valid_i  ( axi_req.w_valid   ),
+    .w_ready_i  ( axi_resp.w_ready  ),
+
+    .b_chan_i   ( axi_resp.b        ),
+    .b_valid_i  ( axi_resp.b_valid  ),
+    .b_ready_i  ( axi_req.b_ready   ),
+
+    .ar_chan_i  ( axi_req.ar        ),
+    .ar_valid_i ( axi_req.ar_valid  ),
+    .ar_ready_i ( axi_resp.ar_ready ),
+
+    .r_chan_i   ( axi_resp.r        ),
+    .r_valid_i  ( axi_resp.r_valid  ),
+    .r_ready_i  ( axi_req.r_ready   )
+     );
+
     // DUT
     hyperbus #(
         .NumChips       ( NumChips      ),
