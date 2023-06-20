@@ -22,11 +22,11 @@ module axi_hyper_tb
   /// Number of random read transactions in a testblock.
   parameter int unsigned TbNumReads = 32'd200,
   /// Cycle time for the TB clock generator
-  parameter time         TbCyclTime =  4ns,
+  parameter time         TbCyclTime =  5ns,
   /// Application time to the DUT
-  parameter time         TbApplTime =  2ns,
+  parameter time         TbApplTime =  1ns,
   /// Test time of the DUT
-  parameter time         TbTestTime =  2ns
+  parameter time         TbTestTime =  4ns
 );
   /////////////////////////////
   // Axi channel definitions //
@@ -114,7 +114,7 @@ module axi_hyper_tb
     .clk_i ( clk )
   );
 
- // `AXI_ASSIGN_MONITOR(score_mst_intf_dv, axi_mst_intf_dv)
+  `AXI_ASSIGN_MONITOR(score_mst_intf_dv, axi_mst_intf_dv)
 
   REG_BUS #(
     .ADDR_WIDTH(RegBusAW),
