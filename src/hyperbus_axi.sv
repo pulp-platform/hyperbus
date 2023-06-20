@@ -15,11 +15,6 @@ module hyperbus_axi #(
     parameter int unsigned AxiUserWidth  = -1,
     parameter type         axi_req_t     = logic,
     parameter type         axi_rsp_t     = logic,
-    parameter type         axi_w_chan_t  = logic,
-    parameter type         axi_b_chan_t  = logic,
-    parameter type         axi_ar_chan_t = logic,
-    parameter type         axi_r_chan_t  = logic,
-    parameter type         axi_aw_chan_t = logic,
     parameter int unsigned NumChips    	 = -1,
     parameter int unsigned NumPhys       = -1,
     parameter type         hyper_tx_t    = logic,
@@ -56,21 +51,16 @@ module hyperbus_axi #(
     output logic                    trans_active_o
 );
 
-    import axi_pkg::aligned_addr;
-
-    localparam AxiPhyDataWidth = NumPhys*16;
-    localparam AxiPhyDataBytes = AxiPhyDataWidth/8;
-    localparam AxiBusAddrWidth = $clog2(AxiPhyDataBytes);
+    localparam AxiDataBytes    = AxiDataWidth/8;
+    localparam AxiBusAddrWidth = $clog2(AxiDataBytes);
     localparam ChipSelWidth    = cf_math_pkg::idx_width(NumChips);
-    localparam ByteCntWidth    = cf_math_pkg::idx_width(AxiPhyDataBytes);
+    localparam ByteCntWidth    = cf_math_pkg::idx_width(AxiDataBytes);
 
-    typedef logic [AxiAddrWidth-1:0]    axi_addr_t;
-    typedef logic [ByteCntWidth-1:0]    byte_cnt_t;
-    typedef logic [ByteCntWidth-3:0]    word_cnt_t;
-    typedef logic [AxiPhyDataWidth-1:0] axi_data_t;
-    typedef logic [ChipSelWidth-1:0]    chip_sel_idx_t;
-
-    `AXI_TYPEDEF_ALL(axi2phy,axi_addr_t,logic[AxiIdWidth-1:0],axi_data_t,logic[AxiPhyDataBytes-1:0],logic[AxiUserWidth-1:0])
+    typedef logic [AxiAddrWidth-1:0] axi_addr_t;
+    typedef logic [ByteCntWidth-1:0] byte_cnt_t;
+    typedef logic [ByteCntWidth-3:0] word_cnt_t;
+    typedef logic [AxiDataWidth-1:0] axi_data_t;
+    typedef logic [ChipSelWidth-1:0] chip_sel_idx_t;
 
     // No need to track ID: serializer buffers it for us
     typedef struct packed {
@@ -93,6 +83,13 @@ module hyperbus_axi #(
     } axi_r_t;
 
     typedef struct packed {
+        logic [AxiDataWidth/8-1:0] strb;
+        axi_data_t                 data;
+        logic [AxiUserWidth-1:0]   user;
+        logic                      last;
+    } axi_w_chan_t;
+
+    typedef struct packed {
         logic [7:0]         data;
         logic               strb;
     } axi_wbyte_t;
@@ -104,12 +101,8 @@ module hyperbus_axi #(
     // ID serializer downstream
     axi_req_t       ser_out_req;
     axi_rsp_t       ser_out_rsp;
-
-    // DW converter downstream
-    axi2phy_req_t   dw_out_req;
-    axi2phy_resp_t  dw_out_rsp;
-    axi_ax_t        dw_out_req_aw;
-    axi_ax_t        dw_out_req_ar;
+    axi_ax_t        ser_out_req_aw;
+    axi_ax_t        ser_out_req_ar;
 
     // AX arbiter downstream
     axi_ax_t           rr_out_req_ax;
@@ -142,8 +135,8 @@ module hyperbus_axi #(
     // W channel
     logic w_data_valid;
     logic w_data_ready;
-    axi2phy_w_chan_t w_data_fifo;
-    axi2phy_w_chan_t w_data_fifo_in;
+    axi_w_chan_t w_data_fifo;
+    axi_w_chan_t w_data_fifo_in;
 
     // W channel split when phys_in_use != NumPhys
     axi_data_t                   s_tx_data;
@@ -198,44 +191,16 @@ module hyperbus_axi #(
         .mst_resp_i ( ser_out_rsp   )
     );
 
-
-   // Convert to 16*NumPhys data bus width
-   axi_dw_converter #(
-     .AxiMaxReads         ( 1                ),
-     .AxiSlvPortDataWidth ( AxiDataWidth     ),
-     .AxiMstPortDataWidth ( 16*NumPhys       ),
-     .AxiAddrWidth        ( AxiAddrWidth     ),
-     .AxiIdWidth          ( AxiIdWidth       ),
-     .axi_slv_req_t       ( axi_req_t        ),
-     .axi_slv_resp_t      ( axi_rsp_t        ),
-     .axi_mst_req_t       ( axi2phy_req_t    ),
-     .axi_mst_resp_t      ( axi2phy_resp_t   ),
-     .aw_chan_t           ( axi_aw_chan_t    ),
-     .b_chan_t            ( axi_b_chan_t     ),
-     .ar_chan_t           ( axi_ar_chan_t    ),
-     .slv_w_chan_t        ( axi_w_chan_t     ),
-     .slv_r_chan_t        ( axi_r_chan_t     ),
-     .mst_w_chan_t        ( axi2phy_w_chan_t ),
-     .mst_r_chan_t        ( axi2phy_r_chan_t )
-   ) i_axi_dw_converter (
-      .clk_i,
-      .rst_ni,
-      .slv_req_i  ( ser_out_req ),
-      .slv_resp_o ( ser_out_rsp ),
-      .mst_req_o  ( dw_out_req  ),
-      .mst_resp_i ( dw_out_rsp  )
-    );
-
     // Round-robin-arbitrate between AR and AW channels (HyperBus is simplex)
-    assign dw_out_req_ar.addr  = dw_out_req.ar.addr;
-    assign dw_out_req_ar.len   = dw_out_req.ar.len;
-    assign dw_out_req_ar.burst = dw_out_req.ar.burst;
-    assign dw_out_req_ar.size  = dw_out_req.ar.size;
+    assign ser_out_req_ar.addr  = ser_out_req.ar.addr;
+    assign ser_out_req_ar.len   = ser_out_req.ar.len;
+    assign ser_out_req_ar.burst = ser_out_req.ar.burst;
+    assign ser_out_req_ar.size  = ser_out_req.ar.size;
 
-    assign dw_out_req_aw.addr  = dw_out_req.aw.addr;
-    assign dw_out_req_aw.len   = dw_out_req.aw.len;
-    assign dw_out_req_aw.burst = dw_out_req.aw.burst;
-    assign dw_out_req_aw.size  = dw_out_req.aw.size;
+    assign ser_out_req_aw.addr  = ser_out_req.aw.addr;
+    assign ser_out_req_aw.len   = ser_out_req.aw.len;
+    assign ser_out_req_aw.burst = ser_out_req.aw.burst;
+    assign ser_out_req_aw.size  = ser_out_req.aw.size;
 
     rr_arb_tree #(
         .NumIn      ( 2         ),
@@ -247,9 +212,9 @@ module hyperbus_axi #(
         .rst_ni,
         .flush_i    ( 1'b0              ),
         .rr_i       ( '0                ),
-        .req_i      ( { dw_out_req.aw_valid, dw_out_req.ar_valid } ),
-        .gnt_o      ( { dw_out_rsp.aw_ready, dw_out_rsp.ar_ready } ),
-        .data_i     ( { dw_out_req_aw,       dw_out_req_ar       } ),
+        .req_i      ( { ser_out_req.aw_valid, ser_out_req.ar_valid } ),
+        .gnt_o      ( { ser_out_rsp.aw_ready, ser_out_rsp.ar_ready } ),
+        .data_i     ( { ser_out_req_aw,       ser_out_req_ar       } ),
         .req_o      ( spill_ax_valid          ),
         .gnt_i      ( spill_ax_ready          ),
         .data_o     ( spill_rr_out_req_ax     ),
@@ -338,11 +303,11 @@ module hyperbus_axi #(
     //    R channel
     // ============================
 
-    assign dw_out_rsp.r.data   = s_r_split.data;
-    assign dw_out_rsp.r.last   = s_r_split.last;
-    assign dw_out_rsp.r.resp   = s_r_split.error ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
-    assign dw_out_rsp.r.id     = '0;
-    assign dw_out_rsp.r.user   = '0;
+    assign ser_out_rsp.r.data   = s_r_split.data;
+    assign ser_out_rsp.r.last   = s_r_split.last;
+    assign ser_out_rsp.r.resp   = s_r_split.error ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
+    assign ser_out_rsp.r.id     = '0;
+    assign ser_out_rsp.r.user   = '0;
 
     always_comb begin
        s_rx_valid = rx_valid_i;
@@ -368,7 +333,7 @@ module hyperbus_axi #(
     end
 
     hyperbus_phy2r #(
-        .AxiDataWidth  ( AxiPhyDataWidth               ),
+        .AxiDataWidth  ( AxiDataWidth                  ),
         .BurstLength   ( hyperbus_pkg::HyperBurstWidth ),
         .T             ( axi_r_t                       ),
         .NumPhys       ( NumPhys                       )
@@ -385,8 +350,8 @@ module hyperbus_axi #(
         .data_i          ( s_rx_data                               ),
         .last_i          ( s_rx_last                               ),
         .error_i         ( s_rx_error                              ),
-        .axi_valid_o     ( dw_out_rsp.r_valid                      ),
-        .axi_ready_i     ( dw_out_req.r_ready                      ),
+        .axi_valid_o     ( ser_out_rsp.r_valid                     ),
+        .axi_ready_i     ( ser_out_req.r_ready                     ),
         .data_o          ( s_r_split                               )
     );
 
@@ -397,15 +362,15 @@ module hyperbus_axi #(
     //    W channel: Buffer. Cuts path and upsamples when needed
     // =========================================================
 
-    assign w_data_fifo_in.data = dw_out_req.w.data;
-    assign w_data_fifo_in.strb = dw_out_req.w.strb;
-    assign w_data_fifo_in.last = dw_out_req.w.last;
-    assign w_data_fifo_in.user = dw_out_req.w.user;
+    assign w_data_fifo_in.data = ser_out_req.w.data;
+    assign w_data_fifo_in.strb = ser_out_req.w.strb;
+    assign w_data_fifo_in.last = ser_out_req.w.last;
+    assign w_data_fifo_in.user = ser_out_req.w.user;
 
     stream_fifo #(
-        .FALL_THROUGH ( 1'b0             ),
-        .T            ( axi2phy_w_chan_t ),
-        .DEPTH        ( 8                )
+        .FALL_THROUGH ( 1'b0         ),
+        .T            ( axi_w_chan_t ),
+        .DEPTH        ( 8            )
         ) wchan_stream_fifo (
         .clk_i,
         .rst_ni,
@@ -413,17 +378,17 @@ module hyperbus_axi #(
         .testmode_i ( 1'b0                ),
         .usage_o    (                     ),
         .data_i     ( w_data_fifo_in      ),
-        .valid_i    ( dw_out_req.w_valid  ),
-        .ready_o    ( dw_out_rsp.w_ready  ),
+        .valid_i    ( ser_out_req.w_valid ),
+        .ready_o    ( ser_out_rsp.w_ready ),
         .data_o     ( w_data_fifo         ),
         .valid_o    ( w_data_valid        ),
         .ready_i    ( w_data_ready        )
         );
 
     hyperbus_w2phy #(
-        .AxiDataWidth ( AxiPhyDataWidth               ),
+        .AxiDataWidth ( AxiDataWidth                  ),
         .BurstLength  ( hyperbus_pkg::HyperBurstWidth ),
-        .T            ( axi2phy_w_chan_t              ),
+        .T            ( axi_w_chan_t                  ),
         .NumPhys      ( NumPhys                       )
         ) i_hyperbus_w2phy (
         .clk_i,
@@ -472,11 +437,11 @@ module hyperbus_axi #(
     //    B channel: passthrough
     // ============================
 
-    assign dw_out_rsp.b.resp   = b_error_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
-    assign dw_out_rsp.b.user   = '0;
-    assign dw_out_rsp.b.id     = '0;
-    assign dw_out_rsp.b_valid  = b_valid_i;
-    assign b_ready_o            = dw_out_req.b_ready;
+    assign ser_out_rsp.b.resp   = b_error_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
+    assign ser_out_rsp.b.user   = '0;
+    assign ser_out_rsp.b.id     = '0;
+    assign ser_out_rsp.b_valid  = b_valid_i;
+    assign b_ready_o            = ser_out_req.b_ready;
 
     // ============================
     //    Transfer status
