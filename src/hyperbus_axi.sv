@@ -168,7 +168,7 @@ module hyperbus_axi #(
     // ============================
 
     // Block unsupported atomics
-/*    axi_atop_filter #(
+    axi_atop_filter #(
         .AxiIdWidth         ( AxiIdWidth    ),
         .AxiMaxWriteTxns    ( 1             ),
         .axi_req_t          ( axi_req_t     ),
@@ -181,7 +181,7 @@ module hyperbus_axi #(
         .mst_req_o  ( atop_out_req  ),
         .mst_resp_i ( atop_out_rsp  )
     );
-*/
+
     // Ensure we only handle one ID (master) at a time
     axi_serializer #(
         .MaxReadTxns    ( 1             ),
@@ -192,10 +192,8 @@ module hyperbus_axi #(
     ) i_axi_serializer (
         .clk_i,
         .rst_ni,
-//        .slv_req_i  ( atop_out_req  ),
-//        .slv_resp_o ( atop_out_rsp  ),
-        .slv_req_i  ( axi_req_i     ),
-        .slv_resp_o ( axi_rsp_o     ),
+        .slv_req_i  ( atop_out_req  ),
+        .slv_resp_o ( atop_out_rsp  ),
         .mst_req_o  ( ser_out_req   ),
         .mst_resp_i ( ser_out_rsp   )
     );
