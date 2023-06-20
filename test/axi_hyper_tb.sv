@@ -173,7 +173,7 @@ module axi_hyper_tb
        mst_scoreboard.clear_range(32'h8000_0000, 32'h8000_0000 + ( TbDramDataWidth * TbDramLenWidth ));
 
        $display("===========================");
-       $display("= Set phys_in_use to 0    =");
+       $display("= Use only phy 0          =");
        $display("===========================");
 
        reg_master.send_write(32'h20,1'b0,'1,s_reg_error);
@@ -187,6 +187,27 @@ module axi_hyper_tb
         
        axi_master.run(TbNumReads, TbNumWrites);
        
+       $display("===========================");
+       $display("=      Test finished      =");
+       $display("===========================");
+
+       mst_scoreboard.clear_range(32'h8000_0000, 32'h8000_0000 + ( TbDramDataWidth * TbDramLenWidth ));
+
+       $display("===========================");
+       $display("= Use only phy 1          =");
+       $display("===========================");
+
+       reg_master.send_write(32'h24,1'b1,'1,s_reg_error);
+       if (s_reg_error != 1'b0) $error("unexpected error");
+
+       axi_master.reset();
+
+       $display("===========================");
+       $display("= Random AXI transactions =");
+       $display("===========================");
+
+       axi_master.run(TbNumReads, TbNumWrites);
+
        $display("===========================");
        $display("=      Test finished      =");
        $display("===========================");

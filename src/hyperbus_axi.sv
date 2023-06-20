@@ -46,6 +46,7 @@ module hyperbus_axi #(
 
     input  rule_t [NumChips-1:0]    chip_rules_i,
     input  logic                    phys_in_use_i,
+    input  logic                    which_phy_i,
     input  logic [4:0]              addr_mask_msb_i,
     input  logic                    addr_space_i,
     output logic                    trans_active_o
@@ -337,13 +338,19 @@ module hyperbus_axi #(
           if(rx_valid_i & s_rx_ready) begin
              merge_r_d = merge_r_q + 1;
           end
-          s_rx_data = { rx_i.data[NumPhys*16/2-1:0] , s_rx_data_lower_q };
+          if(~which_phy_i)
+            s_rx_data = { rx_i.data[PhyDataWidth/2-1:0] , s_rx_data_lower_q };
+          else
+            s_rx_data = { rx_i.data[PhyDataWidth-1:PhyDataWidth/2] , s_rx_data_lower_q };
           s_rx_valid = rx_valid_i & merge_r_q;
           rx_ready_o = s_rx_ready;
           s_rx_last = rx_i.last & merge_r_q;
           s_rx_error = rx_i.error;
           if(~merge_r_q) begin
-             s_rx_data_lower_d = rx_i.data[PhyDataWidth/2-1:0];
+             if(~which_phy_i)
+               s_rx_data_lower_d = rx_i.data[PhyDataWidth/2-1:0];
+             else
+               s_rx_data_lower_d = rx_i.data[PhyDataWidth-1:PhyDataWidth/2];
           end
        end
     end
@@ -438,10 +445,10 @@ module hyperbus_axi #(
           tx_o.last = s_tx_last & split_w_q;
           tx_valid_o = s_tx_valid;
           s_tx_ready = tx_ready_i & split_w_q;
-          tx_o.data = { s_tx_data[16-1:0] , s_tx_data[16-1:0] };
-          tx_o.strb = { s_tx_strb[1:0] , s_tx_strb[1:0] };
+          tx_o.data = { s_tx_data[PhyDataWidth/2-1:0] , s_tx_data[PhyDataWidth/2-1:0] };
+          tx_o.strb = { s_tx_strb[NumPhys-1:0] , s_tx_strb[NumPhys-1:0] };
           if(split_w_q) begin
-             tx_o.data = { s_tx_data[NumPhys*16-1:NumPhys*16/2] , s_tx_data[NumPhys*16-1:NumPhys*16/2] };
+             tx_o.data = { s_tx_data[PhyDataWidth-1:PhyDataWidth/2] , s_tx_data[PhyDataWidth-1:PhyDataWidth/2] };
              tx_o.strb = { s_tx_strb[NumPhys*2-1:NumPhys] , s_tx_strb[NumPhys*2-1:NumPhys] };
           end
        end

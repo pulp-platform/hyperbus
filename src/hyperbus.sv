@@ -168,6 +168,7 @@ module hyperbus #(
         .trans_ready_i   ( axi_trans_ready      ),
 
         .chip_rules_i    ( chip_rules           ),
+        .which_phy_i     ( cfg.which_phy        ),
         .phys_in_use_i   ( cfg.phys_in_use      ),
         .addr_mask_msb_i ( cfg.address_mask_msb ),
         .addr_space_i    ( cfg.address_space    ),
