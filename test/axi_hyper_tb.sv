@@ -18,9 +18,9 @@ module axi_hyper_tb
   /// Data width of the full AXI bus
   parameter int unsigned TbAxiDataWidthFull = 32'd64,
   /// Number of random write transactions in a testblock.
-  parameter int unsigned TbNumWrites = 32'd200,
+  parameter int unsigned TbNumWrites = 32'd1000,
   /// Number of random read transactions in a testblock.
-  parameter int unsigned TbNumReads = 32'd200,
+  parameter int unsigned TbNumReads = 32'd1000,
   /// Cycle time for the TB clock generator
   parameter time         TbCyclTime =  5ns,
   /// Application time to the DUT
