@@ -13,7 +13,7 @@ package:
 
 dependencies:
   common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 1.21.0        }
-  axi:                 { git: "https://github.com/pulp-platform/axi.git",                version: 0.39.0-beta.4 }
+  axi:                 { git: "https://github.com/pulp-platform/axi.git",                rev: "da423834b45f2e1878ecb28a11dc5b72b437f9c1" } # master
   tech_cells_generic:  { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.4         }
   register_interface:  { git: "https://github.com/pulp-platform/register_interface.git", version: 0.3.2         }
 
