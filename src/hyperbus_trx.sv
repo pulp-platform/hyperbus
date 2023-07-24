@@ -8,8 +8,9 @@
 
 module hyperbus_trx #(
     parameter int unsigned IsClockODelayed = -1,
-    parameter int unsigned NumChips = 2,
-    parameter int unsigned RxFifoLogDepth = 3
+    parameter int unsigned NumChips        = 2,
+    parameter int unsigned RxFifoLogDepth  = 3,
+    parameter int unsigned SyncStages      = 2
 )(
     // Global signals
     input  logic            clk_i,
@@ -196,7 +197,8 @@ module hyperbus_trx #(
     // Cross input data from RWDS domain into system domain
     cdc_fifo_gray  #(
         .T          ( logic [15:0]      ),
-        .LOG_DEPTH  ( RxFifoLogDepth    )
+        .LOG_DEPTH  ( RxFifoLogDepth    ),
+        .SYNC_STAGES( SyncStages        )
     ) i_rx_rwds_cdc_fifo (
         // RWDS domain
         .src_clk_i   ( rx_rwds_clk_n      ),
