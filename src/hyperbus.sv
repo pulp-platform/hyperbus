@@ -32,7 +32,8 @@ module hyperbus #(
     parameter logic [RegDataWidth-1:0] RstChipBase  = 'h0,      // Base address for all chips
     parameter logic [RegDataWidth-1:0] RstChipSpace = 'h1_0000, // 64 KiB: Current maximum HyperBus device size
     parameter int unsigned  PhyStartupCycles = 300 * 200, /* us*MHz */ // Conservative maximum frequency estimate
-    parameter int unsigned  AxiLogDepth = 3
+    parameter int unsigned  AxiLogDepth = 3,
+    parameter int unsigned  SyncStages  = 2
 ) (
     input  logic                        clk_phy_i,
     input  logic                        rst_phy_ni,
@@ -181,7 +182,8 @@ module hyperbus #(
         .StartupCycles  ( PhyStartupCycles  ),
         .NumPhys        ( NumPhys           ),
         .hyper_rx_t     ( hyper_rx_t        ),
-        .hyper_tx_t     ( hyper_tx_t        )
+        .hyper_tx_t     ( hyper_tx_t        ),
+        .SyncStages     ( SyncStages        )
     ) i_phy (
         .clk_i          ( clk_phy_i_0       ),
         .clk_i_90       ( clk_phy_i_90      ),
