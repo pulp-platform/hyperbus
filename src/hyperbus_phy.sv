@@ -13,6 +13,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     parameter int unsigned NumPhys          = -1,
     parameter int unsigned TimerWidth       = 16,
     parameter int unsigned RxFifoLogDepth   = 3,
+    parameter int unsigned SyncStages       = 2,
     parameter int unsigned StartupCycles    = 300 /*us*/ * 200 /*MHz*/ // Conservative maximum frequency estimate
 )(
     input  logic                clk_i,
@@ -109,7 +110,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     hyperbus_trx #(
         .IsClockODelayed( IsClockODelayed   ),
         .NumChips       ( NumChips          ),
-        .RxFifoLogDepth ( RxFifoLogDepth    )
+        .RxFifoLogDepth ( RxFifoLogDepth    ),
+        .SyncStages     ( SyncStages        )
     ) i_trx (
         .clk_i,
         .clk_i_90,
@@ -195,7 +197,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     assign rx_data_o = trx_rx_data;
     assign rx_error_o = 1'b0;
     assign rx_last_o = (state_q != Read) & ctl_tf_burst_done & (r_outstand_q == 1);
-   
+
     assign trx_rx_ready     = rx_ready_i;
     assign rx_valid_o       = trx_rx_valid & (r_outstand_q != '0);
     // Suspend clock one cycle for every stall caused by upstream.
