@@ -11,7 +11,9 @@ module hyperbus_delay (
     output logic        out_o
 );
 
-    generic_delay_D4_O1_3P750_CG0 i_delay (
+    configurable_delay #(
+      .NUM_STEPS(16)
+    ) i_delay (
         .clk_i      ( in_i      ),
         `ifndef TARGET_ASIC
         .enable_i   ( 1'b1      ),

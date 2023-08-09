@@ -13,7 +13,7 @@ package:
 
 dependencies:
   common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 1.21.0        }
-  axi:                 { git: "https://github.com/pulp-platform/axi.git",                rev: 8828ac1bb18a8f722905ae6ca6f07b6a37d3d6b0 }
+  axi:                 { git: "https://github.com/pulp-platform/axi.git",                version: 0.39.0-beta.10 }
   tech_cells_generic:  { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.4         }
   register_interface:  { git: "https://github.com/pulp-platform/register_interface.git", version: 0.3.2         }
 
@@ -23,10 +23,10 @@ sources:
       defines:
         FPGA_EMUL: ~
       files:
-        - models/generic_delay_D4_O1_3P750_CG0.fpga.sv
+        - models/configurable_delay.fpga.sv
     - target: test
       files:
-        - models/generic_delay_D4_O1_3P750_CG0.behav.sv
+        - models/configurable_delay.behav.sv
     - src/hyperbus_pkg.sv
     - src/hyperbus_clk_gen.sv
     - src/hyperbus_clock_diff_out.sv
