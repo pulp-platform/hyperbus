@@ -164,20 +164,15 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // Write dataflow
     always_comb begin : proc_comb_tx
         trx_tx_data     = '0;
-        trx_tx_data_oe  = 1'b0;
         trx_tx_rwds     = '0;
-        trx_tx_rwds_oe  = 1'b0;
         tx_ready_o      = 1'b0;
         ctl_wclk_ena    = 1'b0;
         if (state_q == SendCA) begin
             // In CA phase: use timer to select word
             trx_tx_data     = ca[(8'(timer_q) << 4) +: 16];
-            trx_tx_data_oe  = 1'b1;
         end else if (state_q == Write) begin
             trx_tx_data     = tx_data_i;
-            trx_tx_data_oe  = 1'b1;
             trx_tx_rwds     = ~tx_strb_i;
-            trx_tx_rwds_oe  = 1'b1;
             tx_ready_o      = 1'b1;     // Memory always ready within HyperBus burst
             ctl_wclk_ena   = tx_valid_i;
         end
@@ -248,6 +243,9 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         timer_d = timer_q - 1;
         tf_d    = tf_q;
         cs_d    = cs_q;
+        // Tri-state control of dq and rwds
+        trx_tx_rwds_oe = 1'b0;
+        trx_tx_data_oe = 1'b0;
         // State-dependent logic
         case (state_q)
             Startup: begin
@@ -268,11 +266,16 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     // Send 3 CA words (t_CSS respected through clock delay)
                     timer_d = 2;
                     state_d = SendCA;
+                    // Enable output driver (needs to be enabled one cycle
+                    // earlier since tri-state enables of IO pads are quite
+                    // slow compared to the data pins)
+                    trx_tx_data_oe = 1'b1;
                 end
             end
             SendCA: begin
                 // Dataflow handled outside FSM
                 trx_clk_ena         = 1'b1;
+                trx_tx_data_oe      = 1'b1;
                 trx_rwds_sample_ena = ~ctl_write_zero_lat;
                 if (ctl_timer_zero) begin
                     if (ctl_write_zero_lat) begin
@@ -286,10 +289,25 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             end
             WaitLatAccess: begin
                 trx_clk_ena = 1'b1;
+                trx_tx_data_oe = 1'b1;
                 // Substract cycle for last CA and another for state delay
                 if (ctl_timer_two) begin
                     timer_d = cfg_i.t_burst_max;
-                    state_d = tf_q.write ? Write : Read;
+                    // Switch to write or read phase and already start
+                    // turnaround of tri-state driver (depending on latency
+                    // config and if read or write transaction).
+                    if (tf_q.write) begin
+                        state_d = Write;
+                        trx_tx_data_oe = 1'b1;
+                        // For zero latency writes, we must not drive the RWDS
+                        // signal (see specs page 9). Depending on the latency
+                        // mode we thus drive only the DQ signals or DQ + RWDS.
+                        trx_tx_rwds_oe = ~ctl_write_zero_lat;
+                    end else begin
+                        state_d = Read;
+                        trx_tx_data_oe = 1'b0;
+                        trx_tx_rwds_oe = 1'b0;
+                    end
                 end
             end
             Read: begin
@@ -310,6 +328,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 end
             end
             Write: begin
+                // Drive DQ lines in write mode
+                trx_tx_data_oe = 1'b1;
+                // For zero-latency writes we must not use RWDS as mask signal
+                trx_tx_rwds_oe = ~ctl_write_zero_lat;
                 // Dataflow handled outside FSM
                 if (ctl_wclk_ena) begin
                     trx_clk_ena = 1'b1;
@@ -334,7 +356,14 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             WaitRWR: begin
                 trx_cs_ena = 1'b0;
                 if (ctl_timer_rwr_done) begin
-                    state_d = ctl_tf_burst_done ? Idle : SendCA;
+                    if (ctl_tf_burst_done) begin
+                        state_d = Idle;
+                    end else begin
+                        state_d = SendCA;
+                        // Re-enable the io driver if we immediately start the
+                        // next transaction.
+                        trx_tx_data_oe = 1'b1;
+                    end
                 end
             end
         endcase
