@@ -35,7 +35,6 @@ define generate_vsim
 endef
 
 sim_all: scripts/compile.tcl
-sim_all: models/generic_delay_D4_O1_3P750_CG0.behav.sv
 
 sim_clean:
 	rm -rf scripts/compile.tcl
