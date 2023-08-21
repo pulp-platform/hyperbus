@@ -22,7 +22,7 @@ module hyperbus_clk_gen (
     logic r_clk270_o;
 
     logic  s_clk0_n;
-   
+
     assign clk0_o = r_clk0_o;
     assign clk90_o = r_clk90_o;
     assign clk180_o = r_clk180_o;
@@ -33,8 +33,8 @@ module hyperbus_clk_gen (
                      .clk_i (r_clk0_o),
                      .clk_o (s_clk0_n)
                      );
-   
-   
+
+
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if(~rst_ni) begin
             r_clk0_o   <= 0;
@@ -56,4 +56,3 @@ module hyperbus_clk_gen (
     end
 
 endmodule
-

@@ -192,7 +192,7 @@ module hyperbus_trx #(
        .clk_i ( rx_rwds_clk   ),
        .clk_o ( rx_rwds_clk_n )
     );
-   
+
     // Cross input data from RWDS domain into system domain
     cdc_fifo_gray  #(
         .T          ( logic [15:0]      ),
