@@ -37,16 +37,16 @@ module hyperbus_phy2r #(
    } hyper_splitter_state_t;
 
    hyper_splitter_state_t state_d, state_q;
-   
+
    localparam  int unsigned NumAxiBytes = AxiDataWidth/8;
    localparam  int unsigned NumPhyBytes = NumPhys*2;
    localparam  int unsigned AxiBytesInPhyBeat = NumAxiBytes/NumPhyBytes;
    localparam  int unsigned WordCntWidth = (AxiBytesInPhyBeat==1) ? 1 : $clog2(AxiBytesInPhyBeat);
-   
+
    logic [BurstLength-1:0] byte_axi_addr_d, byte_axi_addr_q;
    logic [BurstLength-1:0] byte_phy_cnt_d, byte_phy_cnt_q;
    logic [BurstLength-1:0] last_addr_d, last_addr_q;
-   
+
    logic [3:0]           size_d, size_q;
    T data_buffer_d, data_buffer_q;
 
@@ -55,7 +55,7 @@ module hyperbus_phy2r #(
    logic                        enough_data;
    logic                        sent_available_data;
    logic [BurstLength-1:0]      next_axi_addr;
-   
+
    assign word_cnt = (AxiBytesInPhyBeat==1) ? '0 : byte_phy_cnt_q[($clog2(NumPhys)+1) +:WordCntWidth];
    assign next_axi_addr = ((byte_axi_addr_q>>size_d)<< size_d) + (1<<size_d);
    assign enough_data = byte_phy_cnt_d >= next_axi_addr;
@@ -63,7 +63,7 @@ module hyperbus_phy2r #(
    assign data_o.data = data_buffer_q.data;
    assign data_o.error = data_buffer_q.error;
    assign data_o.valid = '0;
-   assign data_o.last = data_buffer_q.last && (last_addr_q==byte_axi_addr_d);   
+   assign data_o.last = data_buffer_q.last && (last_addr_q==byte_axi_addr_d);
 
    always_comb begin : counter
       byte_axi_addr_d = byte_axi_addr_q;
@@ -130,9 +130,9 @@ module hyperbus_phy2r #(
               state_d = Idle;
            end
         end
-      endcase 
-   end 
-   
+      endcase
+   end
+
    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_phy
        if (~rst_ni) begin
           data_buffer_q <= '0;
@@ -149,7 +149,7 @@ module hyperbus_phy2r #(
           size_q <= size_d;
           last_addr_q <= last_addr_d;
        end
-   end            
+   end
 
 
 endmodule

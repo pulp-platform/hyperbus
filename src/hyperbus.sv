@@ -76,9 +76,9 @@ module hyperbus #(
         logic [NumChips-1:0]        cs;
     } tf_cdc_t;
 
-   
+
     logic                       clk_phy_i_0, clk_phy_i_90, rst_phy;
-    
+
     // Register file
     hyperbus_pkg::hyper_cfg_t   cfg;
     axi_rule_t [NumChips-1:0]   chip_rules;
@@ -97,7 +97,7 @@ module hyperbus #(
     tf_cdc_t                    axi_tf_cdc;
     logic                       axi_trans_valid;
     logic                       axi_trans_ready;
-   
+
     // PHY
     hyper_rx_t                  phy_rx;
     logic                       phy_rx_valid;
@@ -111,7 +111,7 @@ module hyperbus #(
     tf_cdc_t                    phy_tf_cdc;
     logic                       phy_trans_valid;
     logic                       phy_trans_ready;
-   
+
     // Config register File
     hyperbus_cfg_regs #(
         .NumChips       ( NumChips      ),
@@ -149,10 +149,10 @@ module hyperbus #(
     ) i_axi_slave (
         .clk_i           ( clk_sys_i            ),
         .rst_ni          ( rst_sys_ni           ),
-                                               
+
         .axi_req_i       ( axi_req_i            ),
         .axi_rsp_o       ( axi_rsp_o            ),
-                                               
+
         .rx_i            ( axi_rx               ),
         .rx_valid_i      ( axi_rx_valid         ),
         .rx_ready_o      ( axi_rx_ready         ),
@@ -283,9 +283,9 @@ module hyperbus #(
         .dst_valid_o    ( axi_rx_valid  ),
         .dst_ready_i    ( axi_rx_ready  )
     );
- 
+
     // Shift clock by 90 degrees
-   generate 
+   generate
     if(IsClockODelayed==0) begin : clock_generator
      hyperbus_clk_gen ddr_clk (
          .clk_i    ( clk_phy_i                       ),
@@ -295,7 +295,7 @@ module hyperbus #(
          .clk180_o (                                 ),
          .clk270_o (                                 ),
          .rst_no   ( rst_phy                         )
-     );   
+     );
      end else if (IsClockODelayed==1) begin
      assign clk_phy_i_0 = clk_phy_i;
      assign rst_phy = rst_phy_ni;
@@ -306,5 +306,5 @@ module hyperbus #(
          );
        end
     endgenerate
-   
+
 endmodule : hyperbus

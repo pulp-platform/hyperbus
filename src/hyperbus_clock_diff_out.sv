@@ -17,7 +17,7 @@ module hyperbus_clock_diff_out
    `ifdef FPGA_EMUL
 
        logic en_sync;
-    
+
        always_latch
        begin
          if (in_i == 1'b0)
@@ -42,5 +42,5 @@ module hyperbus_clock_diff_out
     );
 
    `endif // !`ifdef FPGA_EMUL
-   
+
 endmodule

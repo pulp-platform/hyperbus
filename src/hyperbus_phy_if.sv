@@ -11,7 +11,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     parameter int unsigned TimerWidth = 16,
     parameter int unsigned RxFifoLogDepth = 3,
     parameter int unsigned StartupCycles = 60000, /*MHz*/ // Conservative maximum frequency estimate
-    parameter type hyper_tx_t = logic,   
+    parameter type hyper_tx_t = logic,
     parameter type hyper_rx_t = logic
 )(
     input  logic                clk_i,
@@ -57,47 +57,47 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
       logic [NumPhys-1:0]          phy_fifo_ready;
       logic [NumPhys-1:0]          fifo_axi_valid;
       logic                        fifo_axi_ready;
-         
+
       logic                        tx_both_ready, ts_both_ready;
       logic                        rx_both_valid, b_both_valid;
-      
+
       logic [NumPhys-1:0]          phy_tx_ready;
       logic                        phy_tx_valid;
-      
+
       logic [NumPhys-1:0]          phy_trans_ready;
       logic                        phy_trans_valid;
-      
+
       logic [NumPhys-1:0]          phy_b_valid;
       logic [NumPhys-1:0]          phy_b_error;
       logic                        phy_b_ready;
 
       genvar                          i;
-      generate 
+      generate
 
          if (NumPhys==2) begin : phy_wrap
 
             assign rx_both_valid = & fifo_axi_valid;
             assign rx_valid_o = rx_both_valid;
             assign fifo_axi_ready = rx_ready_i && rx_both_valid;
-            
+
             assign rx_o.error = fifo_axi_rx[0].error || fifo_axi_rx[1].error;
-            assign rx_o.last = fifo_axi_rx[0].last && fifo_axi_rx[1].last;   
+            assign rx_o.last = fifo_axi_rx[0].last && fifo_axi_rx[1].last;
             assign tx_both_ready = & phy_tx_ready;
             assign tx_ready_o = tx_both_ready;
             assign phy_tx_valid = tx_both_ready && tx_valid_i;
-            
+
             assign b_both_valid = & phy_b_valid;
             assign b_valid_o = b_both_valid;
             assign phy_b_ready = b_ready_i && b_both_valid;
             assign b_error_o = | phy_b_error;
-            
+
             assign ts_both_ready = & phy_trans_ready;
             assign trans_ready_o = ts_both_ready;
             assign phy_trans_valid = ts_both_ready && trans_valid_i;
 
             for ( i=0; i<NumPhys;i++) begin : phy_unroll
                assign rx_o.data[i*16 +:16] = fifo_axi_rx[i].data;
-         
+
                stream_fifo #(
                    .FALL_THROUGH ( 1'b0        ),
                    .DEPTH        ( 4           ),
@@ -115,8 +115,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                    .valid_o        ( fifo_axi_valid[i] ),
                    .ready_i        ( fifo_axi_ready    )
                );
-         
-              
+
+
                hyperbus_phy #(
                    .IsClockODelayed( IsClockODelayed   ),
                    .NumChips       ( NumChips          ),
@@ -127,30 +127,30 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                    .clk_i_90       ( clk_i_90          ),
                    .rst_ni         ( rst_ni            ),
                    .test_mode_i    ( test_mode_i       ),
-               
+
                    .cfg_i          ( cfg_i             ),
-               
+
                    .rx_data_o      ( phy_fifo_rx[i].data  ),
                    .rx_last_o      ( phy_fifo_rx[i].last  ),
                    .rx_error_o     ( phy_fifo_rx[i].error ),
                    .rx_valid_o     ( phy_fifo_valid[i]    ),
                    .rx_ready_i     ( phy_fifo_ready[i]    ),
-               
+
                    .tx_data_i      ( tx_i.data[16*i +:16] ),
                    .tx_strb_i      ( tx_i.strb[2*i   +:2] ),
                    .tx_last_i      ( tx_i.last            ),
                    .tx_valid_i     ( phy_tx_valid         ),
                    .tx_ready_o     ( phy_tx_ready[i]      ),
-                                                          
+
                    .b_error_o      ( phy_b_error[i]       ),
                    .b_valid_o      ( phy_b_valid[i]       ),
                    .b_ready_i      ( phy_b_ready          ),
-                                                          
+
                    .trans_i        ( trans_i              ),
                    .trans_cs_i     ( trans_cs_i           ),
                    .trans_valid_i  ( phy_trans_valid      ),
                    .trans_ready_o  ( phy_trans_ready[i]   ),
-               
+
                    .hyper_cs_no    ( hyper_cs_no[i]       ),
                    .hyper_ck_o     ( hyper_ck_o[i]        ),
                    .hyper_ck_no    ( hyper_ck_no[i]       ),
@@ -162,10 +162,10 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                    .hyper_dq_oe_o  ( hyper_dq_oe_o[i]     ),
                    .hyper_reset_no ( hyper_reset_no[i]    )
                );
-            
+
             end // for ( i=0; i<NumPhys;i++)
          end else begin // if (NumPhys==2)
-                      
+
             hyperbus_phy #(
                  .IsClockODelayed( IsClockODelayed   ),
                  .NumChips       ( NumChips          ),
@@ -176,30 +176,30 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                  .clk_i_90       ( clk_i_90        ),
                  .rst_ni         ( rst_ni          ),
                  .test_mode_i    ( test_mode_i     ),
-                                                   
+
                  .cfg_i          ( cfg_i           ),
-                                                   
+
                  .rx_data_o      ( rx_o.data       ),
                  .rx_last_o      ( rx_o.last       ),
                  .rx_error_o     ( rx_o.error      ),
                  .rx_valid_o     ( rx_valid_o      ),
                  .rx_ready_i     ( rx_ready_i      ),
-                                                   
+
                  .tx_data_i      ( tx_i.data       ),
                  .tx_strb_i      ( tx_i.strb       ),
                  .tx_last_i      ( tx_i.last       ),
                  .tx_valid_i     ( tx_valid_i      ),
                  .tx_ready_o     ( tx_ready_o      ),
-                                                      
+
                  .b_error_o      ( b_error_o       ),
                  .b_valid_o      ( b_valid_o       ),
                  .b_ready_i      ( b_ready_i       ),
-                                                      
+
                  .trans_i        ( trans_i         ),
                  .trans_cs_i     ( trans_cs_i      ),
                  .trans_valid_i  ( trans_valid_i   ),
                  .trans_ready_o  ( trans_ready_o   ),
-            
+
                  .hyper_cs_no    ( hyper_cs_no     ),
                  .hyper_ck_o     ( hyper_ck_o      ),
                  .hyper_ck_no    ( hyper_ck_no     ),
@@ -213,8 +213,6 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
             );
          end // else: !if(NumPhys==2)
      endgenerate
-   
-   
+
+
 endmodule // hyperbus_wrap_0
-
-

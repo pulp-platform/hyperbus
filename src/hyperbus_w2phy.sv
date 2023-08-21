@@ -7,7 +7,7 @@
 // Luca Valente <luca.valente@unibo.it>
 
 module hyperbus_w2phy #(
-  parameter int unsigned AxiDataWidth = -1, 
+  parameter int unsigned AxiDataWidth = -1,
   parameter int unsigned NumPhys = -1,
   parameter int unsigned BurstLength = -1,
   parameter type T = logic,
@@ -19,7 +19,7 @@ module hyperbus_w2phy #(
   input logic [AddrWidth-1:0]   start_addr,
   input logic [BurstLength-1:0] len,
   input logic                   is_a_write,
-  input logic                   trans_handshake, 
+  input logic                   trans_handshake,
   input logic                   axi_valid_i,
   output logic                  axi_ready_o,
   input                         T data_i,
@@ -40,7 +40,7 @@ module hyperbus_w2phy #(
        Sample,
        CntReady
    } hyper_upsizer_state_t;
-                             
+
    hyper_upsizer_state_t state_d,    state_q;
 
    typedef struct packed {
@@ -55,16 +55,16 @@ module hyperbus_w2phy #(
    logic        upsize;
    logic        enough_data;
    logic        first_tx_d, first_tx_q;
-   
+
 
    logic [NumPhys*2-1:0]         mask_strobe_d, mask_strobe_q;
-   logic [WordCntWidth-1:0]      word_cnt;   
+   logic [WordCntWidth-1:0]      word_cnt;
    logic [AddrWidth-1:0]         byte_idx_d, byte_idx_q;
    logic [3:0]                   size_d, size_q;
    logic [AddrWidth-1:0]         cnt_data_phy_d, cnt_data_phy_q;
    logic                         keep_sampling, keep_sending;
    logic                         upsize_q;
-   
+
    assign is_8_bw = (size_d == 0);
    assign is_16_bw = (size_d == 1) ;
    assign upsize = (is_16_bw && (NumPhys==2)) | is_8_bw ;
@@ -73,12 +73,12 @@ module hyperbus_w2phy #(
    assign keep_sampling = (size_d<($clog2(NumPhys)+1)) && (byte_idx_d[NumPhys-1:0]!='0);
    assign keep_sending =  (size_d>($clog2(NumPhys)+1)) && (cnt_data_phy_d != byte_idx_q);
    assign word_cnt = cnt_data_phy_q>>($clog2(NumPhys)+1);
-   
+
 
    assign data_o = data_buffer_q.data[(16*NumPhys)*word_cnt +:(16*NumPhys)];
    assign strb_o = data_buffer_q.strb[ (2*NumPhys)*word_cnt +: (2*NumPhys)] & mask_strobe_q;
    assign last_o = data_buffer_q.last && (!keep_sending || upsize_q);
-                        
+
    always_comb begin : counter
       byte_idx_d = byte_idx_q;
       size_d = size_q;
@@ -97,8 +97,8 @@ module hyperbus_w2phy #(
       if ( phy_valid_o & phy_ready_i ) begin
          cnt_data_phy_d = cnt_data_phy_q + NumPhys*2;
       end
-   end 
-   
+   end
+
    always_comb begin : sampler
       data_buffer_d.data = data_buffer_q.data;
       data_buffer_d.strb = data_buffer_q.strb;
@@ -126,8 +126,8 @@ module hyperbus_w2phy #(
                  data_buffer_d.strb[j]='0;
             end
          end
-      end 
-   end 
+      end
+   end
 
    always_comb begin : fsm
       state_d = state_q;
@@ -182,14 +182,14 @@ module hyperbus_w2phy #(
                  if (cnt_data_phy_d[NumPhys-1:0]=='0) begin
                     axi_ready_o = !upsize;
                     state_d = Sample;
-                 end 
+                 end
               end
            end
         end
-      endcase 
-   end 
+      endcase
+   end
 
-   
+
    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_phy
        if (~rst_ni) begin
            data_buffer_q <= '0;
@@ -208,7 +208,7 @@ module hyperbus_w2phy #(
            first_tx_q <= first_tx_d;
            mask_strobe_q <= mask_strobe_d;
        end
-   end            
+   end
 
 
 endmodule

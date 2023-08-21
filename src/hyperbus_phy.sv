@@ -194,7 +194,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     assign rx_data_o = trx_rx_data;
     assign rx_error_o = 1'b0;
     assign rx_last_o = (state_q != Read) & ctl_tf_burst_done & (r_outstand_q == 1);
-   
+
     assign trx_rx_ready     = rx_ready_i;
     assign rx_valid_o       = trx_rx_valid & (r_outstand_q != '0);
     // Suspend clock one cycle for every stall caused by upstream.

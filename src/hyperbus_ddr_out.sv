@@ -33,7 +33,7 @@ module hyperbus_ddr_out #(
         .clk_sel_i ( clk_i )
     );
 `endif // !`ifdef FPGA_EMUL
-   
+
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
             q0 <= Init;
