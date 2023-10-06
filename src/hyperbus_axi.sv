@@ -65,6 +65,8 @@ module hyperbus_axi #(
     typedef logic [AxiDataWidth-1:0] axi_data_t;
     typedef logic [ChipSelWidth-1:0] chip_sel_idx_t;
 
+    `AXI_TYPEDEF_ALL_CT(axi_fifo,axi_fifo_req,axi_fifo_rsp,axi_addr_t,logic[AxiIdWidth-1:0],axi_data_t,logic[AxiDataBytes-1:0],logic[AxiUserWidth-1:0])
+
     // No need to track ID: serializer buffers it for us
     typedef struct packed {
         axi_addr_t          addr;
@@ -96,6 +98,10 @@ module hyperbus_axi #(
         logic [7:0]         data;
         logic               strb;
     } axi_wbyte_t;
+
+    // AXI FIFO downstream
+    axi_req_t       fifo_out_req;
+    axi_rsp_t       fifo_out_rsp;
 
     // Atomics Filter downstream
     axi_req_t       atop_out_req;
@@ -163,6 +169,27 @@ module hyperbus_axi #(
     //    Serialize requests
     // ============================
 
+    axi_fifo #(
+        .Depth       ( 4                  ),
+        .FallThrough ( 1'b0               ),
+        .aw_chan_t   ( axi_fifo_aw_chan_t ),
+        .w_chan_t    ( axi_fifo_w_chan_t  ),
+        .b_chan_t    ( axi_fifo_b_chan_t  ),
+        .ar_chan_t   ( axi_fifo_ar_chan_t ),
+        .r_chan_t    ( axi_fifo_r_chan_t  ),
+        .axi_req_t   ( axi_req_t          ),
+        .axi_resp_t  ( axi_rsp_t          )
+    ) i_axi_fifo (
+        .clk_i,
+        .rst_ni,
+        .test_i     ( 1'b0          ),
+        .slv_req_i  ( axi_req_i     ),
+        .slv_resp_o ( axi_rsp_o     ),
+        .mst_req_o  ( fifo_out_req  ),
+        .mst_resp_i ( fifo_out_rsp  )
+   );
+
+
     // Block unsupported atomics
     axi_atop_filter #(
         .AxiIdWidth         ( AxiIdWidth    ),
@@ -172,8 +199,8 @@ module hyperbus_axi #(
     ) i_axi_atop_filter (
         .clk_i,
         .rst_ni,
-        .slv_req_i  ( axi_req_i     ),
-        .slv_resp_o ( axi_rsp_o     ),
+        .slv_req_i  ( fifo_out_req  ),
+        .slv_resp_o ( fifo_out_rsp  ),
         .mst_req_o  ( atop_out_req  ),
         .mst_resp_i ( atop_out_rsp  )
     );
