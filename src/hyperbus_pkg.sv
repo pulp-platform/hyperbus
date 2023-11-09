@@ -20,6 +20,7 @@ package hyperbus_pkg;
         logic           address_space;
         logic           phys_in_use;
         logic           which_phy;
+        logic [3:0]     t_csh_cycles; //add an configurable Tcsh for high freq operation(200MHz Hyperram)
     } hyper_cfg_t;
 
     typedef struct packed {

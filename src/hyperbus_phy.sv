@@ -321,11 +321,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     tf_d.burst      = tf_q.burst - phys_in_use;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
+                        timer_d = cfg_i.t_csh_cycles;
                         state_d = WaitXfer;
                     end
                 end
                 // Force-terminate access on burst time limit
                 if (ctl_timer_one) begin
+                    timer_d = cfg_i.t_csh_cycles;
                     state_d = WaitXfer;
                 end
             end
@@ -341,19 +343,23 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         b_pending_set   = 1'b1;
+                        timer_d = cfg_i.t_csh_cycles;
                         state_d         = WaitXfer;
                     end
                 end
                 // Force-terminate access on burst time limit
                 if (ctl_timer_one) begin
+                    timer_d = cfg_i.t_csh_cycles;
                     state_d = WaitXfer;
                 end
             end
             WaitXfer: begin
                 // Wait for FFed Clock and output to stop
                 // May have to be prolonged for potential future devices with t_CSH > 0
-                timer_d = cfg_i.t_read_write_recovery;
-                state_d = WaitRWR;
+                if (ctl_timer_zero) begin
+                    timer_d = cfg_i.t_read_write_recovery;
+                    state_d = WaitRWR;
+                end
             end
             WaitRWR: begin
                 trx_cs_ena = 1'b0;
