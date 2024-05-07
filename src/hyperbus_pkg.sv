@@ -57,4 +57,27 @@ package hyperbus_pkg;
         logic [2:0]     addr_lower;
     } hyper_phy_ca_t;
 
+
+    // Register reset values
+    function hyper_cfg_t gen_RstCfg(input int unsigned NumPhys, input int unsigned MinFreqMhz = 100);
+        // MinFreqMHz = 100 is the spec conform version and should not be changed
+        // It can be lowered if this frequency is not reachable in operation (may not with with certain HyperBus devices)
+        // >200 is outside the spec and is unlikely to work with any HyperBus devices
+        automatic hyper_cfg_t cfg = hyper_cfg_t'{
+            t_latency_access:           'h6,
+            en_latency_additional:      'b0,
+            t_burst_max:                ((MinFreqMhz*35)/10), // t_{csm}: At lowest legal clock (100 MHz) 3.5us (0.5us safety margin)
+            t_read_write_recovery:      'h6,
+            t_rx_clk_delay:             'h8,
+            t_tx_clk_delay:             'h8,
+            address_mask_msb:           'd25,                // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
+            address_space:              'b0,
+            phys_in_use:                NumPhys-1,
+            which_phy:                  NumPhys-1,
+            t_csh_cycles:               'h1
+        };
+
+        return cfg;
+    endfunction
+
 endpackage
