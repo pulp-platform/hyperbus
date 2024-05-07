@@ -29,8 +29,9 @@ module hyperbus #(
     // The below have sensible defaults, but should be set on integration!
     parameter int unsigned  RxFifoLogDepth  = 2,
     parameter int unsigned  TxFifoLogDepth  = 2,
-    parameter logic [RegDataWidth-1:0] RstChipBase  = 'h0,      // Base address for all chips
-    parameter logic [RegDataWidth-1:0] RstChipSpace = 'h1_0000, // 64 KiB: Current maximum HyperBus device size
+    parameter logic [RegDataWidth-1:0]  RstChipBase  = 'h0,      // Base address for all chips
+    parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000, // 64 KiB: Current maximum HyperBus device size
+    parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys),
     parameter int unsigned  PhyStartupCycles = 300 * 200, /* us*MHz */ // Conservative maximum frequency estimate
     parameter int unsigned  AxiLogDepth = 3,
     parameter int unsigned  SyncStages  = 2
@@ -123,7 +124,8 @@ module hyperbus #(
         .reg_rsp_t      ( reg_rsp_t     ),
         .rule_t         ( axi_rule_t    ),
         .RstChipBase    ( RstChipBase   ),
-        .RstChipSpace   ( RstChipSpace  )
+        .RstChipSpace   ( RstChipSpace  ),
+        .RstCfg         ( RstCfg        )
     ) i_cfg_regs (
         .clk_i          ( clk_sys_i     ),
         .rst_ni         ( rst_sys_ni    ),

@@ -13,7 +13,8 @@ module hyperbus_cfg_regs #(
     parameter type          reg_rsp_t       = logic,
     parameter type          rule_t          = logic,
     parameter logic [RegDataWidth-1:0] RstChipBase  = -1,   // Base address for all chips
-    parameter logic [RegDataWidth-1:0] RstChipSpace = -1    // 64 KiB: Current maximum HyperBus device size
+    parameter logic [RegDataWidth-1:0] RstChipSpace = -1,   // 64 KiB: Current maximum HyperBus device size
+    parameter hyperbus_pkg::hyper_cfg_t RstCfg  = hyperbus_pkg::gen_RstCfg(NumPhys)
 ) (
     input logic     clk_i,
     input logic     rst_ni,
@@ -105,28 +106,13 @@ module hyperbus_cfg_regs #(
         end
     end
 
-    // Register reset values
-    assign cfg_rstval = hyperbus_pkg::hyper_cfg_t'{
-        t_latency_access:           'h6,
-        en_latency_additional:      'b0,
-        t_burst_max:                'd350,      // At lowest legal clock (100 MHz): 3.5ns (0.5ns safety margin)
-        t_read_write_recovery:      'h6,
-        t_rx_clk_delay:             'h8,
-        t_tx_clk_delay:             'h8,
-        address_mask_msb:           'd25,       // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
-        address_space:              'b0,
-        phys_in_use:                NumPhys-1,
-        which_phy:                  NumPhys-1,
-        t_csh_cycles:               'h1
-    };
-
     for (genvar i = 0; unsigned'(i) < NumChips; i++) begin : gen_crange_rstval
             assign crange_rstval[i][0]  = RstChipBase + (RstChipSpace * i);
             assign crange_rstval[i][1]  = RstChipBase + (RstChipSpace * (i+1));     // Address decoder: end noninclusive
     end
 
     // Registers
-    `FFARN(cfg_q, cfg_d, cfg_rstval, clk_i, rst_ni);
+    `FFARN(cfg_q, cfg_d, RstCfg, clk_i, rst_ni);
     `FFARN(crange_q, crange_d, crange_rstval, clk_i, rst_ni);
 
     // Outputs
