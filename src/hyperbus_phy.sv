@@ -22,6 +22,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     input  logic                test_mode_i,
     // Config registers
     input  hyper_cfg_t          cfg_i,
+    // PHY control status
+    output logic                busy_o,
     // Transactions
     input  logic                trans_valid_i,
     output logic                trans_ready_o,
@@ -229,6 +231,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     assign ctl_timer_two        = (timer_q == 2);
     assign ctl_timer_one        = (timer_q == 1);
     assign ctl_timer_zero       = (timer_q == 0);
+
+    assign busy_o = (state_q != Idle);
 
     // FSM logic
     always_comb begin : proc_comb_phy_fsm
