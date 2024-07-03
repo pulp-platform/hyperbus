@@ -177,6 +177,7 @@ module axi_hyper_tb
        $display("===========================");
 
        reg_master.send_write(32'h20,1'b0,'1,s_reg_error);
+       reg_master.send_write(32'h24,1'b0,'1,s_reg_error);
        if (s_reg_error != 1'b0) $error("unexpected error");
 
        axi_master.reset();
