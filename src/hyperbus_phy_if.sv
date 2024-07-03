@@ -59,6 +59,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
       logic [NumPhys-1:0]          fifo_axi_valid;
       logic                        fifo_axi_ready;
 
+      logic [NumPhys-1:0][1:0]     fifo_axi_usage;
+
       logic                        tx_both_ready, ts_both_ready;
       logic                        rx_both_valid, b_both_valid;
 
@@ -66,7 +68,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
       logic                        phy_tx_valid;
 
       logic [NumPhys-1:0]          phy_trans_ready;
-      logic                        phy_trans_valid;
+      logic [NumPhys-1:0]          phy_trans_valid;
 
       logic [NumPhys-1:0]          phy_b_valid;
       logic [NumPhys-1:0]          phy_b_error;
@@ -77,24 +79,44 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
 
          if (NumPhys==2) begin : phy_wrap
 
-            assign rx_both_valid = & fifo_axi_valid;
-            assign rx_valid_o = rx_both_valid;
+            logic [NumPhys-1:0] phy_enable;
+            logic [NumPhys-1:0] phy_busy;
+            logic [NumPhys-1:0] phy_active_q, phy_active_d;
+            logic               change_phy_active;
+
+            assign change_phy_active = phy_active_q != phy_enable;
+            assign phy_enable        = cfg_i.phys_in_use ? '1 : (1 << cfg_i.which_phy);
+            assign phy_active_d      = change_phy_active && fifo_axi_usage == '0 ?
+                                       phy_enable | phy_busy : phy_active_q;
+
+            always_ff @(posedge clk_i or negedge rst_ni ) begin
+                if (!rst_ni) begin
+                    phy_active_q <= '1;
+                end else begin
+                    phy_active_q <= phy_active_d;
+                end
+            end
+
+            assign rx_both_valid  = & (fifo_axi_valid | ~phy_active_q);
+            assign rx_valid_o     = rx_both_valid;
             assign fifo_axi_ready = rx_ready_i && rx_both_valid;
 
-            assign rx_o.error = fifo_axi_rx[0].error || fifo_axi_rx[1].error;
-            assign rx_o.last = fifo_axi_rx[0].last && fifo_axi_rx[1].last;
-            assign tx_both_ready = & phy_tx_ready;
-            assign tx_ready_o = tx_both_ready;
-            assign phy_tx_valid = tx_both_ready && tx_valid_i;
+            assign rx_o.error    = | ({fifo_axi_rx[1].error, fifo_axi_rx[0].error} & phy_active_q);
+            assign rx_o.last     = & ({fifo_axi_rx[1].last, fifo_axi_rx[0].last} | ~phy_active_q);
+            assign tx_both_ready = & (phy_tx_ready | ~phy_active_q);
+            assign tx_ready_o    = tx_both_ready;
+            assign phy_tx_valid  = tx_both_ready && tx_valid_i;
 
-            assign b_both_valid = & phy_b_valid;
-            assign b_valid_o = b_both_valid;
-            assign phy_b_ready = b_ready_i && b_both_valid;
-            assign b_error_o = | phy_b_error;
+            assign b_both_valid = & (phy_b_valid | ~phy_active_q);
+            assign b_valid_o    = b_both_valid;
+            assign phy_b_ready  = b_ready_i && b_both_valid;
+            assign b_error_o    = | (phy_b_error & phy_active_q);
 
-            assign ts_both_ready = & phy_trans_ready;
+            assign ts_both_ready = change_phy_active ? '0 :
+                                    & (phy_trans_ready | ~phy_active_q);
             assign trans_ready_o = ts_both_ready;
-            assign phy_trans_valid = ts_both_ready && trans_valid_i;
+            assign phy_trans_valid = change_phy_active ? '0 :
+                                     phy_trans_ready & {NumPhys{trans_valid_i}} & phy_active_q;
 
             for ( i=0; i<NumPhys;i++) begin : phy_unroll
                assign rx_o.data[i*16 +:16] = fifo_axi_rx[i].data;
@@ -108,7 +130,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                    .rst_ni         ( rst_ni            ),
                    .flush_i        ( 1'b0              ),
                    .testmode_i     ( 1'b0              ),
-                   .usage_o        (                   ),
+                   .usage_o        ( fifo_axi_usage[i] ),
                    .data_i         ( phy_fifo_rx[i]    ),
                    .valid_i        ( phy_fifo_valid[i] ),
                    .ready_o        ( phy_fifo_ready[i] ),
@@ -132,6 +154,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
 
                    .cfg_i          ( cfg_i             ),
 
+                   .busy_o         ( phy_busy[i]       ),
+
                    .rx_data_o      ( phy_fifo_rx[i].data  ),
                    .rx_last_o      ( phy_fifo_rx[i].last  ),
                    .rx_error_o     ( phy_fifo_rx[i].error ),
@@ -150,7 +174,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
 
                    .trans_i        ( trans_i              ),
                    .trans_cs_i     ( trans_cs_i           ),
-                   .trans_valid_i  ( phy_trans_valid      ),
+                   .trans_valid_i  ( phy_trans_valid[i]   ),
                    .trans_ready_o  ( phy_trans_ready[i]   ),
 
                    .hyper_cs_no    ( hyper_cs_no[i]       ),
@@ -181,6 +205,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                  .test_mode_i    ( test_mode_i     ),
 
                  .cfg_i          ( cfg_i           ),
+
+                 .busy_o         (                 ),
 
                  .rx_data_o      ( rx_o.data       ),
                  .rx_last_o      ( rx_o.last       ),
