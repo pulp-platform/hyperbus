@@ -14,7 +14,8 @@ module hyperbus_cfg_regs #(
     parameter type          rule_t          = logic,
     parameter logic [RegDataWidth-1:0] RstChipBase  = -1,   // Base address for all chips
     parameter logic [RegDataWidth-1:0] RstChipSpace = -1,   // 64 KiB: Current maximum HyperBus device size
-    parameter hyperbus_pkg::hyper_cfg_t RstCfg  = hyperbus_pkg::gen_RstCfg(NumPhys)
+    parameter int unsigned  MinFreqMHz      = 100,
+    parameter hyperbus_pkg::hyper_cfg_t RstCfg  = hyperbus_pkg::gen_RstCfg(NumPhys,MinFreqMHz)
 ) (
     input logic     clk_i,
     input logic     rst_ni,
