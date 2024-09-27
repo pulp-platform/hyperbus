@@ -23,6 +23,7 @@ module hyperbus #(
     parameter type          axi_aw_chan_t   = logic,
     parameter int unsigned  RegAddrWidth    = -1,
     parameter int unsigned  RegDataWidth    = -1,
+    parameter int unsigned  MinFreqMHz      = 100,
     parameter type          reg_req_t       = logic,
     parameter type          reg_rsp_t       = logic,
     parameter type          axi_rule_t      = logic,
@@ -31,7 +32,7 @@ module hyperbus #(
     parameter int unsigned  TxFifoLogDepth  = 2,
     parameter logic [RegDataWidth-1:0]  RstChipBase  = 'h0,      // Base address for all chips
     parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000, // 64 KiB: Current maximum HyperBus device size
-    parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys),
+    parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys,MinFreqMHz),
     parameter int unsigned  PhyStartupCycles = 300 * 200, /* us*MHz */ // Conservative maximum frequency estimate
     parameter int unsigned  AxiLogDepth = 3,
     parameter int unsigned  SyncStages  = 2

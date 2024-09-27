@@ -59,7 +59,7 @@ package hyperbus_pkg;
 
 
     // Register reset values
-    function hyper_cfg_t gen_RstCfg(input int unsigned NumPhys, input int unsigned MinFreqMhz = 100);
+    function automatic hyper_cfg_t gen_RstCfg(input int unsigned NumPhys, input int unsigned MinFreqMhz);
         // MinFreqMHz = 100 is the spec conform version and should not be changed
         // It can be lowered if this frequency is not reachable in operation (may not with with certain HyperBus devices)
         // >200 is outside the spec and is unlikely to work with any HyperBus devices
