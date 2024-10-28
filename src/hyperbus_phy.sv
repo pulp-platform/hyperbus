@@ -265,13 +265,30 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (trans_valid_i & ~b_pending_q & r_outstand_q == '0) begin
                     tf_d    = trans_i;
                     cs_d    = trans_cs_i;
-                    // Send 3 CA words (t_CSS respected through clock delay)
-                    timer_d = 2;
-                    state_d = SendCA;
-                    // Enable output driver (needs to be enabled one cycle
-                    // earlier since tri-state enables of IO pads are quite
-                    // slow compared to the data pins)
+
+                    if(cfg_i.csn_to_ck_cycles != 0) begin
+                        // asser CS but delay hyper_ck to allow more time
+                        // for memory to drive RWDS (to satisfy t_DSV)
+                        state_d = DelayCK;
+                        timer_d = cfg_i.csn_to_ck_cycles -1;
+                    end else begin
+                        // max throughput when memory RWDS signal arrives early
+                        state_d = SendCA;
+                        // Send 3 CA words (t_CSS respected through clock delay)
+                        timer_d = 2;
+                    end
+                    
+                    // Enable output driver (needs to be enabled at least 
+                    // one cycle earlier since tri-state enables of IO pads
+                    // are quite slow compared to the data pins)
                     trx_tx_data_oe = 1'b1;
+                end
+            end
+            DelayCK: begin
+                trx_clk_ena = 1'b0;
+                if (ctl_timer_zero) begin
+                    timer_d = 2; // Send 3 CA words
+                    state_d = SendCA;
                 end
             end
             SendCA: begin
