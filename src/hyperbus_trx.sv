@@ -136,43 +136,18 @@ module hyperbus_trx #(
     //    RX
     // ========
 
-    // The following guarantees a proper worst-case sampling of RWDS.
-    // RWDS may only be valid (and stable) for a single period around 
-    // the 3rd hyper_ck_o rising edge (see t_DSV, t_CSS, t_CKDS @ 166MHz).
-    // We create a clock gate that open just for this window from falling
-    // to falling edge of hyper_ck around the 3rd rising edge.
-    // Then and only then will the sample be taken.
-
-    // Constraints: 
-    // As long as the clk to clk_90 constraints are proper 
-    // (clk_90 being a derived shifted clock) this should not cause problems
-    
-    always_comb begin : gen_ck_counter
-        ck_cnt_d = ck_cnt_q +1; // count hyper_ck falling edges
-
-        // reset counter when the transaction ends (CS goes high)
-        if(hyper_cs_no) begin
-            ck_cnt_d = '0;
-        end else if(ck_cnt_q == 3) begin // stop counting once sample is taken
-            ck_cnt_d = ck_cnt_q;
-        end
-    end
-    // clocked with falling edge, creates an active clk-gate around rising edge
-    `FF(ck_cnt_q, ck_cnt_d, '0, hyper_ck_no);
-
-    assign rwds_sample_ena = (ck_cnt_q == 2); // TODO: Check proper sampling point in sim
-
-    // Gate the sampling of rwds to the third rising CK_90 edge only
-    tc_clk_gating i_rwds_in_clk_gate (
-        .clk_i      ( hyper_ck_o      ),
-        .en_i       ( rwds_sample_ena ),
-        .test_en_i  ( test_mode_i     ),
-        .clk_o      ( rwds_sample_clk )
-    );
-    // Sample RWDS on demand for extra latency determination
-    `FF(rwds_sample_o, hyper_rwds_i, '0, rwds_sample_clk);
-    //-------------------------------------------------------------------------
-
+    // guarantees proper worst-case sampling of RWDS
+    hyperbus_rwds_sampler i_rwds_sampler (
+        .clk_i,
+        .rst_ni,
+        .test_mode_i,
+        .rwds_sample_o,
+        .hyper_cs_ni     ( hyper_cs_no  ),
+        .hyper_ck_i      ( hyper_ck_o   ),
+        .hyper_ck_ni     ( hyper_ck_no  ),
+        .hyper_rwds_i    ( hyper_rwds_i ),
+        .hyper_rwds_oe_i (  )
+    )
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay

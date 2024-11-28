@@ -34,6 +34,7 @@ sources:
     - src/hyperbus_phy2r.sv
     - src/hyperbus_ddr_out.sv
     - src/hyperbus_delay.sv
+    - src/hyperbus_rwds_sampler.sv
     - src/hyperbus_trx.sv
     - src/hyperbus_cfg_regs.sv
     - src/hyperbus_phy.sv
