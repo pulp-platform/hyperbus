@@ -27,60 +27,76 @@
 module hyperbus_rwds_sampler import hyperbus_pkg::*; #()
 (
     // Global signals
-    input  logic  clk_i,
-    input  logic  rst_ni,
-    input  logic  test_mode_i,
+    input  logic clk_i, // phy clock
+    input  logic rst_ni,
+    input  logic test_mode_i,
 
-    // Transciever control: facing controller
-    output logic  rwds_sample_o,
+    input  logic [1:0] cfg_edge_idx_i, // #edge where rwds is sampled
+    input  logic       cfg_edge_pol_i, // 1: rising, 0: falling
 
-    // Physical interace: facing HyperBus
-    input  logic  hyper_cs_ni,
-    input  logic  hyper_ck_i,
-    input  logic  hyper_ck_ni,
-    input  logic  hyper_rwds_i,
-    input  logic  hyper_rwds_oe_i
+    // sampled value going to PHY-FSM
+    output logic rwds_sample_o,
+
+    // Physical interface: facing HyperBus
+    input  logic hyper_cs_ni,
+    input  logic hyper_ck_i,
+    input  logic hyper_ck_ni,
+    input  logic hyper_rwds_i
 );
 
     // used to time the sampling of RWDS to determine additional latency
-    logic [2:0]     ck_cnt_d, ck_cnt_q; // TODO: check in sim if this can be one less
-    logic           rwds_sample_ena;
-    logic           rwds_sample_clk;
+    logic [2:0] cnt_edge_d, cnt_edge_q; // one bit larger than config
+    logic [2:0] cnt_target_value;
+    logic       cnt_clk; // clock used for edge counting
+    logic       sampling_clk, sampling_clk_gated; // clock used for sampling
+    logic       enable_sampling;
+    logic       rwds_sample;
 
-    // The following guarantees a proper worst-case sampling of RWDS.
-    // RWDS may only be valid (and stable) for a single period around 
-    // the 3rd hyper_ck_o rising edge (see t_DSV, t_CSS, t_CKDS @ 166MHz).
-    // We create a clock gate that open just for this window from falling
-    // to falling edge of hyper_ck around the 3rd rising edge.
-    // Then and only then will the sample be taken.
-
-    // Constraints: 
-    // As long as the clk to clk_90 constraints are proper 
-    // (clk_90 being a derived shifted clock) this should not cause problems
+    assign cnt_target_value = cfg_edge_idx_i + 1;
     
-    always_comb begin : gen_ck_counter
-        ck_cnt_d = ck_cnt_q +1; // count hyper_ck falling edges
+    always_comb begin : gen_edge_cnt
+        cnt_edge_d = cnt_edge_q +1; // count hyper_ck(_n) edges
 
         // reset counter when the transaction ends (CS goes high)
         if(hyper_cs_ni) begin
-            ck_cnt_d = '0;
-        end else if(ck_cnt_q == 3) begin // stop counting once sample is taken
-            ck_cnt_d = ck_cnt_q;
+            cnt_edge_d = '0;
+        end else if(cnt_edge_q == '1) begin // stop counting to avoid overflow
+            cnt_edge_d = cnt_edge_q;
         end
     end
-    // clocked with falling edge, creates an active clk-gate around rising edge
-    `FF(ck_cnt_q, ck_cnt_d, '0, hyper_ck_ni);
-
-    assign rwds_sample_ena = (ck_cnt_q == 2); // TODO: Check proper sampling point in sim
-
-    // Gate the sampling of rwds to the third rising CK_90 edge only
-    tc_clk_gating i_rwds_in_clk_gate (
-        .clk_i      ( hyper_ck_i      ),
-        .en_i       ( rwds_sample_ena ),
-        .test_en_i  ( test_mode_i     ),
-        .clk_o      ( rwds_sample_clk )
+    // sampling on the rising edge requires counting on falling edges to create
+    // a window where the clk-gate is transparent around rising edge and vice versa
+    tc_clk_mux2 i_cnt_clk_mux (
+        .clk0_i    ( hyper_ck_ni     ),
+        .clk1_i    ( hyper_ck_i      ),
+        .clk_sel_i ( ~cfg_edge_pol_i ),
+        .clk_o     ( cnt_clk         )
     );
-    // Sample RWDS on demand for extra latency determination
-    `FF(rwds_sample_o, hyper_rwds_i, '0, rwds_sample_clk);
+
+    `FF(cnt_edge_q, cnt_edge_d, '0, cnt_clk);
+
+    // TODO: Check proper sampling point in sim
+    assign enable_sampling = (cnt_edge_q == cnt_target_value);
+
+    tc_clk_mux2 i_sampling_clk_mux (
+        .clk0_i    ( hyper_ck_ni    ),
+        .clk1_i    ( hyper_ck_i     ),
+        .clk_sel_i ( cfg_edge_pol_i ),
+        .clk_o     ( sampling_clk   )
+    );
+
+    // gate the sampling of rwds to the correct rising clock edge
+    tc_clk_gating i_rwds_sample_rise_gate (
+        .clk_i      ( sampling_clk        ),
+        .en_i       ( enable_sampling     ),
+        .test_en_i  ( test_mode_i         ),
+        .clk_o      ( sampling_clk_gated  )
+    );
+
+    // sample rwds exactly once at the correct edge
+    `FF(rwds_sample, hyper_rwds_i, '0, sampling_clk_gated);
+
+    // pass rwds to phy-clock domain
+    `FF(rwds_sample_o, rwds_sample, '0, clk_i);
 
 endmodule

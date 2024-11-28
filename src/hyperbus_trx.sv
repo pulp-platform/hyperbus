@@ -13,11 +13,15 @@ module hyperbus_trx #(
     parameter int unsigned SyncStages      = 2
 )(
     // Global signals
-    input  logic            clk_i,
-    input  logic            clk_i_90,
-    input  logic            rst_ni,
-    input  logic            test_mode_i,
-    // Transciever control: facing controller
+    input  logic       clk_i,
+    input  logic       clk_i_90,
+    input  logic       rst_ni,
+    input  logic       test_mode_i,
+
+    input  logic [1:0] cfg_edge_idx_i,
+    input  logic       cfg_edge_pol_i,
+
+    // Transceiver control: facing controller
     input  logic [NumChips-1:0]    cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
@@ -36,7 +40,7 @@ module hyperbus_trx #(
     output logic [15:0]            rx_data_o,
     output logic                   rx_valid_o,
     input  logic                   rx_ready_i,
-    // Physical interace: facing HyperBus
+    // Physical interface: facing HyperBus
     output logic [NumChips-1:0]    hyper_cs_no,
     output logic                   hyper_ck_o,
     output logic                   hyper_ck_no,
@@ -136,17 +140,18 @@ module hyperbus_trx #(
     //    RX
     // ========
 
-    // guarantees proper worst-case sampling of RWDS
+    // sample RWDS for extra latency determination (adjustable sampling edge)
     hyperbus_rwds_sampler i_rwds_sampler (
         .clk_i,
         .rst_ni,
         .test_mode_i,
+        .cfg_edge_idx_i,
+        .cfg_edge_pol_i,
         .rwds_sample_o,
         .hyper_cs_ni     ( hyper_cs_no  ),
         .hyper_ck_i      ( hyper_ck_o   ),
         .hyper_ck_ni     ( hyper_ck_no  ),
-        .hyper_rwds_i    ( hyper_rwds_i ),
-        .hyper_rwds_oe_i (  )
+        .hyper_rwds_i    ( hyper_rwds_i )
     )
 
     // Set and Reset RX clock enable
