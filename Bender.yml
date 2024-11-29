@@ -48,5 +48,6 @@ sources:
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb.sv
         - test/dut_if.sv
+        - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
     - src/hyperbus.sv
