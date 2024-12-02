@@ -18,7 +18,7 @@ module hyperbus_trx #(
     input  logic       rst_ni,
     input  logic       test_mode_i,
 
-    input  logic [1:0] cfg_edge_idx_i,
+    input  logic [3:0] cfg_edge_idx_i,
     input  logic       cfg_edge_pol_i,
 
     // Transceiver control: facing controller
@@ -150,8 +150,6 @@ module hyperbus_trx #(
         .rwds_sample_o,
         .tx_clk_90_i     ( tx_clk_90    ),
         .hyper_cs_ni     ( &hyper_cs_no ),
-        .hyper_ck_i      ( hyper_ck_o   ),
-        .hyper_ck_ni     ( hyper_ck_no  ),
         .hyper_rwds_i    ( hyper_rwds_i )
     );
 

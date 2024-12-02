@@ -31,7 +31,7 @@ module hyperbus_rwds_sampler import hyperbus_pkg::*; #()
     input  logic rst_ni,
     input  logic test_mode_i,
 
-    input  logic [1:0] cfg_edge_idx_i, // #edge where rwds is sampled
+    input  logic [3:0] cfg_edge_idx_i, // #edge where rwds is sampled
     input  logic       cfg_edge_pol_i, // 1: rising, 0: falling
 
     // sampled value going to PHY-FSM
@@ -42,65 +42,61 @@ module hyperbus_rwds_sampler import hyperbus_pkg::*; #()
 
     // physical HyperBus signals
     input  logic hyper_cs_ni,
-    input  logic hyper_ck_i,
-    input  logic hyper_ck_ni,
     input  logic hyper_rwds_i
 );
 
     // used to time the sampling of RWDS to determine additional latency
-    logic [2:0] cnt_edge_d, cnt_edge_q; // one bit larger than config
-    logic       start_of_tf_d, start_of_tf_q; // start of transfer indicator
-    logic [2:0] cnt_target_value;
-    logic       cnt_at_target;
+    logic       tx_clk_270; // inverted 90deg clock
+    logic [4:0] cnt_edge_d, cnt_edge_q; // one bit larger than config
     logic       cnt_clk; // clock used for edge counting
+    logic [4:0] target_value;
     logic       sampling_clk, sampling_clk_gated; // clock used for sampling
     logic       enable_sampling; // sampling clock gate enable
     logic       rwds_sample;
 
-    assign cnt_target_value = cfg_edge_idx_i + 1;
-    assign cnt_at_target    = (cnt_target_value == cnt_edge_q);
-    
-    always_comb begin : gen_edge_cnt
-        // only count at the start of a transfer
-        if(start_of_tf_q) begin
-            cnt_edge_d = cnt_edge_q +1; // count hyper_ck(_n) edges
-        end else begin
-            // reset counter for next start of transfer
-            cnt_edge_d = 1'b0;
-        end
-    end
-    // sampling on the rising edge requires counting on falling edges to create
-    // a window where the clk-gate is transparent around rising edge and vice versa
-    tc_clk_mux2 i_cnt_clk_mux (
-        .clk0_i    ( hyper_ck_ni     ),
-        .clk1_i    ( hyper_ck_i      ),
-        .clk_sel_i ( ~cfg_edge_pol_i ),
-        .clk_o     ( cnt_clk         )
+    // needed so the first falling edge is cfg = '0 and it increments from there
+    // without this there would be an illegal config reg combination since the
+    // first edge we can sample is the first falling (1/2 cycle after CS going low)
+    // the rising edge considing with CS going low is illegal
+    assign target_value = cfg_edge_pol_i ? cfg_edge_idx_i +1 : cfg_edge_idx_i;
+
+    // generate and select clocks
+    // Sampling is either clocked by un-inverted or inverted 90deg hyperbus clock
+    // Counter is clocked by the inverse as it controls the clock gate
+    // which should be on for one cycle with sampling edge in the middle
+    tc_clk_inverter i_tx_clk_inv (
+        .clk_i ( tx_clk_90_i ),
+        .clk_o ( tx_clk_270  )
     );
 
-    `FF(cnt_edge_q, cnt_edge_d, '0, cnt_clk);
-
-    // used to reset counter and ensure clock gate opens only once
-    // clocked with ungated clock to detect cs_n going high
-    always_comb begin : gen_start_of_transfer
-        start_of_tf_d = start_of_tf_q;
-        if(hyper_cs_ni) begin
-            start_of_tf_d = 1'b1;
-        end else if (cnt_at_target) begin
-            start_of_tf_d = 1'b0;
-        end
-    end
-    `FF(start_of_tf_q, start_of_tf_d, '0, tx_clk_90_i);
-
-    // TODO: Check proper sampling point in sim
-    assign enable_sampling = (cnt_at_target && start_of_tf_q);
-
     tc_clk_mux2 i_sampling_clk_mux (
-        .clk0_i    ( hyper_ck_ni    ),
-        .clk1_i    ( hyper_ck_i     ),
+        .clk0_i    ( tx_clk_270     ),
+        .clk1_i    ( tx_clk_90_i    ),
         .clk_sel_i ( cfg_edge_pol_i ),
         .clk_o     ( sampling_clk   )
     );
+
+    tc_clk_inverter i_edge_cnt_clk_inv (
+        .clk_i ( sampling_clk ),
+        .clk_o ( cnt_clk      )
+    );
+
+    always_comb begin : gen_edge_cnt
+        // only count during transfers
+        if(~hyper_cs_ni) begin
+            cnt_edge_d = cnt_edge_q +1;
+            if(cnt_edge_q == '1) begin
+                cnt_edge_d = cnt_edge_q; // saturating counter
+            end
+        end else begin
+            // reset counter for next transfer
+            cnt_edge_d = 1'b0;
+        end
+    end
+
+    `FF(cnt_edge_q, cnt_edge_d, '0, cnt_clk);
+
+    assign enable_sampling = (cnt_edge_q == target_value) & ~hyper_cs_ni;
 
     // gate the sampling of rwds to the selected clock edge
     tc_clk_gating i_rwds_sample_rise_gate (

@@ -10,8 +10,8 @@ package hyperbus_pkg;
 
 
     typedef struct packed {
-        logic [1:0] cylce_idx;
-        logic       polarity;
+        logic [3:0] cylce_idx; // number of cycles passed when sampling should occur
+        logic       polarity;  // 1: rising, 0: falling
     } hyper_cfg_rwds_t;
 
     // configuration type
@@ -28,7 +28,7 @@ package hyperbus_pkg;
         logic            which_phy;
         logic [3:0]      t_csh_cycles; // add an configurable Tcsh for high freq operation(200MHz Hyperram)
         logic [3:0]      csn_to_ck_cycles; // delay hyper_ck after CS is asserted (more time for t_DSV)
-        hyper_cfg_rwds_t rwds_sample_edge;
+        hyper_cfg_rwds_t rwds_sample;
     } hyper_cfg_t;
 
     typedef struct packed {
@@ -85,10 +85,10 @@ package hyperbus_pkg;
             phys_in_use:                NumPhys-1,
             which_phy:                  NumPhys-1,
             t_csh_cycles:               'h1,
-            csn_to_ck_cycles:           'h2,
-            rwds_sample_edge:           hyper_cfg_rwds_t'{ // third rising edge, see hyperbus_rwds_sampler
-                                            cylce_idx: 'h1,
-                                            polarity:  'b1 }
+            csn_to_ck_cycles:           'h1,                 // additional cycles from CS_N going low to start of hyper_ck
+            rwds_sample:           hyper_cfg_rwds_t'{        // hyper_ck edge for RWDS sampling relative to CS_N going low
+                                            cylce_idx: 'h2,  // cycle number after CS_N going low (first falling and rising edge is idx=0)
+                                            polarity:  'b0 } // 0: falling, 1:rising -> first edge after CS_N is a falling edge
         };
 
         return cfg;
