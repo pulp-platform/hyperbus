@@ -29,7 +29,7 @@ module hyperbus_cfg_regs #(
     `include "common_cells/registers.svh"
 
     // Internal Parameters
-    localparam int unsigned NumBaseRegs     = 12;
+    localparam int unsigned NumBaseRegs     = 13;
     localparam int unsigned NumRegs         = 2*NumChips + NumBaseRegs;
     localparam int unsigned RegsBits        = cf_math_pkg::idx_width(NumRegs);
     localparam int unsigned RegStrbWidth    = RegDataWidth/8;
