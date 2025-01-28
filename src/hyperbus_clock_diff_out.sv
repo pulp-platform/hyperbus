@@ -6,6 +6,9 @@
 // Stephan Keck <kecks@ethz.ch>
 
 /// A Hyperbus differential clock output generator.
+(* no_ungroup *)
+(* no_boundary_optimization *)
+(* keep_hierarchy = "yes" *)
 module hyperbus_clock_diff_out
 (
     input  logic in_i,

@@ -5,6 +5,9 @@
 // Thomas Benz <paulsc@iis.ee.ethz.ch>
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
+(* no_ungroup *)
+(* no_boundary_optimization *)
+(* keep_hierarchy = "yes" *)
 module hyperbus_delay (
     input  logic        in_i,
     input  logic [3:0]  delay_i,
