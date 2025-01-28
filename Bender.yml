@@ -40,6 +40,10 @@ sources:
     - src/hyperbus_phy.sv
     - src/hyperbus_phy_if.sv
     - src/hyperbus_axi.sv
+    - target: xilinx
+      files:
+        - target/xilinx/hyperbus_clk_delay.sv
+        - target/xilinx/hyperbus_rwds_delay.sv
     - target: hyper_test
       files:
         # Device models. TODO: extend

@@ -37,6 +37,7 @@ module hyperbus #(
     parameter int unsigned  SyncStages  = 2
 ) (
     input  logic                        clk_phy_i,
+    input  logic                        clk_ref200_i, // only used for Xilinx delay lines
     input  logic                        rst_phy_ni,
     input  logic                        clk_sys_i,
     input  logic                        rst_sys_ni,
@@ -301,14 +302,26 @@ module hyperbus #(
          .rst_no   ( rst_phy                         )
      );
      end else if (IsClockODelayed==1) begin
-     assign clk_phy_i_0 = clk_phy_i;
-     assign rst_phy = rst_phy_ni;
-     hyperbus_delay i_delay_tx_clk_90 (
-         .in_i       ( clk_phy_i_0        ),
-         .delay_i    ( cfg.t_tx_clk_delay ),
-         .out_o      ( clk_phy_i_90       )
-         );
-       end
+        assign clk_phy_i_0 = clk_phy_i;
+        assign rst_phy     = rst_phy_ni;
+
+        `ifdef TARGET_GENESYSII
+            hyperbus_clk_delay i_delay_tx_clk_90 (
+                .rst_i         ( ~rst_ni ),
+                .clk_ref200_i,
+                .clk_i         ( clk_phy_i_0        )
+                .in_i          ( clk_phy_i_0        ),
+                .delay_i       ( cfg.t_tx_clk_delay ),
+                .out_o         ( clk_phy_i_90       )
+            );
+        `else
+            hyperbus_delay i_delay_tx_clk_90 (
+                .in_i          ( clk_phy_i_0        ),
+                .delay_i       ( cfg.t_tx_clk_delay ),
+                .out_o         ( clk_phy_i_90       )
+                );
+            end
+       `endif
     endgenerate
 
 endmodule : hyperbus

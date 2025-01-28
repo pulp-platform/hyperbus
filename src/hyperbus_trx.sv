@@ -161,11 +161,20 @@ module hyperbus_trx #(
     end
 
     // Shift RWDS clock by 90 degrees
-    hyperbus_delay i_delay_rx_rwds_90 (
-        .in_i       ( hyper_rwds_i   ),
-        .delay_i    ( rx_clk_delay_i ),
-        .out_o      ( rx_rwds_90     )
-    );
+    `ifdef TARGET_GENESYSII
+        hyperbus_rwds_delay i_delay_rx_rwds_90 (
+            .rst_i   ( ~rst_ni ),
+            .clk_i,
+            .in_i    ( hyper_rwds_i   ),
+            .delay_i ( rx_clk_delay_i ),
+            .out_o   ( rx_rwds_90     )
+        );
+    `else
+        hyperbus_delay i_delay_rx_rwds_90 (
+            .in_i    ( hyper_rwds_i   ),
+            .delay_i ( rx_clk_delay_i ),
+            .out_o   ( rx_rwds_90     )
+        );
 
     // Gate delayed RWDS clock with RX clock enable
     tc_clk_gating i_rwds_in_clk_gate (
