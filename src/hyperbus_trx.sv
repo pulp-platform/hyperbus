@@ -13,11 +13,15 @@ module hyperbus_trx #(
     parameter int unsigned SyncStages      = 2
 )(
     // Global signals
-    input  logic            clk_i,
-    input  logic            clk_i_90,
-    input  logic            rst_ni,
-    input  logic            test_mode_i,
-    // Transciever control: facing controller
+    input  logic       clk_i,
+    input  logic       clk_i_90,
+    input  logic       rst_ni,
+    input  logic       test_mode_i,
+
+    input  logic [3:0] cfg_edge_idx_i,
+    input  logic       cfg_edge_pol_i,
+
+    // Transceiver control: facing controller
     input  logic [NumChips-1:0]    cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
@@ -36,7 +40,7 @@ module hyperbus_trx #(
     output logic [15:0]            rx_data_o,
     output logic                   rx_valid_o,
     input  logic                   rx_ready_i,
-    // Physical interace: facing HyperBus
+    // Physical interface: facing HyperBus
     output logic [NumChips-1:0]    hyper_cs_no,
     output logic                   hyper_ck_o,
     output logic                   hyper_ck_no,
@@ -64,6 +68,11 @@ module hyperbus_trx #(
     logic [15:0]    rx_rwds_fifo_in;
     logic           rx_rwds_fifo_valid;
     logic           rx_rwds_fifo_ready;
+
+    // used to time the sampling of RWDS to determine additional latency
+    logic [2:0]     ck_cnt_d, ck_cnt_q; // TODO: check in sim if this can be one less
+    logic           rwds_sample_ena;
+    logic           rwds_sample_clk;
 
     // Feed through async reset
     assign hyper_reset_no = rst_ni;
@@ -127,15 +136,22 @@ module hyperbus_trx #(
         end
     end
 
-    // Sample RWDS on demand for extra latency determination
-    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rwds_sample
-        if (~rst_ni)                rwds_sample_o <= '0;
-        else if (rwds_sample_ena_i) rwds_sample_o <= hyper_rwds_i;
-    end
-
     // ========
     //    RX
     // ========
+
+    // sample RWDS for extra latency determination (adjustable sampling edge)
+    hyperbus_rwds_sampler i_rwds_sampler (
+        .clk_i,
+        .rst_ni,
+        .test_mode_i,
+        .cfg_edge_idx_i,
+        .cfg_edge_pol_i,
+        .rwds_sample_o,
+        .tx_clk_90_i     ( tx_clk_90    ),
+        .hyper_cs_ni     ( &hyper_cs_no ),
+        .hyper_rwds_i    ( hyper_rwds_i )
+    );
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay

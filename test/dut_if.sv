@@ -31,8 +31,8 @@ module dut_if
  input logic rst_ni,
  input logic end_sim_i,
 
- AXI_BUS_DV.Slave axi_slv_if,
- REG_BUS.in       reg_slv_if
+ AXI_BUS.Slave axi_slv_if,
+ REG_BUS.in    reg_slv_if
 );
   localparam int unsigned DRAM_DB_WIDTH = 16;
    
