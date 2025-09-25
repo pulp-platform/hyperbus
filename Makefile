@@ -59,9 +59,6 @@ CACHED_MODEL ?= true
 models/s27ks0641:
 	mkdir -p $@
 	rm -rf model_tmp && mkdir model_tmp
-ifneq (,$(wildcard /etc/iis.version))
-	@$(MAKE) hyper-nonfree-init
-endif
 	@if [ -f "nonfree/nonfree.mk" ]; then \
 		[ "$(CACHED_MODEL)" = "false" ] && $(MAKE) fetch-model; \
 		cp nonfree/cached/*.zip model_tmp/; \
