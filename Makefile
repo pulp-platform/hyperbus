@@ -55,6 +55,7 @@ hyper-nonfree-init:
 
 -include nonfree/nonfree.mk
 CACHED_MODEL ?= true
+CACHED_MODEL_PATH ?=
 
 models/s27ks0641:
 	mkdir -p $@
@@ -63,10 +64,14 @@ models/s27ks0641:
 		[ "$(CACHED_MODEL)" = "false" ] && $(MAKE) fetch-model; \
 		cp nonfree/cached/*.zip model_tmp/; \
 	else \
-		echo "The model requires SSO authenatication for dowload. Download it manually from:"; \
-		echo "https://www.infineon.com/dgdl/Infineon-S27KL0641_S27KS0641_VERILOG-SimulationModels-v05_00-EN.zip?fileId=8ac78c8c7d0d8da4017d0f6349a14f68&da=t"; \
-		echo "Save the .zip file into: \`model_tmp\`"; \
-		read -p "Press enter once the file is placed in \`model_tmp\`..."; \
+		if ! ls $(CACHED_MODEL_PATH)/*.zip 1> /dev/null 2>&1; then \
+			echo "The model requires SSO authentication for download. Download it manually from:"; \
+			echo "https://www.infineon.com/dgdl/Infineon-S27KL0641_S27KS0641_VERILOG-SimulationModels-v05_00-EN.zip?fileId=8ac78c8c7d0d8da4017d0f6349a14f68&da=t"; \
+			echo "Save the .zip file into: \`model_tmp\`"; \
+			read -p "Press enter once the file is placed in \`model_tmp\`..."; \
+		else \
+			cp $(CACHED_MODEL_PATH)/*.zip model_tmp/; \
+		fi \
 	fi
 	mv model_tmp/*.zip model_tmp/model.zip; \
 	cd model_tmp; unzip -q model.zip
