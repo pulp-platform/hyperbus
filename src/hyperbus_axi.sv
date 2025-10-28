@@ -170,7 +170,7 @@ module hyperbus_axi #(
     // ============================
 
     axi_fifo #(
-        .Depth       ( 4                  ),
+        .Depth       ( 8                  ),
         .FallThrough ( 1'b0               ),
         .aw_chan_t   ( axi_fifo_aw_chan_t ),
         .w_chan_t    ( axi_fifo_w_chan_t  ),
@@ -424,7 +424,7 @@ module hyperbus_axi #(
     stream_fifo #(
         .FALL_THROUGH ( 1'b0         ),
         .T            ( axi_w_chan_t ),
-        .DEPTH        ( 8            )
+        .DEPTH        ( 16            )
         ) wchan_stream_fifo (
         .clk_i,
         .rst_ni,
