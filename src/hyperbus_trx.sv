@@ -7,7 +7,6 @@
 // Stephan Keck <kecks@ethz.ch>
 
 module hyperbus_trx #(
-    parameter int unsigned IsClockODelayed = -1,
     parameter int unsigned NumChips        = 2,
     parameter int unsigned RxFifoLogDepth  = 3,
     parameter int unsigned SyncStages      = 2
@@ -26,14 +25,14 @@ module hyperbus_trx #(
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
 
-    input  logic [3:0]             tx_clk_delay_i,
+    input  logic [4:0]             tx_clk_delay_i,
     input  logic                   tx_clk_ena_i,
     input  logic [15:0]            tx_data_i,
     input  logic                   tx_data_oe_i,
     input  logic [1:0]             tx_rwds_i,
     input  logic                   tx_rwds_oe_i,
 
-    input  logic [3:0]             rx_clk_delay_i,
+    input  logic [4:0]             rx_clk_delay_i,
     input  logic                   rx_clk_set_i,
     input  logic                   rx_clk_reset_i,
     output logic [15:0]            rx_data_o,
@@ -156,13 +155,25 @@ module hyperbus_trx #(
     end
 
     // Shift RWDS clock by 90 degrees
-    hyperbus_delay i_delay_rx_rwds_90 (
-        .in_i       ( hyper_rwds_i   ),
-        .delay_i    ( rx_clk_delay_i ),
-        .out_o      ( rx_rwds_90     )
-    );
+`ifdef TARGET_XILINX
+        hyperbus_rwds_delay i_delay_rx_rwds_90 (
+            .rst_i   ( ~rst_ni ),
+            .clk_i,
+            .in_i    ( hyper_rwds_i   ),
+            .delay_i ( rx_clk_delay_i ),
+            .out_o   ( rx_rwds_90     )
+        );
+    `else
+        hyperbus_delay i_delay_rx_rwds_90 (
+            .in_i    ( hyper_rwds_i   ),
+            .delay_i ( rx_clk_delay_i ),
+            .out_o   ( rx_rwds_90     )
+        );
+`endif
 
     // Gate delayed RWDS clock with RX clock enable
+    (* no_boundary_optimization *)
+    (* keep_hierarchy = "yes" *)
     tc_clk_gating i_rwds_in_clk_gate (
         .clk_i      ( rx_rwds_90        ),
         .en_i       ( rx_rwds_clk_ena   ),

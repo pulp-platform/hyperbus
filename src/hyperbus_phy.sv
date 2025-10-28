@@ -8,7 +8,6 @@
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
 module hyperbus_phy import hyperbus_pkg::*; #(
-    parameter int unsigned IsClockODelayed = -1,
     parameter int unsigned NumChips         = 2,
     parameter int unsigned NumPhys          = -1,
     parameter int unsigned TimerWidth       = 16,
@@ -113,7 +112,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // =================
 
     hyperbus_trx #(
-        .IsClockODelayed( IsClockODelayed   ),
         .NumChips       ( NumChips          ),
         .RxFifoLogDepth ( RxFifoLogDepth    ),
         .SyncStages     ( SyncStages        )
