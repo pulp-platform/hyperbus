@@ -148,7 +148,8 @@ module hyperbus_trx #(
         .cfg_edge_idx_i,
         .cfg_edge_pol_i,
         .rwds_sample_o,
-        .hyper_cs_ni     ( hyper_cs_no  ),
+        .tx_clk_90_i     ( tx_clk_90    ),
+        .hyper_cs_ni     ( &hyper_cs_no ),
         .hyper_ck_i      ( hyper_ck_o   ),
         .hyper_ck_ni     ( hyper_ck_no  ),
         .hyper_rwds_i    ( hyper_rwds_i )
