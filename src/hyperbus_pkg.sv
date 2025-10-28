@@ -20,7 +20,8 @@ package hyperbus_pkg;
         logic           address_space;
         logic           phys_in_use;
         logic           which_phy;
-        logic [3:0]     t_csh_cycles; //add an configurable Tcsh for high freq operation(200MHz Hyperram)
+        logic [3:0]     t_csh_cycles; // add an configurable Tcsh for high freq operation(200MHz Hyperram)
+        logic [3:0]     csn_to_ck_cycles; // delay hyper_ck after CS is asserted (more time for t_DSV)
     } hyper_cfg_t;
 
     typedef struct packed {
@@ -40,6 +41,7 @@ package hyperbus_pkg;
     typedef enum logic[3:0] {
         Startup,
         Idle,
+        DelayCK,
         SendCA,
         WaitLatAccess,
         Read,
@@ -74,7 +76,8 @@ package hyperbus_pkg;
             address_space:              'b0,
             phys_in_use:                NumPhys-1,
             which_phy:                  NumPhys-1,
-            t_csh_cycles:               'h1
+            t_csh_cycles:               'h1,
+            csn_to_ck_cycles:           'h2
         };
 
         return cfg;
