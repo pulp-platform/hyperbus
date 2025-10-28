@@ -7,29 +7,29 @@
 // Luca Valente <luca.valente@unibo.it>
 
 module hyperbus #(
-    parameter int unsigned  NumChips        = -1,
-    parameter int unsigned  NumPhys         = 2,
-    parameter int unsigned  IsClockODelayed = 0,
-    parameter int unsigned  AxiAddrWidth    = -1,
-    parameter int unsigned  AxiDataWidth    = -1,
-    parameter int unsigned  AxiIdWidth      = -1,
-    parameter int unsigned  AxiUserWidth    = -1,
-    parameter type          axi_req_t       = logic,
-    parameter type          axi_rsp_t       = logic,
-    parameter type          axi_w_chan_t    = logic,
-    parameter type          axi_b_chan_t    = logic,
-    parameter type          axi_ar_chan_t   = logic,
-    parameter type          axi_r_chan_t    = logic,
-    parameter type          axi_aw_chan_t   = logic,
-    parameter int unsigned  RegAddrWidth    = -1,
-    parameter int unsigned  RegDataWidth    = -1,
+    parameter int unsigned  NumChips         = -1,
+    parameter int unsigned  NumPhys          = 2,
+    parameter bit           UsePhyClkDivider = 1,
+    parameter int unsigned  AxiAddrWidth     = -1,
+    parameter int unsigned  AxiDataWidth     = -1,
+    parameter int unsigned  AxiIdWidth       = -1,
+    parameter int unsigned  AxiUserWidth     = -1,
+    parameter type          axi_req_t        = logic,
+    parameter type          axi_rsp_t        = logic,
+    parameter type          axi_w_chan_t     = logic,
+    parameter type          axi_b_chan_t     = logic,
+    parameter type          axi_ar_chan_t    = logic,
+    parameter type          axi_r_chan_t     = logic,
+    parameter type          axi_aw_chan_t    = logic,
+    parameter int unsigned  RegAddrWidth     = -1,
+    parameter int unsigned  RegDataWidth     = -1,
     parameter int unsigned  MinFreqMHz      = 100,
-    parameter type          reg_req_t       = logic,
-    parameter type          reg_rsp_t       = logic,
-    parameter type          axi_rule_t      = logic,
+    parameter type          reg_req_t        = logic,
+    parameter type          reg_rsp_t        = logic,
+    parameter type          axi_rule_t       = logic,
     // The below have sensible defaults, but should be set on integration!
-    parameter int unsigned  RxFifoLogDepth  = 3,
-    parameter int unsigned  TxFifoLogDepth  = 3,
+    parameter int unsigned  RxFifoLogDepth   = 3,
+    parameter int unsigned  TxFifoLogDepth   = 3,
     parameter logic [RegDataWidth-1:0]  RstChipBase  = 'h0,      // Base address for all chips
     parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000, // 64 KiB: Current maximum HyperBus device size
     parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys,MinFreqMHz),
@@ -37,6 +37,9 @@ module hyperbus #(
     parameter int unsigned  SyncStages  = 2
 ) (
     input  logic                        clk_phy_i,
+`ifdef TARGET_XILINX
+    input  logic                        clk_ref200_i, // only used for Xilinx delay lines
+`endif
     input  logic                        rst_phy_ni,
     input  logic                        clk_sys_i,
     input  logic                        rst_sys_ni,
@@ -79,7 +82,7 @@ module hyperbus #(
     } tf_cdc_t;
 
 
-    logic                       clk_phy_i_0, clk_phy_i_90, rst_phy;
+    logic                       clk_phy_0, clk_phy_90, rst_phy;
 
     // Register file
     hyperbus_pkg::hyper_cfg_t   cfg;
@@ -178,18 +181,37 @@ module hyperbus #(
         .trans_active_o  ( trans_active         )
     );
 
+    if(UsePhyClkDivider == 1'b1) begin : clock_generator
+        hyperbus_clk_gen ddr_clk (
+            .clk_i    ( clk_phy_i    ),
+            .rst_ni   ( rst_phy_ni   ),
+            .clk0_o   ( clk_phy_0    ),
+            .clk90_o  ( clk_phy_90   ),
+            .clk180_o (              ),
+            .clk270_o (              ),
+            .rst_no   ( rst_phy      )
+        );
+    end else begin
+        assign clk_phy_0  = clk_phy_i;
+        assign clk_phy_90 = '0;
+        assign rst_phy    = rst_phy_ni;
+    end
+
     hyperbus_phy_if #(
-        .IsClockODelayed( IsClockODelayed   ),
-        .NumChips       ( NumChips          ),
-        .StartupCycles  ( PhyStartupCycles  ),
-        .NumPhys        ( NumPhys           ),
-        .hyper_rx_t     ( hyper_rx_t        ),
-        .hyper_tx_t     ( hyper_tx_t        ),
-        .SyncStages     ( SyncStages        )
+        .UsePhyClkDivider       ( UsePhyClkDivider       ),
+        .NumChips            ( NumChips            ),
+        .NumPhys             ( NumPhys             ),
+        .StartupCycles       ( PhyStartupCycles    ),
+        .hyper_rx_t          ( hyper_rx_t          ),
+        .hyper_tx_t          ( hyper_tx_t          ),
+        .SyncStages          ( SyncStages          )
     ) i_phy (
-        .clk_i          ( clk_phy_i_0       ),
-        .clk_i_90       ( clk_phy_i_90      ),
-        .rst_ni         ( rst_phy           ),
+        .clk_phy_i      ( clk_phy_0         ),
+        .clk_phy_i_90   ( clk_phy_90        ),
+`ifdef TARGET_XILINX
+        .clk_ref200_i   ( clk_ref200_i      ),
+`endif
+        .rst_phy_ni     ( rst_phy           ),
         .test_mode_i    ( test_mode_i       ),
 
         .cfg_i          ( cfg               ),
@@ -230,7 +252,7 @@ module hyperbus #(
         .src_ready_o    ( axi_trans_ready   ),
 
         .dst_rst_ni     ( rst_phy           ),
-        .dst_clk_i      ( clk_phy_i_0       ),
+        .dst_clk_i      ( clk_phy_0         ),
         .dst_data_o     ( phy_tf_cdc        ),
         .dst_valid_o    ( phy_trans_valid   ),
         .dst_ready_i    ( phy_trans_ready   )
@@ -240,7 +262,7 @@ module hyperbus #(
         .T  ( logic )
     ) i_cdc_2phase_b (
         .src_rst_ni     ( rst_phy       ),
-        .src_clk_i      ( clk_phy_i_0   ),
+        .src_clk_i      ( clk_phy_0     ),
         .src_data_i     ( phy_b_error   ),
         .src_valid_i    ( phy_b_valid   ),
         .src_ready_o    ( phy_b_ready   ),
@@ -264,7 +286,7 @@ module hyperbus #(
         .src_ready_o    ( axi_tx_ready  ),
 
         .dst_rst_ni     ( rst_phy       ),
-        .dst_clk_i      ( clk_phy_i_0   ),
+        .dst_clk_i      ( clk_phy_0     ),
         .dst_data_o     ( phy_tx        ),
         .dst_valid_o    ( phy_tx_valid  ),
         .dst_ready_i    ( phy_tx_ready  )
@@ -276,7 +298,7 @@ module hyperbus #(
         .LOG_DEPTH  ( RxFifoLogDepth )
     ) i_cdc_fifo_rx (
         .src_rst_ni     ( rst_phy       ),
-        .src_clk_i      ( clk_phy_i_0   ),
+        .src_clk_i      ( clk_phy_0     ),
         .src_data_i     ( phy_rx        ),
         .src_valid_i    ( phy_rx_valid  ),
         .src_ready_o    ( phy_rx_ready  ),
@@ -288,27 +310,5 @@ module hyperbus #(
         .dst_ready_i    ( axi_rx_ready  )
     );
 
-    // Shift clock by 90 degrees
-   generate
-    if(IsClockODelayed==0) begin : clock_generator
-     hyperbus_clk_gen ddr_clk (
-         .clk_i    ( clk_phy_i                       ),
-         .rst_ni   ( rst_phy_ni                      ),
-         .clk0_o   ( clk_phy_i_0                     ),
-         .clk90_o  ( clk_phy_i_90                    ),
-         .clk180_o (                                 ),
-         .clk270_o (                                 ),
-         .rst_no   ( rst_phy                         )
-     );
-     end else if (IsClockODelayed==1) begin
-     assign clk_phy_i_0 = clk_phy_i;
-     assign rst_phy = rst_phy_ni;
-     hyperbus_delay i_delay_tx_clk_90 (
-         .in_i       ( clk_phy_i_0        ),
-         .delay_i    ( cfg.t_tx_clk_delay ),
-         .out_o      ( clk_phy_i_90       )
-         );
-       end
-    endgenerate
 
 endmodule : hyperbus

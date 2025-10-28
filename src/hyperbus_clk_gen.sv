@@ -5,6 +5,9 @@
 // Hayate Okuhara <hayate.okuhara@unibo.it>
 
 /// Generates 4 phase shifted clocks out of one faster clock
+(* no_ungroup *)
+(* no_boundary_optimization *)
+(* keep_hierarchy = "yes" *)
 module hyperbus_clk_gen (
     input  logic clk_i,     // input clock
     input  logic rst_ni,
