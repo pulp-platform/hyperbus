@@ -144,24 +144,23 @@ module hyperbus_trx #(
     // Then and only then will the sample be taken.
 
     // Constraints: 
-    // ena_i is clocked from clk_i, ck_cnt with ~clk_90_i and
-    // rwds_sample_o with clk_90_i.
-    // The paths are very short and as long the clk to clk_90
-    // constraints are proper (clk_90 being a derived shifted clock)
-    // this should not cause any problems
+    // As long as the clk to clk_90 constraints are proper 
+    // (clk_90 being a derived shifted clock) this should not cause problems
+    
     always_comb begin : gen_ck_counter
-        ck_cnt_d = clk_cnt_q;
-        // controlled by above FSM, only true in SendCA state
-        if(trx_rwds_sample_ena)
-            ck_cnt_d = ck_cnt_q +1;
+        ck_cnt_d = ck_cnt_q +1; // count hyper_ck falling edges
+
         // reset counter when the transaction ends (CS goes high)
-        if(hyper_cs_no)
+        if(hyper_cs_no) begin
             ck_cnt_d = '0;
+        end else if(ck_cnt_q == 3) begin // stop counting once sample is taken
+            ck_cnt_d = ck_cnt_q;
+        end
     end
     // clocked with falling edge, creates an active clk-gate around rising edge
     `FF(ck_cnt_q, ck_cnt_d, '0, hyper_ck_no);
 
-    assign rwds_sample_ena = (ck_cnt_q == 2) & rwds_sample_ena_i; // TODO: Check proper sampling point in sim
+    assign rwds_sample_ena = (ck_cnt_q == 2); // TODO: Check proper sampling point in sim
 
     // Gate the sampling of rwds to the third rising CK_90 edge only
     tc_clk_gating i_rwds_in_clk_gate (
