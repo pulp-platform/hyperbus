@@ -18,14 +18,13 @@ module hyperbus_trx #(
     input  logic       rst_ni,
     input  logic       test_mode_i,
 
-    input  logic [1:0] cfg_edge_idx_i,
+    input  logic [3:0] cfg_edge_idx_i,
     input  logic       cfg_edge_pol_i,
 
     // Transceiver control: facing controller
     input  logic [NumChips-1:0]    cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
-    input  logic                   rwds_sample_ena_i,
 
     input  logic [3:0]             tx_clk_delay_i,
     input  logic                   tx_clk_ena_i,
@@ -69,11 +68,6 @@ module hyperbus_trx #(
     logic           rx_rwds_fifo_valid;
     logic           rx_rwds_fifo_ready;
 
-    // used to time the sampling of RWDS to determine additional latency
-    logic [2:0]     ck_cnt_d, ck_cnt_q; // TODO: check in sim if this can be one less
-    logic           rwds_sample_ena;
-    logic           rwds_sample_clk;
-
     // Feed through async reset
     assign hyper_reset_no = rst_ni;
 
@@ -85,6 +79,8 @@ module hyperbus_trx #(
     assign tx_clk_90 = clk_i_90;
 
     // 90deg-shifted differential output clock, sampling output bytes centrally
+    // TODO: tx_clk_ena_q to tx_clk_90 may need a constraint at the pins of this module
+    // specifically tx_clk_ena_q must arrive BEFORE tx_clk_90 otherwise the gating may fail
     hyperbus_clock_diff_out i_clock_diff_out (
         .in_i   ( tx_clk_90     ),
         .en_i   ( tx_clk_ena_q  ),
@@ -93,7 +89,7 @@ module hyperbus_trx #(
     );
 
     // Synchronize output chip select to shifted differential output clock
-    always_ff @(posedge tx_clk_90 or negedge rst_ni) begin : proc_ff_tx_shift90
+    always_ff @(negedge clk_i or negedge rst_ni) begin : proc_ff_tx_shift90
         if (~rst_ni)    hyper_cs_no <= '1;
         else            hyper_cs_no <= cs_ena_i ? ~cs_i : '1;
     end
@@ -148,10 +144,7 @@ module hyperbus_trx #(
         .cfg_edge_idx_i,
         .cfg_edge_pol_i,
         .rwds_sample_o,
-        .tx_clk_90_i     ( tx_clk_90    ),
         .hyper_cs_ni     ( &hyper_cs_no ),
-        .hyper_ck_i      ( hyper_ck_o   ),
-        .hyper_ck_ni     ( hyper_ck_no  ),
         .hyper_rwds_i    ( hyper_rwds_i )
     );
 

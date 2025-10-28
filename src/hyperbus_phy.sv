@@ -98,7 +98,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic           trx_clk_ena;
     logic           trx_cs_ena;
     logic           trx_rwds_sample;
-    logic           trx_rwds_sample_ena;
     logic [15:0]    trx_tx_data;
     logic           trx_tx_data_oe;
     logic [1:0]     trx_tx_rwds;
@@ -123,24 +122,23 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .clk_i_90,
         .rst_ni,
         .test_mode_i,
-        .cfg_edge_idx_i     ( cfg_i.rwds_sample_edge.cylce_idx ),
-        .cfg_edge_pol_i     ( cfg_i.rwds_sample_edge.polarity  ),
-        .cs_i               ( cs_q                             ),
-        .cs_ena_i           ( trx_cs_ena                       ),
-        .rwds_sample_o      ( trx_rwds_sample                  ),
-        .rwds_sample_ena_i  ( trx_rwds_sample_ena              ),
-        .tx_clk_delay_i     ( cfg_i.t_tx_clk_delay             ),
-        .tx_clk_ena_i       ( trx_clk_ena                      ),
-        .tx_data_i          ( trx_tx_data                      ),
-        .tx_data_oe_i       ( trx_tx_data_oe                   ),
-        .tx_rwds_i          ( trx_tx_rwds                      ),
-        .tx_rwds_oe_i       ( trx_tx_rwds_oe                   ),
-        .rx_clk_delay_i     ( cfg_i.t_rx_clk_delay             ),
-        .rx_clk_set_i       ( trx_rx_clk_set                   ),
-        .rx_clk_reset_i     ( trx_rx_clk_reset                 ),
-        .rx_data_o          ( trx_rx_data                      ),
-        .rx_valid_o         ( trx_rx_valid                     ),
-        .rx_ready_i         ( trx_rx_ready                     ),
+        .cfg_edge_idx_i     ( cfg_i.rwds_sample.cylce_idx ),
+        .cfg_edge_pol_i     ( cfg_i.rwds_sample.polarity  ),
+        .cs_i               ( cs_q                        ),
+        .cs_ena_i           ( trx_cs_ena                  ),
+        .rwds_sample_o      ( trx_rwds_sample             ),
+        .tx_clk_delay_i     ( cfg_i.t_tx_clk_delay        ),
+        .tx_clk_ena_i       ( trx_clk_ena                 ),
+        .tx_data_i          ( trx_tx_data                 ),
+        .tx_data_oe_i       ( trx_tx_data_oe              ),
+        .tx_rwds_i          ( trx_tx_rwds                 ),
+        .tx_rwds_oe_i       ( trx_tx_rwds_oe              ),
+        .rx_clk_delay_i     ( cfg_i.t_rx_clk_delay        ),
+        .rx_clk_set_i       ( trx_rx_clk_set              ),
+        .rx_clk_reset_i     ( trx_rx_clk_reset            ),
+        .rx_data_o          ( trx_rx_data                 ),
+        .rx_valid_o         ( trx_rx_valid                ),
+        .rx_ready_i         ( trx_rx_ready                ),
         .hyper_cs_no,
         .hyper_ck_o,
         .hyper_ck_no,
@@ -245,7 +243,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         trx_cs_ena          = 1'b1;
         trx_clk_ena         = 1'b0;
         trx_rx_clk_set      = 1'b0;
-        trx_rwds_sample_ena = 1'b0;
         // Default next state
         state_d = state_q;
         timer_d = timer_q - 1;
@@ -301,7 +298,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Dataflow handled outside FSM
                 trx_clk_ena         = 1'b1;
                 trx_tx_data_oe      = 1'b1;
-                trx_rwds_sample_ena = ~ctl_write_zero_lat;
                 if (ctl_timer_zero) begin
                     if (ctl_write_zero_lat) begin
                         timer_d = cfg_i.t_burst_max;
