@@ -50,12 +50,12 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     output logic [NumPhys-1:0]               hyper_reset_no
 );
 
-      phy_rx_t [NumPhys-1:0]       phy_fifo_rx;
-      phy_rx_t [NumPhys-1:0]       fifo_axi_rx;
-      logic [NumPhys-1:0]          phy_fifo_valid;
-      logic [NumPhys-1:0]          phy_fifo_ready;
-      logic [NumPhys-1:0]          fifo_axi_valid;
-      logic                        fifo_axi_ready;
+    phy_rx_t [NumPhys-1:0]       phy_fifo_rx;
+    phy_rx_t [NumPhys-1:0]       fifo_axi_rx;
+    logic [NumPhys-1:0]          phy_fifo_valid;
+    logic [NumPhys-1:0]          phy_fifo_ready;
+    logic [NumPhys-1:0]          fifo_axi_valid;
+    logic                        fifo_axi_ready;
 
       logic [NumPhys-1:0][1:0]     fifo_axi_usage;
 
@@ -150,7 +150,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                    .rst_ni         ( rst_ni            ),
                    .test_mode_i    ( test_mode_i       ),
 
-                   .cfg_i          ( cfg_i             ),
+                .cfg_i          ( cfg_i             ),
 
                    .busy_o         ( phy_busy[i]       ),
 
@@ -202,7 +202,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                  .rst_ni         ( rst_ni          ),
                  .test_mode_i    ( test_mode_i     ),
 
-                 .cfg_i          ( cfg_i           ),
+            .cfg_i          ( cfg_i           ),
 
                  .busy_o         (                 ),
 
