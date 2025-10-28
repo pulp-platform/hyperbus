@@ -34,7 +34,6 @@ module hyperbus #(
     parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000, // 64 KiB: Current maximum HyperBus device size
     parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys,MinFreqMHz),
     parameter int unsigned  PhyStartupCycles = 300 * 200, /* us*MHz */ // Conservative maximum frequency estimate
-    parameter int unsigned  AxiLogDepth = 3,
     parameter int unsigned  SyncStages  = 2
 ) (
     input  logic                        clk_phy_i,
