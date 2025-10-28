@@ -24,6 +24,9 @@
 
 `include "common_cells/registers.svh"
 
+(* no_ungroup *)
+(* no_boundary_optimization *)
+(* keep_hierarchy = "yes" *)
 module hyperbus_rwds_sampler import hyperbus_pkg::*; #()
 (
     // Global signals
