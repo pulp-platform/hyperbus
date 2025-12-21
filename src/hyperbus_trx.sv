@@ -25,14 +25,13 @@ module hyperbus_trx #(
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
 
-    input  logic [4:0]             tx_clk_delay_i,
     input  logic                   tx_clk_ena_i,
     input  logic [15:0]            tx_data_i,
     input  logic                   tx_data_oe_i,
     input  logic [1:0]             tx_rwds_i,
     input  logic                   tx_rwds_oe_i,
 
-    input  logic [4:0]             rx_clk_delay_i,
+    input  logic [7:0]             rx_clk_delay_i,
     input  logic                   rx_clk_set_i,
     input  logic                   rx_clk_reset_i,
     output logic [15:0]            rx_data_o,

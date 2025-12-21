@@ -90,19 +90,19 @@ module hyperbus_cfg_regs #(
         crange_d  = crange_q;
         if (reg_req_i.valid & reg_req_i.write & sel_reg_mapped) begin
             case (sel_reg)
-                'h0: cfg_d.t_latency_access         = (~wmask & cfg_q.t_latency_access        ) | (wmask & reg_req_i.wdata);
-                'h1: cfg_d.en_latency_additional    = (~wmask & cfg_q.en_latency_additional   ) | (wmask & reg_req_i.wdata);
-                'h2: cfg_d.t_burst_max              = (~wmask & cfg_q.t_burst_max             ) | (wmask & reg_req_i.wdata);
-                'h3: cfg_d.t_read_write_recovery    = (~wmask & cfg_q.t_read_write_recovery   ) | (wmask & reg_req_i.wdata);
-                'h4: cfg_d.t_rx_clk_delay           = (~wmask & cfg_q.t_rx_clk_delay          ) | (wmask & reg_req_i.wdata);
-                'h5: cfg_d.t_tx_clk_delay           = (~wmask & cfg_q.t_tx_clk_delay          ) | (wmask & reg_req_i.wdata);
-                'h6: cfg_d.address_mask_msb         = (~wmask & cfg_q.address_mask_msb        ) | (wmask & reg_req_i.wdata);
-                'h7: cfg_d.address_space            = (~wmask & cfg_q.address_space           ) | (wmask & reg_req_i.wdata);
-                'h8: cfg_d.phys_in_use              = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.phys_in_use ) | (wmask & reg_req_i.wdata) );
-                'h9: cfg_d.which_phy                = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.which_phy   ) | (wmask & reg_req_i.wdata) );
-                'ha: cfg_d.t_csh_cycles             = (~wmask & cfg_q.t_csh_cycles            ) | (wmask & reg_req_i.wdata);
-                'hb: cfg_d.csn_to_ck_cycles         = (~wmask & cfg_q.csn_to_ck_cycles        ) | (wmask & reg_req_i.wdata);
-                'hc: cfg_d.rwds_sample              = (~wmask & cfg_q.rwds_sample             ) | (wmask & reg_req_i.wdata);
+                'h0: cfg_d.t_latency_access      = (~wmask & cfg_q.t_latency_access        ) | (wmask & reg_req_i.wdata);
+                'h1: cfg_d.en_latency_additional = (~wmask & cfg_q.en_latency_additional   ) | (wmask & reg_req_i.wdata);
+                'h2: cfg_d.t_burst_max           = (~wmask & cfg_q.t_burst_max             ) | (wmask & reg_req_i.wdata);
+                'h3: cfg_d.t_read_write_recovery = (~wmask & cfg_q.t_read_write_recovery   ) | (wmask & reg_req_i.wdata);
+                'h4: cfg_d.t_rx_clk_delay        = (~wmask & cfg_q.t_rx_clk_delay          ) | (wmask & reg_req_i.wdata);
+                'h5: cfg_d.t_tx_clk_delay        = (~wmask & cfg_q.t_tx_clk_delay          ) | (wmask & reg_req_i.wdata);
+                'h6: cfg_d.address_mask_msb      = (~wmask & cfg_q.address_mask_msb        ) | (wmask & reg_req_i.wdata);
+                'h7: cfg_d.address_space         = (~wmask & cfg_q.address_space           ) | (wmask & reg_req_i.wdata);
+                'h8: cfg_d.phys_in_use           = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.phys_in_use ) | (wmask & reg_req_i.wdata) );
+                'h9: cfg_d.which_phy             = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.which_phy   ) | (wmask & reg_req_i.wdata) );
+                'ha: cfg_d.t_csh_cycles          = (~wmask & cfg_q.t_csh_cycles            ) | (wmask & reg_req_i.wdata);
+                'hb: cfg_d.csn_to_ck_cycles      = (~wmask & cfg_q.csn_to_ck_cycles        ) | (wmask & reg_req_i.wdata);
+                'hc: cfg_d.rwds_sample           = (~wmask & cfg_q.rwds_sample             ) | (wmask & reg_req_i.wdata);
                 default: begin
                     {sel_chip, chip_reg} = sel_reg - NumBaseRegs;
                     crange_d[sel_chip][chip_reg] = (~wmask & crange_q[sel_chip][chip_reg]) |  (wmask & reg_req_i.wdata);

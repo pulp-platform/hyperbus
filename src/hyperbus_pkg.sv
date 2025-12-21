@@ -20,8 +20,8 @@ package hyperbus_pkg;
         logic            en_latency_additional;
         logic [15:0]     t_burst_max;
         logic [3:0]      t_read_write_recovery;
-        logic [4:0]      t_rx_clk_delay;
-        logic [4:0]      t_tx_clk_delay;
+        logic [7:0]      t_rx_clk_delay;
+        logic [7:0]      t_tx_clk_delay;
         logic [4:0]      address_mask_msb;
         logic            address_space;
         logic            phys_in_use;
@@ -74,18 +74,18 @@ package hyperbus_pkg;
         // It can be lowered if this frequency is not reachable in operation (may not with with certain HyperBus devices)
         // >200 is outside the spec and is unlikely to work with any HyperBus devices
         automatic hyper_cfg_t cfg = hyper_cfg_t'{
-            t_latency_access:           'h6,
-            en_latency_additional:      'b0,
-            t_burst_max:                ((MinFreqMhz*35)/10), // t_{csm}: At lowest legal clock (100 MHz) 3.5us (0.5us safety margin)
-            t_read_write_recovery:      'h6,
-            t_rx_clk_delay:             'h8,
-            t_tx_clk_delay:             'h10,
-            address_mask_msb:           'd25,                // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
-            address_space:              'b0,
-            phys_in_use:                NumPhys-1,
-            which_phy:                  NumPhys-1,
-            t_csh_cycles:               'h1,
-            csn_to_ck_cycles:           'h0,                 // additional cycles from CS_N going low to start of hyper_ck
+            t_latency_access:      'h6,
+            en_latency_additional: 'b0,
+            t_burst_max:           ((MinFreqMhz*35)/10), // t_{csm}: At lowest legal clock (100 MHz) 3.5us (0.5us safety margin)
+            t_read_write_recovery: 'h6,
+            t_rx_clk_delay:        'h10,
+            t_tx_clk_delay:        'h10,
+            address_mask_msb:      'd25,                // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
+            address_space:         'b0,
+            phys_in_use:           NumPhys-1,
+            which_phy:             NumPhys-1,
+            t_csh_cycles:          'h1,
+            csn_to_ck_cycles:      'h0,                 // additional cycles from CS_N going low to start of hyper_ck
             rwds_sample:           hyper_cfg_rwds_t'{        // hyper_ck edge for RWDS sampling relative to CS_N going low
                                             cylce_idx: 'h2,  // cycle number after CS_N going low (first falling and rising edge is idx=0)
                                             polarity:  'b1 } // 0: falling, 1:rising -> first edge after CS_N is a falling edge
