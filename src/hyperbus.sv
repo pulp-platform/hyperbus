@@ -60,7 +60,8 @@ module hyperbus #(
     input  logic [NumPhys-1:0][7:0]          hyper_dq_i,
     output logic [NumPhys-1:0][7:0]          hyper_dq_o,
     output logic [NumPhys-1:0]               hyper_dq_oe_o,
-    output logic [NumPhys-1:0]               hyper_reset_no
+    output logic [NumPhys-1:0]               hyper_reset_no,
+    output logic [NumPhys-1:0][7:0]          hyper_pad_cfg_o
 );
 
    typedef struct packed {
@@ -311,4 +312,11 @@ module hyperbus #(
     );
 
 
+    // PAD configuration
+    if(NumPhys >= 1) begin : gen_pad_cfg_phy0
+        assign hyper_pad_cfg_o[0] = cfg.t_pad_cfg[7:0];
+    end
+    if(NumPhys == 2) begin : gen_pad_cfg_phy1
+        assign hyper_pad_cfg_o[1] = cfg.t_pad_cfg[15:8];
+    end
 endmodule : hyperbus
