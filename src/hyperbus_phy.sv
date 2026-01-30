@@ -8,7 +8,6 @@
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
 module hyperbus_phy import hyperbus_pkg::*; #(
-    parameter int unsigned IsClockODelayed = -1,
     parameter int unsigned NumChips         = 2,
     parameter int unsigned NumPhys          = -1,
     parameter int unsigned TimerWidth       = 16,
@@ -98,7 +97,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic           trx_clk_ena;
     logic           trx_cs_ena;
     logic           trx_rwds_sample;
-    logic           trx_rwds_sample_ena;
     logic [15:0]    trx_tx_data;
     logic           trx_tx_data_oe;
     logic [1:0]     trx_tx_rwds;
@@ -114,7 +112,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // =================
 
     hyperbus_trx #(
-        .IsClockODelayed( IsClockODelayed   ),
         .NumChips       ( NumChips          ),
         .RxFifoLogDepth ( RxFifoLogDepth    ),
         .SyncStages     ( SyncStages        )
@@ -123,22 +120,23 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .clk_i_90,
         .rst_ni,
         .test_mode_i,
-        .cs_i               ( cs_q                  ),
-        .cs_ena_i           ( trx_cs_ena            ),
-        .rwds_sample_o      ( trx_rwds_sample       ),
-        .rwds_sample_ena_i  ( trx_rwds_sample_ena   ),
-        .tx_clk_delay_i     ( cfg_i.t_tx_clk_delay  ),
-        .tx_clk_ena_i       ( trx_clk_ena           ),
-        .tx_data_i          ( trx_tx_data           ),
-        .tx_data_oe_i       ( trx_tx_data_oe        ),
-        .tx_rwds_i          ( trx_tx_rwds           ),
-        .tx_rwds_oe_i       ( trx_tx_rwds_oe        ),
-        .rx_clk_delay_i     ( cfg_i.t_rx_clk_delay  ),
-        .rx_clk_set_i       ( trx_rx_clk_set        ),
-        .rx_clk_reset_i     ( trx_rx_clk_reset      ),
-        .rx_data_o          ( trx_rx_data           ),
-        .rx_valid_o         ( trx_rx_valid          ),
-        .rx_ready_i         ( trx_rx_ready          ),
+        .cfg_edge_idx_i     ( cfg_i.rwds_sample.cylce_idx ),
+        .cfg_edge_pol_i     ( cfg_i.rwds_sample.polarity  ),
+        .cs_i               ( cs_q                        ),
+        .cs_ena_i           ( trx_cs_ena                  ),
+        .rwds_sample_o      ( trx_rwds_sample             ),
+        .tx_clk_delay_i     ( cfg_i.t_tx_clk_delay        ),
+        .tx_clk_ena_i       ( trx_clk_ena                 ),
+        .tx_data_i          ( trx_tx_data                 ),
+        .tx_data_oe_i       ( trx_tx_data_oe              ),
+        .tx_rwds_i          ( trx_tx_rwds                 ),
+        .tx_rwds_oe_i       ( trx_tx_rwds_oe              ),
+        .rx_clk_delay_i     ( cfg_i.t_rx_clk_delay        ),
+        .rx_clk_set_i       ( trx_rx_clk_set              ),
+        .rx_clk_reset_i     ( trx_rx_clk_reset            ),
+        .rx_data_o          ( trx_rx_data                 ),
+        .rx_valid_o         ( trx_rx_valid                ),
+        .rx_ready_i         ( trx_rx_ready                ),
         .hyper_cs_no,
         .hyper_ck_o,
         .hyper_ck_no,
@@ -243,7 +241,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         trx_cs_ena          = 1'b1;
         trx_clk_ena         = 1'b0;
         trx_rx_clk_set      = 1'b0;
-        trx_rwds_sample_ena = 1'b0;
         // Default next state
         state_d = state_q;
         timer_d = timer_q - 1;
@@ -269,26 +266,42 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (trans_valid_i & ~b_pending_q & r_outstand_q == '0) begin
                     tf_d    = trans_i;
                     cs_d    = trans_cs_i;
-                    // Send 3 CA words (t_CSS respected through clock delay)
-                    timer_d = 2;
-                    state_d = SendCA;
-                    // Enable output driver (needs to be enabled one cycle
-                    // earlier since tri-state enables of IO pads are quite
-                    // slow compared to the data pins)
+
+                    if(cfg_i.csn_to_ck_cycles != 0) begin
+                        // assert CS but delay hyper_ck to allow more time
+                        // for memory to drive RWDS (to satisfy t_DSV)
+                        state_d = DelayCK;
+                        timer_d = cfg_i.csn_to_ck_cycles -1;
+                    end else begin
+                        // max throughput when memory RWDS signal arrives early
+                        state_d = SendCA;
+                        // Send 3 CA words (t_CSS respected through clock delay)
+                        timer_d = 2;
+                    end
+                    
+                    // Enable output driver (needs to be enabled at least 
+                    // one cycle earlier since tri-state enables of IO pads
+                    // are quite slow compared to the data pins)
                     trx_tx_data_oe = 1'b1;
+                end
+            end
+            DelayCK: begin
+                trx_clk_ena = 1'b0;
+                if (ctl_timer_zero) begin
+                    timer_d = 2; // Send 3 CA words
+                    state_d = SendCA;
                 end
             end
             SendCA: begin
                 // Dataflow handled outside FSM
                 trx_clk_ena         = 1'b1;
                 trx_tx_data_oe      = 1'b1;
-                trx_rwds_sample_ena = ~ctl_write_zero_lat;
                 if (ctl_timer_zero) begin
                     if (ctl_write_zero_lat) begin
                         timer_d = cfg_i.t_burst_max;
                         state_d = Write;
                     end else begin
-                        timer_d = TimerWidth'(cfg_i.t_latency_access) << ctl_add_latency;
+                        timer_d = TimerWidth'(cfg_i.t_latency_access);
                         state_d = WaitLatAccess;
                     end
                 end
@@ -296,18 +309,44 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             WaitLatAccess: begin
                 trx_clk_ena = 1'b1;
                 trx_tx_data_oe = 1'b1;
-                // Substract cycle for last CA and another for state delay
+                // ctl_add_latency may arrive at any time (adjustable RWDS sampling)
+                // If no additional latency required:
+                if (~ctl_add_latency) begin
+                    // Substract cycle for last CA and another for state delay
+                    if(ctl_timer_two) begin
+                        timer_d = cfg_i.t_burst_max;
+                        // Switch to write or read phase and already start
+                        // turnaround of tri-state driver (depending on latency
+                        // config and if read or write transaction).
+                        if (tf_q.write) begin
+                            state_d = Write;
+                            trx_tx_data_oe = 1'b1;
+                            // For zero latency writes, we must not drive the RWDS
+                            // signal (see specs page 9). Depending on the latency
+                            // mode we thus drive only the DQ signals or DQ + RWDS.
+                            trx_tx_rwds_oe = ~ctl_write_zero_lat;
+                        end else begin
+                            state_d = Read;
+                            trx_tx_data_oe = 1'b0;
+                            trx_tx_rwds_oe = 1'b0;
+                        end
+                    end
+                end else if (ctl_timer_one) begin
+                    // instead of going to 0, add another latency count
+                    state_d = WaitAddLatAccess;
+                    timer_d = TimerWidth'(cfg_i.t_latency_access);
+                end
+            end
+            WaitAddLatAccess: begin
+                // Same as WaitLatAccess but without possibility 
+                // of adding another latency count
+                trx_clk_ena = 1'b1;
+                trx_tx_data_oe = 1'b1;
                 if (ctl_timer_two) begin
                     timer_d = cfg_i.t_burst_max;
-                    // Switch to write or read phase and already start
-                    // turnaround of tri-state driver (depending on latency
-                    // config and if read or write transaction).
                     if (tf_q.write) begin
                         state_d = Write;
                         trx_tx_data_oe = 1'b1;
-                        // For zero latency writes, we must not drive the RWDS
-                        // signal (see specs page 9). Depending on the latency
-                        // mode we thus drive only the DQ signals or DQ + RWDS.
                         trx_tx_rwds_oe = ~ctl_write_zero_lat;
                     end else begin
                         state_d = Read;

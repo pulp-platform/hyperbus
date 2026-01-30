@@ -3,21 +3,23 @@
 // SPDX-License-Identifier: SHL-0.51
 //
 // Luca Valente <luca.valente@unibo.it>
+// Philippe Sauter <phsauter@iis.ee.ethz.ch>
 
 module hyperbus_phy_if import hyperbus_pkg::*; #(
-    parameter int unsigned IsClockODelayed = 1,
+    parameter bit          UsePhyClkDivider = 1,
     parameter int unsigned NumChips = 2,
     parameter int unsigned NumPhys = 2,
-    parameter int unsigned TimerWidth = 16,
-    parameter int unsigned RxFifoLogDepth = 3,
     parameter int unsigned StartupCycles = 60000, /*MHz*/ // Conservative maximum frequency estimate
-    parameter int unsigned  SyncStages  = 2,
+    parameter int unsigned SyncStages  = 2,
     parameter type hyper_tx_t = logic,
     parameter type hyper_rx_t = logic
 )(
-    input  logic                clk_i,
-    input  logic                clk_i_90,
-    input  logic                rst_ni,
+    input  logic                clk_phy_i,
+    input  logic                clk_phy_i_90,  // only used together with divided clock (clk_gen)
+`ifdef TARGET_XILINX
+    input  logic                clk_ref200_i,  // only used with Xilinx delay lines (reference to IDELAY cells)
+`endif
+    input  logic                rst_phy_ni,
     input  logic                test_mode_i,
     // Config registers
     input  hyper_cfg_t          cfg_i,
@@ -39,7 +41,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     input  logic                b_ready_i,
     output logic                b_error_o,
 
-    // Physical interace: facing HyperBus
+    // Physical interface: facing HyperBus
     output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
     output logic [NumPhys-1:0]               hyper_ck_o,
     output logic [NumPhys-1:0]               hyper_ck_no,
@@ -52,196 +54,218 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     output logic [NumPhys-1:0]               hyper_reset_no
 );
 
-      phy_rx_t [NumPhys-1:0]       phy_fifo_rx;
-      phy_rx_t [NumPhys-1:0]       fifo_axi_rx;
-      logic [NumPhys-1:0]          phy_fifo_valid;
-      logic [NumPhys-1:0]          phy_fifo_ready;
-      logic [NumPhys-1:0]          fifo_axi_valid;
-      logic                        fifo_axi_ready;
+    logic clk_phy_0, clk_phy_90;
 
-      logic [NumPhys-1:0][1:0]     fifo_axi_usage;
+    // Shift clock by 90 degrees
+    if(UsePhyClkDivider == '0) begin : clock_generator
+        assign clk_phy_0 = clk_phy_i;
 
-      logic                        tx_both_ready, ts_both_ready;
-      logic                        rx_both_valid, b_both_valid;
+        `ifdef TARGET_XILINX
+            hyperbus_clk_delay i_delay_tx_clk_90 (
+                .rst_i         ( ~rst_ni ),
+                .clk_ref200_i,
+                .clk_i         ( clk_phy_i            ),
+                .in_i          ( clk_phy_0            ),
+                .delay_i       ( cfg_i.t_tx_clk_delay ),
+                .out_o         ( clk_phy_90           )
+            );
+        `else
+            hyperbus_delay i_delay_tx_clk_90 (
+                .in_i          ( clk_phy_0            ),
+                .delay_i       ( cfg_i.t_tx_clk_delay ),
+                .out_o         ( clk_phy_90           )
+            );
+        `endif
+    end else begin
+        assign clk_phy_0  = clk_phy_i;
+        assign clk_phy_90 = clk_phy_i_90;
+    end
 
-      logic [NumPhys-1:0]          phy_tx_ready;
-      logic                        phy_tx_valid;
 
-      logic [NumPhys-1:0]          phy_trans_ready;
-      logic [NumPhys-1:0]          phy_trans_valid;
+    phy_rx_t [NumPhys-1:0]       phy_fifo_rx;
+    phy_rx_t [NumPhys-1:0]       fifo_axi_rx;
+    logic [NumPhys-1:0]          phy_fifo_valid;
+    logic [NumPhys-1:0]          phy_fifo_ready;
+    logic [NumPhys-1:0]          fifo_axi_valid;
+    logic                        fifo_axi_ready;
 
-      logic [NumPhys-1:0]          phy_b_valid;
-      logic [NumPhys-1:0]          phy_b_error;
-      logic                        phy_b_ready;
+    logic [NumPhys-1:0][1:0]     fifo_axi_usage;
 
-      genvar                          i;
-      generate
+    logic                        tx_both_ready, ts_both_ready;
+    logic                        rx_both_valid, b_both_valid;
 
-         if (NumPhys==2) begin : phy_wrap
+    logic [NumPhys-1:0]          phy_tx_ready;
+    logic                        phy_tx_valid;
 
-            logic [NumPhys-1:0] phy_enable;
-            logic [NumPhys-1:0] phy_busy;
-            logic [NumPhys-1:0] phy_active_q, phy_active_d;
-            logic               change_phy_active;
+    logic [NumPhys-1:0]          phy_trans_ready;
+    logic [NumPhys-1:0]          phy_trans_valid;
 
-            assign change_phy_active = phy_active_q != phy_enable;
-            assign phy_enable        = cfg_i.phys_in_use ? '1 : (1 << cfg_i.which_phy);
-            assign phy_active_d      = change_phy_active && fifo_axi_usage == '0 ?
-                                       phy_enable | phy_busy : phy_active_q;
+    logic [NumPhys-1:0]          phy_b_valid;
+    logic [NumPhys-1:0]          phy_b_error;
+    logic                        phy_b_ready;
 
-            always_ff @(posedge clk_i or negedge rst_ni ) begin
-                if (!rst_ni) begin
-                    phy_active_q <= '1;
-                end else begin
-                    phy_active_q <= phy_active_d;
-                end
+    if (NumPhys==2) begin : phy_wrap
+
+        logic [NumPhys-1:0] phy_enable;
+        logic [NumPhys-1:0] phy_busy;
+        logic [NumPhys-1:0] phy_active_q, phy_active_d;
+        logic               change_phy_active;
+
+        assign change_phy_active = phy_active_q != phy_enable;
+        assign phy_enable        = cfg_i.phys_in_use ? '1 : (1 << cfg_i.which_phy);
+        assign phy_active_d      = change_phy_active && fifo_axi_usage == '0 ?
+                                    phy_enable | phy_busy : phy_active_q;
+
+        always_ff @(posedge clk_phy_0 or negedge rst_phy_ni ) begin
+            if (!rst_phy_ni) begin
+                phy_active_q <= '1;
+            end else begin
+                phy_active_q <= phy_active_d;
             end
+        end
 
-            assign rx_both_valid  = & (fifo_axi_valid | ~phy_active_q);
-            assign rx_valid_o     = rx_both_valid;
-            assign fifo_axi_ready = rx_ready_i && rx_both_valid;
+        assign rx_both_valid  = & (fifo_axi_valid | ~phy_active_q);
+        assign rx_valid_o     = rx_both_valid;
+        assign fifo_axi_ready = rx_ready_i && rx_both_valid;
 
-            assign rx_o.error    = | ({fifo_axi_rx[1].error, fifo_axi_rx[0].error} & phy_active_q);
-            assign rx_o.last     = & ({fifo_axi_rx[1].last, fifo_axi_rx[0].last} | ~phy_active_q);
-            assign tx_both_ready = & (phy_tx_ready | ~phy_active_q);
-            assign tx_ready_o    = tx_both_ready;
-            assign phy_tx_valid  = tx_both_ready && tx_valid_i;
+        assign rx_o.error    = | ({fifo_axi_rx[1].error, fifo_axi_rx[0].error} & phy_active_q);
+        assign rx_o.last     = & ({fifo_axi_rx[1].last, fifo_axi_rx[0].last} | ~phy_active_q);
+        assign tx_both_ready = & (phy_tx_ready | ~phy_active_q);
+        assign tx_ready_o    = tx_both_ready;
+        assign phy_tx_valid  = tx_both_ready && tx_valid_i;
 
-            assign b_both_valid = & (phy_b_valid | ~phy_active_q);
-            assign b_valid_o    = b_both_valid;
-            assign phy_b_ready  = b_ready_i && b_both_valid;
-            assign b_error_o    = | (phy_b_error & phy_active_q);
+        assign b_both_valid = & (phy_b_valid | ~phy_active_q);
+        assign b_valid_o    = b_both_valid;
+        assign phy_b_ready  = b_ready_i && b_both_valid;
+        assign b_error_o    = | (phy_b_error & phy_active_q);
 
-            assign ts_both_ready = change_phy_active ? '0 :
-                                    & (phy_trans_ready | ~phy_active_q);
-            assign trans_ready_o = ts_both_ready;
-            assign phy_trans_valid = change_phy_active ? '0 :
-                                     phy_trans_ready & {NumPhys{trans_valid_i}} & phy_active_q;
+        assign ts_both_ready = change_phy_active ? '0 :
+                                & (phy_trans_ready | ~phy_active_q);
+        assign trans_ready_o = ts_both_ready;
+        assign phy_trans_valid = change_phy_active ? '0 :
+                                    phy_trans_ready & {NumPhys{trans_valid_i}} & phy_active_q;
 
-            for ( i=0; i<NumPhys;i++) begin : phy_unroll
-               assign rx_o.data[i*16 +:16] = fifo_axi_rx[i].data;
+        for ( genvar i=0; i<NumPhys;i++) begin : phy_unroll
+            assign rx_o.data[i*16 +:16] = fifo_axi_rx[i].data;
 
-               stream_fifo #(
-                   .FALL_THROUGH ( 1'b0        ),
-                   .DEPTH        ( 4           ),
-                   .T            ( phy_rx_t    )
-               ) rx_fifo (
-                   .clk_i          ( clk_i             ),
-                   .rst_ni         ( rst_ni            ),
-                   .flush_i        ( 1'b0              ),
-                   .testmode_i     ( 1'b0              ),
-                   .usage_o        ( fifo_axi_usage[i] ),
-                   .data_i         ( phy_fifo_rx[i]    ),
-                   .valid_i        ( phy_fifo_valid[i] ),
-                   .ready_o        ( phy_fifo_ready[i] ),
-                   .data_o         ( fifo_axi_rx[i]    ),
-                   .valid_o        ( fifo_axi_valid[i] ),
-                   .ready_i        ( fifo_axi_ready    )
-               );
+            stream_fifo #(
+                .FALL_THROUGH ( 1'b0        ),
+                .DEPTH        ( 4           ),
+                .T            ( phy_rx_t    )
+            ) rx_fifo (
+            .clk_i          ( clk_phy_0         ),
+            .rst_ni         ( rst_phy_ni        ),
+                .flush_i        ( 1'b0              ),
+                .testmode_i     ( 1'b0              ),
+                .usage_o        ( fifo_axi_usage[i] ),
+                .data_i         ( phy_fifo_rx[i]    ),
+                .valid_i        ( phy_fifo_valid[i] ),
+                .ready_o        ( phy_fifo_ready[i] ),
+                .data_o         ( fifo_axi_rx[i]    ),
+                .valid_o        ( fifo_axi_valid[i] ),
+                .ready_i        ( fifo_axi_ready    )
+            );
 
-
-               hyperbus_phy #(
-                   .IsClockODelayed( IsClockODelayed   ),
-                   .NumChips       ( NumChips          ),
-                   .StartupCycles  ( StartupCycles     ),
-                   .NumPhys        ( NumPhys           ),
-                   .SyncStages     ( SyncStages        )
-               ) i_phy (
-                   .clk_i          ( clk_i             ),
-                   .clk_i_90       ( clk_i_90          ),
-                   .rst_ni         ( rst_ni            ),
-                   .test_mode_i    ( test_mode_i       ),
-
-                   .cfg_i          ( cfg_i             ),
-
-                   .busy_o         ( phy_busy[i]       ),
-
-                   .rx_data_o      ( phy_fifo_rx[i].data  ),
-                   .rx_last_o      ( phy_fifo_rx[i].last  ),
-                   .rx_error_o     ( phy_fifo_rx[i].error ),
-                   .rx_valid_o     ( phy_fifo_valid[i]    ),
-                   .rx_ready_i     ( phy_fifo_ready[i]    ),
-
-                   .tx_data_i      ( tx_i.data[16*i +:16] ),
-                   .tx_strb_i      ( tx_i.strb[2*i   +:2] ),
-                   .tx_last_i      ( tx_i.last            ),
-                   .tx_valid_i     ( phy_tx_valid         ),
-                   .tx_ready_o     ( phy_tx_ready[i]      ),
-
-                   .b_error_o      ( phy_b_error[i]       ),
-                   .b_valid_o      ( phy_b_valid[i]       ),
-                   .b_ready_i      ( phy_b_ready          ),
-
-                   .trans_i        ( trans_i              ),
-                   .trans_cs_i     ( trans_cs_i           ),
-                   .trans_valid_i  ( phy_trans_valid[i]   ),
-                   .trans_ready_o  ( phy_trans_ready[i]   ),
-
-                   .hyper_cs_no    ( hyper_cs_no[i]       ),
-                   .hyper_ck_o     ( hyper_ck_o[i]        ),
-                   .hyper_ck_no    ( hyper_ck_no[i]       ),
-                   .hyper_rwds_o   ( hyper_rwds_o[i]      ),
-                   .hyper_rwds_i   ( hyper_rwds_i[i]      ),
-                   .hyper_rwds_oe_o( hyper_rwds_oe_o[i]   ),
-                   .hyper_dq_i     ( hyper_dq_i[i]        ),
-                   .hyper_dq_o     ( hyper_dq_o[i]        ),
-                   .hyper_dq_oe_o  ( hyper_dq_oe_o[i]     ),
-                   .hyper_reset_no ( hyper_reset_no[i]    )
-               );
-
-            end // for ( i=0; i<NumPhys;i++)
-         end else begin // if (NumPhys==2)
 
             hyperbus_phy #(
-                 .IsClockODelayed( IsClockODelayed   ),
-                 .NumChips       ( NumChips          ),
-                 .StartupCycles  ( StartupCycles     ),
-                 .NumPhys        ( NumPhys           ),
-                 .SyncStages     ( SyncStages        )
-             ) i_phy (
-                 .clk_i          ( clk_i           ),
-                 .clk_i_90       ( clk_i_90        ),
-                 .rst_ni         ( rst_ni          ),
-                 .test_mode_i    ( test_mode_i     ),
+                .NumChips       ( NumChips          ),
+                .StartupCycles  ( StartupCycles     ),
+                .NumPhys        ( NumPhys           ),
+                .SyncStages     ( SyncStages        )
+            ) i_phy (
+                .clk_i          ( clk_phy_0         ),
+                .clk_i_90       ( clk_phy_90        ),
+                .rst_ni         ( rst_phy_ni        ),
+                .test_mode_i    ( test_mode_i       ),
 
-                 .cfg_i          ( cfg_i           ),
+                .cfg_i          ( cfg_i             ),
 
-                 .busy_o         (                 ),
+                .busy_o         ( phy_busy[i]       ),
 
-                 .rx_data_o      ( rx_o.data       ),
-                 .rx_last_o      ( rx_o.last       ),
-                 .rx_error_o     ( rx_o.error      ),
-                 .rx_valid_o     ( rx_valid_o      ),
-                 .rx_ready_i     ( rx_ready_i      ),
+                .rx_data_o      ( phy_fifo_rx[i].data  ),
+                .rx_last_o      ( phy_fifo_rx[i].last  ),
+                .rx_error_o     ( phy_fifo_rx[i].error ),
+                .rx_valid_o     ( phy_fifo_valid[i]    ),
+                .rx_ready_i     ( phy_fifo_ready[i]    ),
 
-                 .tx_data_i      ( tx_i.data       ),
-                 .tx_strb_i      ( tx_i.strb       ),
-                 .tx_last_i      ( tx_i.last       ),
-                 .tx_valid_i     ( tx_valid_i      ),
-                 .tx_ready_o     ( tx_ready_o      ),
+                .tx_data_i      ( tx_i.data[16*i +:16] ),
+                .tx_strb_i      ( tx_i.strb[2*i   +:2] ),
+                .tx_last_i      ( tx_i.last            ),
+                .tx_valid_i     ( phy_tx_valid         ),
+                .tx_ready_o     ( phy_tx_ready[i]      ),
 
-                 .b_error_o      ( b_error_o       ),
-                 .b_valid_o      ( b_valid_o       ),
-                 .b_ready_i      ( b_ready_i       ),
+                .b_error_o      ( phy_b_error[i]       ),
+                .b_valid_o      ( phy_b_valid[i]       ),
+                .b_ready_i      ( phy_b_ready          ),
 
-                 .trans_i        ( trans_i         ),
-                 .trans_cs_i     ( trans_cs_i      ),
-                 .trans_valid_i  ( trans_valid_i   ),
-                 .trans_ready_o  ( trans_ready_o   ),
+                .trans_i        ( trans_i              ),
+                .trans_cs_i     ( trans_cs_i           ),
+                .trans_valid_i  ( phy_trans_valid[i]   ),
+                .trans_ready_o  ( phy_trans_ready[i]   ),
 
-                 .hyper_cs_no    ( hyper_cs_no     ),
-                 .hyper_ck_o     ( hyper_ck_o      ),
-                 .hyper_ck_no    ( hyper_ck_no     ),
-                 .hyper_rwds_o   ( hyper_rwds_o    ),
-                 .hyper_rwds_i   ( hyper_rwds_i    ),
-                 .hyper_rwds_oe_o( hyper_rwds_oe_o ),
-                 .hyper_dq_i     ( hyper_dq_i      ),
-                 .hyper_dq_o     ( hyper_dq_o      ),
-                 .hyper_dq_oe_o  ( hyper_dq_oe_o   ),
-                 .hyper_reset_no ( hyper_reset_no  )
+                .hyper_cs_no    ( hyper_cs_no[i]       ),
+                .hyper_ck_o     ( hyper_ck_o[i]        ),
+                .hyper_ck_no    ( hyper_ck_no[i]       ),
+                .hyper_rwds_o   ( hyper_rwds_o[i]      ),
+                .hyper_rwds_i   ( hyper_rwds_i[i]      ),
+                .hyper_rwds_oe_o( hyper_rwds_oe_o[i]   ),
+                .hyper_dq_i     ( hyper_dq_i[i]        ),
+                .hyper_dq_o     ( hyper_dq_o[i]        ),
+                .hyper_dq_oe_o  ( hyper_dq_oe_o[i]     ),
+                .hyper_reset_no ( hyper_reset_no[i]    )
+            );
+
+        end // for ( i=0; i<NumPhys;i++)
+    end else begin // if (NumPhys==2)
+
+        hyperbus_phy #(
+            .NumChips       ( NumChips          ),
+            .StartupCycles  ( StartupCycles     ),
+            .NumPhys        ( NumPhys           ),
+            .SyncStages     ( SyncStages        )
+        ) i_phy (
+            .clk_i          ( clk_phy_0       ),
+            .clk_i_90       ( clk_phy_90      ),
+            .rst_ni         ( rst_phy_ni      ),
+            .test_mode_i    ( test_mode_i     ),
+
+            .cfg_i          ( cfg_i           ),
+
+            .busy_o         (                 ),
+
+            .rx_data_o      ( rx_o.data       ),
+            .rx_last_o      ( rx_o.last       ),
+            .rx_error_o     ( rx_o.error      ),
+            .rx_valid_o     ( rx_valid_o      ),
+            .rx_ready_i     ( rx_ready_i      ),
+
+            .tx_data_i      ( tx_i.data       ),
+            .tx_strb_i      ( tx_i.strb       ),
+            .tx_last_i      ( tx_i.last       ),
+            .tx_valid_i     ( tx_valid_i      ),
+            .tx_ready_o     ( tx_ready_o      ),
+
+            .b_error_o      ( b_error_o       ),
+            .b_valid_o      ( b_valid_o       ),
+            .b_ready_i      ( b_ready_i       ),
+
+            .trans_i        ( trans_i         ),
+            .trans_cs_i     ( trans_cs_i      ),
+            .trans_valid_i  ( trans_valid_i   ),
+            .trans_ready_o  ( trans_ready_o   ),
+
+            .hyper_cs_no    ( hyper_cs_no     ),
+            .hyper_ck_o     ( hyper_ck_o      ),
+            .hyper_ck_no    ( hyper_ck_no     ),
+            .hyper_rwds_o   ( hyper_rwds_o    ),
+            .hyper_rwds_i   ( hyper_rwds_i    ),
+            .hyper_rwds_oe_o( hyper_rwds_oe_o ),
+            .hyper_dq_i     ( hyper_dq_i      ),
+            .hyper_dq_o     ( hyper_dq_o      ),
+            .hyper_dq_oe_o  ( hyper_dq_oe_o   ),
+            .hyper_reset_no ( hyper_reset_no  )
             );
          end // else: !if(NumPhys==2)
-     endgenerate
 
 
 endmodule // hyperbus_wrap_0

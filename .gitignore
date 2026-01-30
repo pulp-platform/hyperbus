@@ -1,3 +1,8 @@
 .bender
 scripts/compile.tcl
+axi_log/
+work/
+transcript
+modelsim.ini
+vsim.wlf
 models/s27ks0641

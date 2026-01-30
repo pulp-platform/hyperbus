@@ -34,11 +34,16 @@ sources:
     - src/hyperbus_phy2r.sv
     - src/hyperbus_ddr_out.sv
     - src/hyperbus_delay.sv
+    - src/hyperbus_rwds_sampler.sv
     - src/hyperbus_trx.sv
     - src/hyperbus_cfg_regs.sv
     - src/hyperbus_phy.sv
     - src/hyperbus_phy_if.sv
     - src/hyperbus_axi.sv
+    - target: xilinx
+      files:
+        - target/xilinx/hyperbus_clk_delay.sv
+        - target/xilinx/hyperbus_rwds_delay.sv
     - target: hyper_test
       files:
         # Device models. TODO: extend
@@ -47,5 +52,6 @@ sources:
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb.sv
         - test/dut_if.sv
+        - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
     - src/hyperbus.sv

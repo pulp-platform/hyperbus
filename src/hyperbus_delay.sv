@@ -5,19 +5,22 @@
 // Thomas Benz <paulsc@iis.ee.ethz.ch>
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
+(* no_ungroup *)
+(* no_boundary_optimization *)
+(* keep_hierarchy = "yes" *)
 module hyperbus_delay (
     input  logic        in_i,
-    input  logic [3:0]  delay_i,
+    input  logic [4:0]  delay_i,
     output logic        out_o
 );
 
+    // The standard delay line is expected to have 32 taps with ~78ps per tap
+    // This conforms to the Xilinx IDELAYE2 with a 200MHz reference clock
+    // The total delay range is thus ~2.5ns
     configurable_delay #(
-      .NUM_STEPS(16)
+      .NUM_STEPS(32)
     ) i_delay (
         .clk_i      ( in_i      ),
-        `ifndef TARGET_ASIC
-        .enable_i   ( 1'b1      ),
-        `endif
         .delay_i    ( delay_i   ),
         .clk_o      ( out_o     )
     );
