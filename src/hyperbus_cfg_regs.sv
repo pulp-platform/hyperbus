@@ -30,7 +30,7 @@ module hyperbus_cfg_regs #(
     `include "common_cells/registers.svh"
 
     // Internal Parameters
-    localparam int unsigned NumBaseRegs     = 13;
+    localparam int unsigned NumBaseRegs     = 14;
     localparam int unsigned NumRegs         = 2*NumChips + NumBaseRegs;
     localparam int unsigned RegsBits        = cf_math_pkg::idx_width(NumRegs);
     localparam int unsigned RegStrbWidth    = RegDataWidth/8;
@@ -59,6 +59,7 @@ module hyperbus_cfg_regs #(
         if (sel_reg_mapped) begin
             rfield = {
                 crange_q,
+                reg_data_t'(cfg_q.t_pad_cfg),
                 reg_data_t'(cfg_q.rwds_sample),
                 reg_data_t'(cfg_q.csn_to_ck_cycles),
                 reg_data_t'(cfg_q.t_csh_cycles),
@@ -103,6 +104,7 @@ module hyperbus_cfg_regs #(
                 'ha: cfg_d.t_csh_cycles             = (~wmask & cfg_q.t_csh_cycles            ) | (wmask & reg_req_i.wdata);
                 'hb: cfg_d.csn_to_ck_cycles         = (~wmask & cfg_q.csn_to_ck_cycles        ) | (wmask & reg_req_i.wdata);
                 'hc: cfg_d.rwds_sample              = (~wmask & cfg_q.rwds_sample             ) | (wmask & reg_req_i.wdata);
+                'hd: cfg_d.t_pad_cfg                = (~wmask & cfg_q.t_pad_cfg               ) | (wmask & reg_req_i.wdata);
                 default: begin
                     {sel_chip, chip_reg} = sel_reg - NumBaseRegs;
                     crange_d[sel_chip][chip_reg] = (~wmask & crange_q[sel_chip][chip_reg]) |  (wmask & reg_req_i.wdata);
