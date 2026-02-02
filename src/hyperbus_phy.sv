@@ -125,7 +125,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .cs_i               ( cs_q                        ),
         .cs_ena_i           ( trx_cs_ena                  ),
         .rwds_sample_o      ( trx_rwds_sample             ),
-        .tx_clk_delay_i     ( cfg_i.t_tx_clk_delay        ),
         .tx_clk_ena_i       ( trx_clk_ena                 ),
         .tx_data_i          ( trx_tx_data                 ),
         .tx_data_oe_i       ( trx_tx_data_oe              ),

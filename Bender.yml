@@ -19,31 +19,40 @@ dependencies:
 
 sources:
   files:
-    - target: all(fpga,xilinx)
+    - target: all(fpga,not(hyperbus_dline))
       defines:
         FPGA_EMUL: ~
       files:
         - models/configurable_delay.fpga.sv
+    
+    - target: all(xilinx,hyperbus_dline)
+      defines: 
+        FPGA_EMUL: ~
+      files:
+        - target/xilinx/hyperbus_clk_delay.sv
+        - target/xilinx/hyperbus_rwds_delay.sv
+    
     - target: test
       files:
         - models/configurable_delay.behav.sv
+    
+    - target: all(asic,not(hyperbus_exclude_dline))
+      files:
+        - src/hyperbus_delay.sv
+    
     - src/hyperbus_pkg.sv
     - src/hyperbus_clk_gen.sv
     - src/hyperbus_clock_diff_out.sv
     - src/hyperbus_w2phy.sv
     - src/hyperbus_phy2r.sv
     - src/hyperbus_ddr_out.sv
-    - src/hyperbus_delay.sv
     - src/hyperbus_rwds_sampler.sv
     - src/hyperbus_trx.sv
     - src/hyperbus_cfg_regs.sv
     - src/hyperbus_phy.sv
     - src/hyperbus_phy_if.sv
     - src/hyperbus_axi.sv
-    - target: xilinx
-      files:
-        - target/xilinx/hyperbus_clk_delay.sv
-        - target/xilinx/hyperbus_rwds_delay.sv
+
     - target: hyper_test
       files:
         # Device models. TODO: extend
