@@ -36,7 +36,7 @@ sources:
       files:
         - models/configurable_delay.behav.sv
     
-    - target: all(asic,not(hyperbus_exclude_dline))
+    - target: all(not(xilinx),not(hyperbus_exclude_dline))
       files:
         - src/hyperbus_delay.sv
     
