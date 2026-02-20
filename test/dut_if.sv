@@ -31,8 +31,8 @@ module dut_if
  input logic rst_ni,
  input logic end_sim_i,
 
- AXI_BUS_DV.Slave axi_slv_if,
- REG_BUS.in       reg_slv_if
+ AXI_BUS.Slave axi_slv_if,
+ REG_BUS.in    reg_slv_if
 );
   localparam int unsigned DRAM_DB_WIDTH = 16;
    
@@ -124,25 +124,25 @@ module dut_if
 
     // DUT
     hyperbus #(
-        .NumChips       ( NumChips      ),
-        .NumPhys        ( NumPhys       ),
-        .AxiAddrWidth   ( AxiAddrWidth  ),
-        .AxiDataWidth   ( AxiDataWidth  ),
-        .AxiIdWidth     ( AxiIdWidth    ),
-        .AxiUserWidth   ( AxiUserWidth  ),
-        .axi_req_t      ( axi_req_t     ),
-        .axi_rsp_t      ( axi_resp_t    ),
-        .axi_aw_chan_t  ( axi_aw_chan_t ),
-        .axi_w_chan_t   ( axi_w_chan_t  ),
-        .axi_b_chan_t   ( axi_b_chan_t  ),
-        .axi_ar_chan_t  ( axi_ar_chan_t ),
-        .axi_r_chan_t   ( axi_r_chan_t  ),
-        .RegAddrWidth   ( RegAw         ),
-        .RegDataWidth   ( RegDw         ),
-        .reg_req_t      ( reg_req_t     ),
-        .reg_rsp_t      ( reg_rsp_t     ),
-        .IsClockODelayed( 0             ),
-        .axi_rule_t     ( axi_rule_t    )
+        .NumChips         ( NumChips      ),
+        .NumPhys          ( NumPhys       ),
+        .AxiAddrWidth     ( AxiAddrWidth  ),
+        .AxiDataWidth     ( AxiDataWidth  ),
+        .AxiIdWidth       ( AxiIdWidth    ),
+        .AxiUserWidth     ( AxiUserWidth  ),
+        .axi_req_t        ( axi_req_t     ),
+        .axi_rsp_t        ( axi_resp_t    ),
+        .axi_aw_chan_t    ( axi_aw_chan_t ),
+        .axi_w_chan_t     ( axi_w_chan_t  ),
+        .axi_b_chan_t     ( axi_b_chan_t  ),
+        .axi_ar_chan_t    ( axi_ar_chan_t ),
+        .axi_r_chan_t     ( axi_r_chan_t  ),
+        .RegAddrWidth     ( RegAw         ),
+        .RegDataWidth     ( RegDw         ),
+        .reg_req_t        ( reg_req_t     ),
+        .reg_rsp_t        ( reg_rsp_t     ),
+        .UsePhyClkDivider ( 1             ),
+        .axi_rule_t       ( axi_rule_t    )
     ) i_dut (
         .clk_phy_i              ( clk_i              ),
         .rst_phy_ni             ( rst_ni             ),

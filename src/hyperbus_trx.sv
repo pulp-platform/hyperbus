@@ -7,36 +7,37 @@
 // Stephan Keck <kecks@ethz.ch>
 
 module hyperbus_trx #(
-    parameter int unsigned IsClockODelayed = -1,
     parameter int unsigned NumChips        = 2,
     parameter int unsigned RxFifoLogDepth  = 3,
     parameter int unsigned SyncStages      = 2
 )(
     // Global signals
-    input  logic            clk_i,
-    input  logic            clk_i_90,
-    input  logic            rst_ni,
-    input  logic            test_mode_i,
-    // Transciever control: facing controller
+    input  logic       clk_i,
+    input  logic       clk_i_90,
+    input  logic       rst_ni,
+    input  logic       test_mode_i,
+
+    input  logic [3:0] cfg_edge_idx_i,
+    input  logic       cfg_edge_pol_i,
+
+    // Transceiver control: facing controller
     input  logic [NumChips-1:0]    cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
-    input  logic                   rwds_sample_ena_i,
 
-    input  logic [3:0]             tx_clk_delay_i,
     input  logic                   tx_clk_ena_i,
     input  logic [15:0]            tx_data_i,
     input  logic                   tx_data_oe_i,
     input  logic [1:0]             tx_rwds_i,
     input  logic                   tx_rwds_oe_i,
 
-    input  logic [3:0]             rx_clk_delay_i,
+    input  logic [7:0]             rx_clk_delay_i,
     input  logic                   rx_clk_set_i,
     input  logic                   rx_clk_reset_i,
     output logic [15:0]            rx_data_o,
     output logic                   rx_valid_o,
     input  logic                   rx_ready_i,
-    // Physical interace: facing HyperBus
+    // Physical interface: facing HyperBus
     output logic [NumChips-1:0]    hyper_cs_no,
     output logic                   hyper_ck_o,
     output logic                   hyper_ck_no,
@@ -76,6 +77,8 @@ module hyperbus_trx #(
     assign tx_clk_90 = clk_i_90;
 
     // 90deg-shifted differential output clock, sampling output bytes centrally
+    // TODO: tx_clk_ena_q to tx_clk_90 may need a constraint at the pins of this module
+    // specifically tx_clk_ena_q must arrive BEFORE tx_clk_90 otherwise the gating may fail
     hyperbus_clock_diff_out i_clock_diff_out (
         .in_i   ( tx_clk_90     ),
         .en_i   ( tx_clk_ena_q  ),
@@ -84,7 +87,7 @@ module hyperbus_trx #(
     );
 
     // Synchronize output chip select to shifted differential output clock
-    always_ff @(posedge tx_clk_90 or negedge rst_ni) begin : proc_ff_tx_shift90
+    always_ff @(negedge clk_i or negedge rst_ni) begin : proc_ff_tx_shift90
         if (~rst_ni)    hyper_cs_no <= '1;
         else            hyper_cs_no <= cs_ena_i ? ~cs_i : '1;
     end
@@ -127,15 +130,21 @@ module hyperbus_trx #(
         end
     end
 
-    // Sample RWDS on demand for extra latency determination
-    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rwds_sample
-        if (~rst_ni)                rwds_sample_o <= '0;
-        else if (rwds_sample_ena_i) rwds_sample_o <= hyper_rwds_i;
-    end
-
     // ========
     //    RX
     // ========
+
+    // sample RWDS for extra latency determination (adjustable sampling edge)
+    hyperbus_rwds_sampler i_rwds_sampler (
+        .clk_i,
+        .rst_ni,
+        .test_mode_i,
+        .cfg_edge_idx_i,
+        .cfg_edge_pol_i,
+        .rwds_sample_o,
+        .hyper_cs_ni     ( &hyper_cs_no ),
+        .hyper_rwds_i    ( hyper_rwds_i )
+    );
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay
@@ -145,13 +154,25 @@ module hyperbus_trx #(
     end
 
     // Shift RWDS clock by 90 degrees
-    hyperbus_delay i_delay_rx_rwds_90 (
-        .in_i       ( hyper_rwds_i   ),
-        .delay_i    ( rx_clk_delay_i ),
-        .out_o      ( rx_rwds_90     )
-    );
+`ifdef TARGET_XILINX
+        hyperbus_rwds_delay i_delay_rx_rwds_90 (
+            .rst_i   ( ~rst_ni ),
+            .clk_i,
+            .in_i    ( hyper_rwds_i   ),
+            .delay_i ( rx_clk_delay_i ),
+            .out_o   ( rx_rwds_90     )
+        );
+    `else
+        hyperbus_delay i_delay_rx_rwds_90 (
+            .in_i    ( hyper_rwds_i   ),
+            .delay_i ( rx_clk_delay_i ),
+            .out_o   ( rx_rwds_90     )
+        );
+`endif
 
     // Gate delayed RWDS clock with RX clock enable
+    (* no_boundary_optimization *)
+    (* keep_hierarchy = "yes" *)
     tc_clk_gating i_rwds_in_clk_gate (
         .clk_i      ( rx_rwds_90        ),
         .en_i       ( rx_rwds_clk_ena   ),
