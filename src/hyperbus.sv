@@ -313,10 +313,6 @@ module hyperbus #(
 
 
     // PAD configuration
-    if(NumPhys >= 1) begin : gen_pad_cfg_phy0
-        assign hyper_pad_cfg_o[0] = cfg.t_pad_cfg[7:0];
-    end
-    if(NumPhys == 2) begin : gen_pad_cfg_phy1
-        assign hyper_pad_cfg_o[1] = cfg.t_pad_cfg[15:8];
-    end
+    for (genvar i = 0; i < NumPhys; i++)
+      assign hyper_pad_cfg_o[i] = cfg.t_pad_cfg[8*i +: 8];
 endmodule : hyperbus
