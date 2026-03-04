@@ -14,12 +14,13 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     parameter type hyper_tx_t = logic,
     parameter type hyper_rx_t = logic
 )(
+    input  logic                clk_phy_x2_i,
     input  logic                clk_phy_i,
-    input  logic                clk_phy_i_90,  // only used together with divided clock (clk_gen)
 `ifdef TARGET_XILINX
     input  logic                clk_ref200_i,  // only used with Xilinx delay lines (reference to IDELAY cells)
 `endif
-    input  logic                rst_phy_ni,
+    input  logic                rst_ni,
+    input  logic                ph_phy_i,
     input  logic                test_mode_i,
     // Config registers
     input  hyper_cfg_t          cfg_i,
@@ -53,34 +54,6 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     output logic [NumPhys-1:0]               hyper_dq_oe_o,
     output logic [NumPhys-1:0]               hyper_reset_no
 );
-
-    logic clk_phy_0, clk_phy_90;
-
-    // Shift clock by 90 degrees
-    if(UsePhyClkDivider == '0) begin : clock_generator
-        assign clk_phy_0 = clk_phy_i;
-
-        `ifdef TARGET_XILINX
-            hyperbus_clk_delay i_delay_tx_clk_90 (
-                .rst_i         ( ~rst_ni ),
-                .clk_ref200_i,
-                .clk_i         ( clk_phy_i            ),
-                .in_i          ( clk_phy_0            ),
-                .delay_i       ( cfg_i.t_tx_clk_delay ),
-                .out_o         ( clk_phy_90           )
-            );
-        `else
-            hyperbus_delay i_delay_tx_clk_90 (
-                .in_i          ( clk_phy_0            ),
-                .delay_i       ( cfg_i.t_tx_clk_delay ),
-                .out_o         ( clk_phy_90           )
-            );
-        `endif
-    end else begin
-        assign clk_phy_0  = clk_phy_i;
-        assign clk_phy_90 = clk_phy_i_90;
-    end
-
 
     phy_rx_t [NumPhys-1:0]       phy_fifo_rx;
     phy_rx_t [NumPhys-1:0]       fifo_axi_rx;
@@ -116,8 +89,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
         assign phy_active_d      = change_phy_active && fifo_axi_usage == '0 ?
                                     phy_enable | phy_busy : phy_active_q;
 
-        always_ff @(posedge clk_phy_0 or negedge rst_phy_ni ) begin
-            if (!rst_phy_ni) begin
+        always_ff @(posedge clk_phy_i or negedge rst_ni ) begin
+            if (!rst_ni) begin
                 phy_active_q <= '1;
             end else begin
                 phy_active_q <= phy_active_d;
@@ -153,8 +126,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                 .DEPTH        ( 4           ),
                 .T            ( phy_rx_t    )
             ) rx_fifo (
-            .clk_i          ( clk_phy_0         ),
-            .rst_ni         ( rst_phy_ni        ),
+            .clk_i          ( clk_phy_i         ),
+            .rst_ni         ( rst_ni            ),
                 .flush_i        ( 1'b0              ),
                 .testmode_i     ( 1'b0              ),
                 .usage_o        ( fifo_axi_usage[i] ),
@@ -173,12 +146,17 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                 .NumPhys        ( NumPhys           ),
                 .SyncStages     ( SyncStages        )
             ) i_phy (
-                .clk_i          ( clk_phy_0         ),
-                .clk_i_90       ( clk_phy_90        ),
-                .rst_ni         ( rst_phy_ni        ),
+                .clk_phy_x2_i   ( clk_phy_x2_i      ),
+                .clk_phy_i     ( clk_phy_i         ),
+                .rst_ni         ( rst_ni            ),
+                .ph_phy_i       ( ph_phy_i          ),
                 .test_mode_i    ( test_mode_i       ),
 
                 .cfg_i          ( cfg_i             ),
+                .cfg_tx_clk_delay_mode_i (cfg_i.tx_clk_delay.mode[i]),
+                .cfg_tx_clk_delay_i (cfg_i.tx_clk_delay.val[i]),
+                .cfg_rx_clk_delay_i (cfg_i.rx_clk_delay.val[i]),
+
 
                 .busy_o         ( phy_busy[i]       ),
 
@@ -224,12 +202,16 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
             .NumPhys        ( NumPhys           ),
             .SyncStages     ( SyncStages        )
         ) i_phy (
-            .clk_i          ( clk_phy_0       ),
-            .clk_i_90       ( clk_phy_90      ),
-            .rst_ni         ( rst_phy_ni      ),
+            .clk_phy_x2_i   ( clk_phy_x2_i    ),
+            .clk_phy_i     ( clk_phy_i       ),
+            .rst_ni         ( rst_ni          ),
+            .ph_phy_i       ( ph_phy_i        ),
             .test_mode_i    ( test_mode_i     ),
 
             .cfg_i          ( cfg_i           ),
+            .cfg_tx_clk_delay_mode_i (cfg_i.tx_clk_delay.mode[0]),
+            .cfg_tx_clk_delay_i (cfg_i.tx_clk_delay.val[0]),
+            .cfg_rx_clk_delay_i (cfg_i.rx_clk_delay.val[0]),
 
             .busy_o         (                 ),
 

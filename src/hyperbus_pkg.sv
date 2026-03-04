@@ -10,9 +10,15 @@ package hyperbus_pkg;
 
 
     typedef struct packed {
-        logic [3:0] cylce_idx; // number of cycles passed when sampling should occur
-        logic       polarity;  // 1: rising, 0: falling
+        logic [4:0] cycle_idx; // number of cycles passed when sampling should occur
     } hyper_cfg_rwds_t;
+    typedef struct packed {
+        logic [1:0][4:0] val; // delay values for phy 0 and 1
+    } rx_clk_delay_t;
+    typedef struct packed {
+        logic [1:0] mode; // delay mode for phy 0 and 1. 0: phy x2 clock negedge; 1: delay line
+        logic [1:0][4:0] val; // delay values for phy 0 and 1
+    } tx_clk_delay_t;
 
     // configuration type
     typedef struct packed {
@@ -20,8 +26,8 @@ package hyperbus_pkg;
         logic            en_latency_additional;
         logic [15:0]     t_burst_max;
         logic [3:0]      t_read_write_recovery;
-        logic [7:0]      t_rx_clk_delay;
-        logic [7:0]      t_tx_clk_delay;
+        rx_clk_delay_t   rx_clk_delay;
+        tx_clk_delay_t   tx_clk_delay;
         logic [4:0]      address_mask_msb;
         logic            address_space;
         logic            phys_in_use;
@@ -79,8 +85,8 @@ package hyperbus_pkg;
             en_latency_additional: 'b0,
             t_burst_max:           ((MinFreqMhz*35)/10), // t_{csm}: At lowest legal clock (100 MHz) 3.5us (0.5us safety margin)
             t_read_write_recovery: 'h6,
-            t_rx_clk_delay:        'h10,
-            t_tx_clk_delay:        'h10,
+            rx_clk_delay:        rx_clk_delay_t'{val: {5'h10, 5'h10}},
+            tx_clk_delay:        tx_clk_delay_t'{mode: {1'b0, 1'b0}, val: {5'h10, 5'h10}},
             address_mask_msb:      'd25,                // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
             address_space:         'b0,
             phys_in_use:           NumPhys-1,
@@ -88,8 +94,8 @@ package hyperbus_pkg;
             t_csh_cycles:          'h1,
             csn_to_ck_cycles:      'h0,                 // additional cycles from CS_N going low to start of hyper_ck
             rwds_sample:           hyper_cfg_rwds_t'{        // hyper_ck edge for RWDS sampling relative to CS_N going low
-                                            cylce_idx: 'h2,  // cycle number after CS_N going low (first falling and rising edge is idx=0)
-                                            polarity:  'b1 }, // 0: falling, 1:rising -> first edge after CS_N is a falling edge
+                                            cycle_idx: 'h4},  // cycle number after CS_N going low (first falling and rising edge is idx=0)
+ 
             t_pad_cfg:                  'h0303
         };
 
