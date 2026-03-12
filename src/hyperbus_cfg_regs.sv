@@ -89,7 +89,7 @@ module hyperbus_cfg_regs #(
         logic [$clog2(NumChips)-1:0] sel_chip;
         cfg_d     = cfg_q;
         crange_d  = crange_q;
-        if (reg_req_i.valid & reg_req_i.write & sel_reg_mapped) begin
+        if (reg_req_i.valid & reg_rsp_o.ready & reg_req_i.write & sel_reg_mapped) begin
             case (sel_reg)
                 'h0: cfg_d.t_latency_access         = (~wmask & cfg_q.t_latency_access        ) | (wmask & reg_req_i.wdata);
                 'h1: cfg_d.en_latency_additional    = (~wmask & cfg_q.en_latency_additional   ) | (wmask & reg_req_i.wdata);
