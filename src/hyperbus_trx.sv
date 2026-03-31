@@ -145,6 +145,7 @@ module hyperbus_trx #(
     // ========
     logic hyper_rwds_as_data;
     // buffer to stop clock propagation on RWDS path used as data
+    (* dont_touch = "true" *)
     tc_clk_buffer i_rwds_in_as_data (
         .clk_i      ( hyper_rwds_i        ),
         .clk_o      ( hyper_rwds_as_data  )
