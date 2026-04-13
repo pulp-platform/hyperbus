@@ -36,13 +36,13 @@ module hyperbus #(
     parameter int unsigned  PhyStartupCycles = 300 * 200, /* us*MHz */ // Conservative maximum frequency estimate
     parameter int unsigned  SyncStages  = 2
 ) (
-    input  logic                        clk_phy_i,
+    input  logic                        clk_phy_x2_i,
 `ifdef TARGET_XILINX
     input  logic                        clk_ref200_i, // only used for Xilinx delay lines
 `endif
-    input  logic                        rst_phy_ni,
-    input  logic                        clk_sys_i,
-    input  logic                        rst_sys_ni,
+    input  logic                        clk_phy_i,
+    input  logic                        rst_ni,
+    input  logic                        ph_phy_i,
     input  logic                        test_mode_i,
     // AXI bus
     input  axi_req_t                    axi_req_i,
@@ -81,9 +81,6 @@ module hyperbus #(
         hyperbus_pkg::hyper_tf_t    trans;
         logic [NumChips-1:0]        cs;
     } tf_cdc_t;
-
-
-    logic                       clk_phy_0, clk_phy_90, rst_phy;
 
     // Register file
     hyperbus_pkg::hyper_cfg_t   cfg;
@@ -131,8 +128,8 @@ module hyperbus #(
         .RstChipSpace   ( RstChipSpace  ),
         .RstCfg         ( RstCfg        )
     ) i_cfg_regs (
-        .clk_i          ( clk_sys_i     ),
-        .rst_ni         ( rst_sys_ni    ),
+        .clk_i          ( clk_phy_i     ),
+        .rst_ni         ( rst_ni        ),
         .reg_req_i      ( reg_req_i     ),
         .reg_rsp_o      ( reg_rsp_o     ),
         .cfg_o          ( cfg           ),
@@ -154,8 +151,8 @@ module hyperbus #(
         .hyper_tx_t     ( hyper_tx_t        ),
         .rule_t         ( axi_rule_t        )
     ) i_axi_slave (
-        .clk_i           ( clk_sys_i            ),
-        .rst_ni          ( rst_sys_ni           ),
+        .clk_i           ( clk_phy_i           ),
+        .rst_ni          ( rst_ni              ),
 
         .axi_req_i       ( axi_req_i            ),
         .axi_rsp_o       ( axi_rsp_o            ),
@@ -182,24 +179,8 @@ module hyperbus #(
         .trans_active_o  ( trans_active         )
     );
 
-    if(UsePhyClkDivider == 1'b1) begin : clock_generator
-        hyperbus_clk_gen ddr_clk (
-            .clk_i    ( clk_phy_i    ),
-            .rst_ni   ( rst_phy_ni   ),
-            .clk0_o   ( clk_phy_0    ),
-            .clk90_o  ( clk_phy_90   ),
-            .clk180_o (              ),
-            .clk270_o (              ),
-            .rst_no   ( rst_phy      )
-        );
-    end else begin
-        assign clk_phy_0  = clk_phy_i;
-        assign clk_phy_90 = '0;
-        assign rst_phy    = rst_phy_ni;
-    end
-
     hyperbus_phy_if #(
-        .UsePhyClkDivider       ( UsePhyClkDivider       ),
+        .UsePhyClkDivider    ( UsePhyClkDivider    ),
         .NumChips            ( NumChips            ),
         .NumPhys             ( NumPhys             ),
         .StartupCycles       ( PhyStartupCycles    ),
@@ -207,12 +188,13 @@ module hyperbus #(
         .hyper_tx_t          ( hyper_tx_t          ),
         .SyncStages          ( SyncStages          )
     ) i_phy (
-        .clk_phy_i      ( clk_phy_0         ),
-        .clk_phy_i_90   ( clk_phy_90        ),
+        .clk_phy_x2_i   ( clk_phy_x2_i      ),
+        .clk_phy_i      ( clk_phy_i         ),
 `ifdef TARGET_XILINX
         .clk_ref200_i   ( clk_ref200_i      ),
 `endif
-        .rst_phy_ni     ( rst_phy           ),
+        .rst_ni         ( rst_ni            ),
+        .ph_phy_i       ( ph_phy_i          ),
         .test_mode_i    ( test_mode_i       ),
 
         .cfg_i          ( cfg               ),
@@ -243,73 +225,21 @@ module hyperbus #(
         .hyper_reset_no ( hyper_reset_no    )
     );
 
-    cdc_2phase #(
-        .T  ( tf_cdc_t  )
-    ) i_cdc_2phase_trans (
-        .src_rst_ni     ( rst_sys_ni        ),
-        .src_clk_i      ( clk_sys_i         ),
-        .src_data_i     ( axi_tf_cdc        ),
-        .src_valid_i    ( axi_trans_valid   ),
-        .src_ready_o    ( axi_trans_ready   ),
+    assign phy_tf_cdc = axi_tf_cdc;
+    assign phy_trans_valid = axi_trans_valid;
+    assign axi_trans_ready = phy_trans_ready;
 
-        .dst_rst_ni     ( rst_phy           ),
-        .dst_clk_i      ( clk_phy_0         ),
-        .dst_data_o     ( phy_tf_cdc        ),
-        .dst_valid_o    ( phy_trans_valid   ),
-        .dst_ready_i    ( phy_trans_ready   )
-    );
+    assign axi_b_error = phy_b_error;
+    assign axi_b_valid = phy_b_valid;
+    assign phy_b_ready = axi_b_ready;
 
-    cdc_2phase #(
-        .T  ( logic )
-    ) i_cdc_2phase_b (
-        .src_rst_ni     ( rst_phy       ),
-        .src_clk_i      ( clk_phy_0     ),
-        .src_data_i     ( phy_b_error   ),
-        .src_valid_i    ( phy_b_valid   ),
-        .src_ready_o    ( phy_b_ready   ),
+    assign phy_tx = axi_tx;
+    assign phy_tx_valid = axi_tx_valid;
+    assign axi_tx_ready = phy_tx_ready;
 
-        .dst_rst_ni     ( rst_sys_ni    ),
-        .dst_clk_i      ( clk_sys_i     ),
-        .dst_data_o     ( axi_b_error   ),
-        .dst_valid_o    ( axi_b_valid   ),
-        .dst_ready_i    ( axi_b_ready   )
-    );
-
-    // Write data, TX CDC FIFO
-    cdc_fifo_gray  #(
-        .T          ( hyper_tx_t     ),
-        .LOG_DEPTH  ( TxFifoLogDepth )
-    ) i_cdc_fifo_tx (
-        .src_rst_ni     ( rst_sys_ni    ),
-        .src_clk_i      ( clk_sys_i     ),
-        .src_data_i     ( axi_tx        ),
-        .src_valid_i    ( axi_tx_valid  ),
-        .src_ready_o    ( axi_tx_ready  ),
-
-        .dst_rst_ni     ( rst_phy       ),
-        .dst_clk_i      ( clk_phy_0     ),
-        .dst_data_o     ( phy_tx        ),
-        .dst_valid_o    ( phy_tx_valid  ),
-        .dst_ready_i    ( phy_tx_ready  )
-    );
-
-    // Read data, RX CDC FIFO
-    cdc_fifo_gray  #(
-        .T          ( hyper_rx_t     ),
-        .LOG_DEPTH  ( RxFifoLogDepth )
-    ) i_cdc_fifo_rx (
-        .src_rst_ni     ( rst_phy       ),
-        .src_clk_i      ( clk_phy_0     ),
-        .src_data_i     ( phy_rx        ),
-        .src_valid_i    ( phy_rx_valid  ),
-        .src_ready_o    ( phy_rx_ready  ),
-
-        .dst_rst_ni     ( rst_sys_ni    ),
-        .dst_clk_i      ( clk_sys_i     ),
-        .dst_data_o     ( axi_rx        ),
-        .dst_valid_o    ( axi_rx_valid  ),
-        .dst_ready_i    ( axi_rx_ready  )
-    );
+    assign axi_rx = phy_rx;
+    assign axi_rx_valid = phy_rx_valid;
+    assign phy_rx_ready = axi_rx_ready;
 
 
     // PAD configuration

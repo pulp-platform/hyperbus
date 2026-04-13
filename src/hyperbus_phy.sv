@@ -15,12 +15,16 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     parameter int unsigned SyncStages       = 2,
     parameter int unsigned StartupCycles    = 300 /*us*/ * 200 /*MHz*/ // Conservative maximum frequency estimate
 )(
-    input  logic                clk_i,
-    input  logic                clk_i_90,
+    input  logic                clk_phy_x2_i,
+    input  logic                clk_phy_i,
     input  logic                rst_ni,
+    input  logic                ph_phy_i,
     input  logic                test_mode_i,
     // Config registers
     input  hyper_cfg_t          cfg_i,
+    input  logic                cfg_tx_clk_delay_mode_i,
+    input  logic [4:0]          cfg_tx_clk_delay_i,
+    input  logic [4:0]          cfg_rx_clk_delay_i,
     // PHY control status
     output logic                busy_o,
     // Transactions
@@ -116,12 +120,14 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .RxFifoLogDepth ( RxFifoLogDepth    ),
         .SyncStages     ( SyncStages        )
     ) i_trx (
-        .clk_i,
-        .clk_i_90,
+        .clk_phy_i,
+        .clk_phy_x2_i,
         .rst_ni,
+        .ph_phy_i,
         .test_mode_i,
-        .cfg_edge_idx_i     ( cfg_i.rwds_sample.cylce_idx ),
-        .cfg_edge_pol_i     ( cfg_i.rwds_sample.polarity  ),
+        .cfg_edge_idx_i     ( cfg_i.rwds_sample.cycle_idx ),
+        .cfg_tx_clk_delay_mode_i,
+        .cfg_tx_clk_delay_i,
         .cs_i               ( cs_q                        ),
         .cs_ena_i           ( trx_cs_ena                  ),
         .rwds_sample_o      ( trx_rwds_sample             ),
@@ -130,7 +136,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .tx_data_oe_i       ( trx_tx_data_oe              ),
         .tx_rwds_i          ( trx_tx_rwds                 ),
         .tx_rwds_oe_i       ( trx_tx_rwds_oe              ),
-        .rx_clk_delay_i     ( cfg_i.t_rx_clk_delay        ),
+        .rx_clk_delay_i     ( cfg_rx_clk_delay_i          ),
         .rx_clk_set_i       ( trx_rx_clk_set              ),
         .rx_clk_reset_i     ( trx_rx_clk_reset            ),
         .rx_data_o          ( trx_rx_data                 ),
@@ -185,7 +191,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     assign b_pending_clear  = b_valid_o & b_ready_i;
 
     // FF indicating whether B response pending
-    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_b_pending
+    always_ff @(posedge clk_phy_i or negedge rst_ni) begin : proc_ff_b_pending
         if      (~rst_ni)           b_pending_q <= 1'b0;
         else if (b_pending_set)     b_pending_q <= 1'b1;
         else if (b_pending_clear)   b_pending_q <= 1'b0;
@@ -206,7 +212,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     // Counter for outstanding R responses
     assign r_outstand_dec   = rx_valid_o & rx_ready_i;
-    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_r_outstand
+    always_ff @(posedge clk_phy_i or negedge rst_ni) begin : proc_ff_r_outstand
         if      (~rst_ni)                           r_outstand_q <= '0;
         else if (r_outstand_inc & ~r_outstand_dec)  r_outstand_q <= r_outstand_q + 1;
         else if (r_outstand_dec & ~r_outstand_inc)  r_outstand_q <= r_outstand_q - 1;
@@ -420,7 +426,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     end
 
     // PHY state registers, including timer and transfer
-    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_phy
+    always_ff @(posedge clk_phy_i or negedge rst_ni) begin : proc_ff_phy
         if (~rst_ni) begin
             state_q <= Startup;
             timer_q <= StartupCycles;

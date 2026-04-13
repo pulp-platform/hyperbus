@@ -67,8 +67,8 @@ module hyperbus_cfg_regs #(
                 reg_data_t'(cfg_q.phys_in_use),
                 reg_data_t'(cfg_q.address_space),
                 reg_data_t'(cfg_q.address_mask_msb),
-                reg_data_t'(cfg_q.t_tx_clk_delay),
-                reg_data_t'(cfg_q.t_rx_clk_delay),
+                reg_data_t'(cfg_q.tx_clk_delay),
+                reg_data_t'(cfg_q.rx_clk_delay),
                 reg_data_t'(cfg_q.t_read_write_recovery),
                 reg_data_t'(cfg_q.t_burst_max),
                 reg_data_t'(cfg_q.en_latency_additional),
@@ -89,14 +89,14 @@ module hyperbus_cfg_regs #(
         logic [$clog2(NumChips)-1:0] sel_chip;
         cfg_d     = cfg_q;
         crange_d  = crange_q;
-        if (reg_req_i.valid & reg_req_i.write & sel_reg_mapped) begin
+        if (reg_req_i.valid & reg_rsp_o.ready & reg_req_i.write & sel_reg_mapped) begin
             case (sel_reg)
                 'h0: cfg_d.t_latency_access         = (~wmask & cfg_q.t_latency_access        ) | (wmask & reg_req_i.wdata);
                 'h1: cfg_d.en_latency_additional    = (~wmask & cfg_q.en_latency_additional   ) | (wmask & reg_req_i.wdata);
                 'h2: cfg_d.t_burst_max              = (~wmask & cfg_q.t_burst_max             ) | (wmask & reg_req_i.wdata);
                 'h3: cfg_d.t_read_write_recovery    = (~wmask & cfg_q.t_read_write_recovery   ) | (wmask & reg_req_i.wdata);
-                'h4: cfg_d.t_rx_clk_delay           = (~wmask & cfg_q.t_rx_clk_delay          ) | (wmask & reg_req_i.wdata);
-                'h5: cfg_d.t_tx_clk_delay           = (~wmask & cfg_q.t_tx_clk_delay          ) | (wmask & reg_req_i.wdata);
+                'h4: cfg_d.rx_clk_delay             = (~wmask & cfg_q.rx_clk_delay            ) | (wmask & reg_req_i.wdata);
+                'h5: cfg_d.tx_clk_delay             = (~wmask & cfg_q.tx_clk_delay            ) | (wmask & reg_req_i.wdata);
                 'h6: cfg_d.address_mask_msb         = (~wmask & cfg_q.address_mask_msb        ) | (wmask & reg_req_i.wdata);
                 'h7: cfg_d.address_space            = (~wmask & cfg_q.address_space           ) | (wmask & reg_req_i.wdata);
                 'h8: cfg_d.phys_in_use              = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.phys_in_use ) | (wmask & reg_req_i.wdata) );

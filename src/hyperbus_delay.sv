@@ -10,7 +10,7 @@
 (* keep_hierarchy = "yes" *)
 module hyperbus_delay (
     input  logic        in_i,
-    input  logic [7:0]  delay_i,
+    input  logic [4:0]  delay_i,
     output logic        out_o
 );
 
