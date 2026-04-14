@@ -51,7 +51,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     output logic [NumPhys-1:0]               hyper_rwds_oe_o,
     input  logic [NumPhys-1:0][7:0]          hyper_dq_i,
     output logic [NumPhys-1:0][7:0]          hyper_dq_o,
-    output logic [NumPhys-1:0]               hyper_dq_oe_o,
+    output logic [NumPhys-1:0][7:0]          hyper_dq_oe_o,
     output logic [NumPhys-1:0]               hyper_reset_no
 );
 
