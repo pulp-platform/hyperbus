@@ -68,8 +68,13 @@ module hyperbus_rwds_sampler import hyperbus_pkg::*; #()
 
     // gate the sampling of rwds to the selected clock edge
     logic sampling_clk_gated;
-    tc_clk_gating i_rwds_sample_rise_gate (
-        .clk_i      ( clk_i               ),
+
+    tc_clk_gating 
+`ifndef TARGET_XILINX
+    #(  .IS_FUNCTIONAL      (1'b1     ))
+`endif
+    i_rwds_sample_rise_gate (
+    	.clk_i      ( clk_i               ),
         .en_i       ( enable_sampling     ),
         .test_en_i  ( 1'b0                ),
         .clk_o      ( sampling_clk_gated  )

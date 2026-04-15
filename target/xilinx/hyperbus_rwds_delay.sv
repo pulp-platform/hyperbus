@@ -23,6 +23,38 @@ module hyperbus_rwds_delay
     // - VARIABLE: start with param value then increment/decrement
     // - VAR_LOAD: dynamically load tap values
     // - VAR_LOAD_PIPE: pipelines dynamic load
+`ifdef  TARGET_VCU118
+    // Ultrascale FGPAs require IDELAY3
+    IDELAYE3 #(
+        .CASCADE("NONE"),
+        .DELAY_FORMAT("COUNT"),
+        .DELAY_TYPE("VAR_LOAD"),
+        .DELAY_VALUE(0),
+        .DELAY_SRC("DATAIN"),
+        .REFCLK_FREQUENCY(200.0),
+        .UPDATE_MODE("ASYNC"),
+        .SIM_DEVICE("ULTRASCALE_PLUS")
+    ) i_delay (
+        .DATAOUT(out_o),
+        .DATAIN(in_i),
+        .IDATAIN(1'b0),
+    
+        .CNTVALUEIN(delay_i),
+        .CNTVALUEOUT(),
+    
+        .LOAD(1'b1),
+        .CE(1'b0),
+        .INC(1'b0),
+    
+        .CLK(clk_i),
+        .RST(rst_i),
+    
+        .EN_VTC(1'b0),
+    
+        .CASC_IN(1'b0),
+        .CASC_RETURN(1'b0)
+    );
+`else
     IDELAYE2 #(
         .CINVCTRL_SEL          ( "FALSE"    ), // "TRUE" actives CINVCTRL functionality
         .DELAY_SRC             ( "DATAIN"   ), // source to delay chain ("CLKIN" or "IDATAIN")
@@ -46,5 +78,6 @@ module hyperbus_rwds_delay
         .INC         ( 1'b0        ), // input: increment/decrement delay tap
         .LDPIPEEN    ( 1'b0        ) // input: enable the pipeline register to load data from LD
     );
+`endif
 
 endmodule

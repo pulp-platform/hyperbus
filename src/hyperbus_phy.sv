@@ -20,6 +20,9 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     input  logic                rst_ni,
     input  logic                ph_phy_i,
     input  logic                test_mode_i,
+`ifdef TARGET_XILINX
+    input  logic                clk_ref200_i,
+`endif   
     // Config registers
     input  hyper_cfg_t          cfg_i,
     input  logic                cfg_tx_clk_delay_mode_i,
@@ -122,7 +125,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     ) i_trx (
         .clk_phy_i,
         .clk_phy_x2_i,
-        .rst_ni,
+`ifdef TARGET_XILINX
+        .clk_ref200_i   ( clk_ref200_i      ),
+`endif
+	    .rst_ni,
         .ph_phy_i,
         .test_mode_i,
         .cfg_edge_idx_i     ( cfg_i.rwds_sample.cycle_idx ),

@@ -126,8 +126,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
                 .DEPTH        ( 4           ),
                 .T            ( phy_rx_t    )
             ) rx_fifo (
-            .clk_i          ( clk_phy_i         ),
-            .rst_ni         ( rst_ni            ),
+                .clk_i          ( clk_phy_i         ),
+                .rst_ni         ( rst_ni            ),
                 .flush_i        ( 1'b0              ),
                 .testmode_i     ( 1'b0              ),
                 .usage_o        ( fifo_axi_usage[i] ),
@@ -148,7 +148,10 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
             ) i_phy (
                 .clk_phy_x2_i   ( clk_phy_x2_i      ),
                 .clk_phy_i     ( clk_phy_i         ),
-                .rst_ni         ( rst_ni            ),
+            `ifdef TARGET_XILINX
+                .clk_ref200_i   ( clk_ref200_i      ),
+            `endif
+		        .rst_ni         ( rst_ni            ),
                 .ph_phy_i       ( ph_phy_i          ),
                 .test_mode_i    ( test_mode_i       ),
 
@@ -203,7 +206,10 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
             .SyncStages     ( SyncStages        )
         ) i_phy (
             .clk_phy_x2_i   ( clk_phy_x2_i    ),
-            .clk_phy_i     ( clk_phy_i       ),
+            .clk_phy_i     ( clk_phy_i          ),
+        `ifdef TARGET_XILINX
+            .clk_ref200_i   ( clk_ref200_i      ),
+        `endif
             .rst_ni         ( rst_ni          ),
             .ph_phy_i       ( ph_phy_i        ),
             .test_mode_i    ( test_mode_i     ),
