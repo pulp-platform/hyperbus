@@ -70,7 +70,7 @@ module hyperbus_rwds_sampler import hyperbus_pkg::*; #()
     logic sampling_clk_gated;
 
     tc_clk_gating 
-`ifndef TARGET_XILINX
+`ifdef TARGET_XILINX
     #(  .IS_FUNCTIONAL      (1'b1     ))
 `endif
     i_rwds_sample_rise_gate (
