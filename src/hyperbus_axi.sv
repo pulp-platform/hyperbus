@@ -306,7 +306,8 @@ module hyperbus_axi #(
     assign trans_o.write            = rr_out_req_write;
     assign trans_o.burst_type       = 1'b1;             // Wrapping bursts not (yet) supported
     assign trans_o.address_space    = addr_space_i;
-    assign trans_o.address          = ( (rr_out_req_ax.addr & ~32'(32'hFFFF_FFFF << addr_mask_msb_i)) >> ( NumPhys ) ) << ( (NumPhys==2) & ~phys_in_use_i );
+    assign trans_o.address          = (rr_out_req_ax.addr & ((32'b1 << addr_mask_msb_i) - 1)) >>
+                                      (NumPhys == 2 && phys_in_use_i ? 2 : 1);
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
     always_comb begin
