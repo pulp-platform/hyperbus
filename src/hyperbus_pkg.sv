@@ -81,13 +81,13 @@ package hyperbus_pkg;
         // It can be lowered if this frequency is not reachable in operation (may not with with certain HyperBus devices)
         // >200 is outside the spec and is unlikely to work with any HyperBus devices
         automatic hyper_cfg_t cfg = hyper_cfg_t'{
-            t_latency_access:      'h6,
+            t_latency_access:      'h7,
             en_latency_additional: 'b0,
             t_burst_max:           ((MinFreqMhz*35)/10), // t_{csm}: At lowest legal clock (100 MHz) 3.5us (0.5us safety margin)
-            t_read_write_recovery: 'h6,
+            t_read_write_recovery: 'h7,
             rx_clk_delay:        rx_clk_delay_t'{val: {5'h10, 5'h10}},
             tx_clk_delay:        tx_clk_delay_t'{mode: {1'b0, 1'b0}, val: {5'h10, 5'h10}},
-            address_mask_msb:      'd25,                // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
+            address_mask_msb:      'd26,                // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
             address_space:         'b0,
             phys_in_use:           NumPhys-1,
             which_phy:             NumPhys-1,
