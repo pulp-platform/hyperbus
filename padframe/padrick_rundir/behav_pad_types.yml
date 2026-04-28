@@ -1,0 +1,472 @@
+# Copyright 2026 Fondazione Chips-IT.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Author: Riccardo Fiorani Gallotta <riccardo.fiorani3@unibo.it>
+
+# This file defines generic pad primitives.
+# It must be included in a modular configuration yaml file.
+
+##############################################################
+# POWER MANAGEMENT PADS
+#
+# You MUST HAVE one and only one CONFIG_TC_PAD_DEF.
+# WARNING: internal_signals are in IO power domain (1.8 V)!
+##############################################################
+
+- name: CONFIG_TC_PAD_DEF
+  description: "instantiation of config and internal wires for tc_pad modules"
+  pad_signals:
+    - name: internal_signals_0
+      description: "IO pad internal signals for power sense and retention enable (IO power domain)"
+      size: 1
+      kind: pad
+    - name: internal_signals_1
+      description: "IO pad internal signals for power sense and retention enable (IO power domain)"
+      size: 1
+      kind: pad
+    - name: internal_signals_2
+      description: "IO pad internal signals for power sense and retention enable (IO power domain)"
+      size: 1
+      kind: pad
+    - name: internal_signals_3
+      description: "IO pad internal signals for power sense and retention enable (IO power domain)"
+      size: 1
+      kind: pad
+    - name: retcin
+      description: "Retention mode enable signal, active high (VVD power domain)"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+  template: |
+    localparam tc_pad_pkg::tc_pad_config_t gf22_invecas_tc_pad_config = '{
+        1'b1,   //av_bidir_cell
+        1'b0,   //av_in_cell
+        1'b0,   //av_out_cell
+        1'b1,   //in_en_latch
+        1'b1,   //pu_pd_both_en
+        1'b0,   //rt_en_ah
+        2,      //ds_w
+        3       //n_int
+    };
+
+    wire io_pad_retcin;
+    assign io_pad_retcin = ${conn["retcin"]};
+    `define io_pad_internals {${conn["internal_signals_3"]}, ${conn["internal_signals_2"]}, ${conn["internal_signals_1"]}, ${conn["internal_signals_0"]}}
+
+- name: PAD_PWR_MNG_H
+  description: "power management pad, horizontal orientation"
+  template: |
+    tc_pad_pwr_mng #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .ret_en_i ( io_pad_retcin     ),
+      .int_io   ( `io_pad_internals )
+    );
+
+- name: PAD_PWR_MNG_V
+  description: "power management pad, vertical orientation"
+  template: |
+    tc_pad_pwr_mng #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .ret_en_i ( io_pad_retcin     ),
+      .int_io   ( `io_pad_internals )
+    );
+
+########################################
+# CORE AND IO POWER/GROUND SUPPLY PADS
+########################################
+
+- name: PAD_VDD_CORE_H
+  description: "core power domain VDD pad, horizontal orientation"
+  template: |
+    tc_pad_vdd_core #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+- name: PAD_VDD_CORE_V
+  description: "core power domain VDD pad, vertical orientation"
+  template: |
+    tc_pad_vdd_core #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+- name: PAD_VSS_CORE_H
+  description: "core power domain VSS pad, horizontal orientation"
+  template: |
+    tc_pad_vss_core #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+- name: PAD_VSS_CORE_V
+  description: "core power domain VSS pad, vertical orientation"
+  template: |
+    tc_pad_vss_core #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+- name: PAD_VDD_IO_H
+  description: "IO power domain VDD pad, horizontal orientation"
+  template: |
+    tc_pad_vdd_io #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+- name: PAD_VDD_IO_V
+  description: "IO power domain VDD pad, vertical orientation"
+  template: |
+    tc_pad_vdd_io #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+- name: PAD_VSS_IO_H
+  description: "IO power domain VSS pad, horizontal orientation"
+  template: |
+    tc_pad_vss_io #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+- name: PAD_VSS_IO_V
+  description: "IO power domain VSS pad, vertical orientation"
+  template: |
+    tc_pad_vss_io #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .int_io ( `io_pad_internals )
+    );
+
+#################
+# PHYSICAL PADS
+#################
+
+- name: PAD_CORNER
+  description: "corner pad"
+  template: |
+    tc_pad_corner #( .tc_pad_config ( gf22_invecas_tc_pad_config ) ) ${instance_name} ( .int_io ( `io_pad_internals ) );
+
+#############################
+# DIGITAL INPUT/OUTPUT PADS
+#############################
+
+- name: PAD_BIDIR_H
+  description: "digital bidirectional input/output pad, horizontal orientation"
+  pad_signals: &digital_bidir_pad_signals
+    - name: pad2chip
+      description: "Data output pin from padframe to chip"
+      size: 1
+      kind: output
+      conn_type: dynamic
+    - name: nand_out
+      description: "NAND Tree Output signal"
+      size: 1
+      kind: output
+      conn_type: dynamic
+    - name: nand_in
+      description: "NAND Tree Input signal"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: pad
+      description: "Data external output"
+      size: 1
+      kind: pad
+    - name: drive_strength
+      description: "Programmable drive strength control signal, from 0 to 3"
+      size: 2
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 2'b00
+    - name: chip2pad
+      description: "Data input pin from chip to padframe"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: pu_en
+      description: "Pull-up enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: pd_en
+      description: "Pull-down enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: input_en
+      description: "Input enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: schmitt_en
+      description: "Schmitt enable signal, high: Schmitt Mode, low: CMOS Mode"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: slew_en
+      description: "Slew rate control enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: output_en
+      description: "Output enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+  template: |
+    tc_pad_bidir #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .pad_io           ( ${conn["pad"]}            ),
+      .pad2chip_o       ( ${conn["pad2chip"]}       ),
+      .input_en_i       ( ${conn["input_en"]}       ),
+      .pu_en_i          ( ${conn["pu_en"]}          ),
+      .pd_en_i          ( ${conn["pd_en"]}          ),
+      .schmitt_en_i     ( ${conn["schmitt_en"]}     ),
+      .nand_in_i        ( ${conn["nand_in"]}        ),
+      .nand_out_o       ( ${conn["nand_out"]}       ),
+      .chip2pad_i       ( ${conn["chip2pad"]}       ),
+      .output_en_i      ( ${conn["output_en"]}      ),
+      .slew_en_i        ( ${conn["slew_en"]}        ),
+      .drive_strength_i ( ${conn["drive_strength"]} ),
+      .int_io           ( `io_pad_internals         )
+    );
+
+- name: PAD_BIDIR_V
+  description: "digital bidirectional input/output pad, vertical orientation"
+  pad_signals: *digital_bidir_pad_signals
+  template: |
+    tc_pad_bidir #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .pad_io           ( ${conn["pad"]}            ),
+      .pad2chip_o       ( ${conn["pad2chip"]}       ),
+      .input_en_i       ( ${conn["input_en"]}       ),
+      .pu_en_i          ( ${conn["pu_en"]}          ),
+      .pd_en_i          ( ${conn["pd_en"]}          ),
+      .schmitt_en_i     ( ${conn["schmitt_en"]}     ),
+      .nand_in_i        ( ${conn["nand_in"]}        ),
+      .nand_out_o       ( ${conn["nand_out"]}       ),
+      .chip2pad_i       ( ${conn["chip2pad"]}       ),
+      .output_en_i      ( ${conn["output_en"]}      ),
+      .slew_en_i        ( ${conn["slew_en"]}        ),
+      .drive_strength_i ( ${conn["drive_strength"]} ),
+      .int_io           ( `io_pad_internals         )
+    );
+
+- name: PAD_INPUT_H
+  description: "digital input pad, horizontal orientation"
+  pad_signals: &digital_input_pad_signals
+    - name: pad2chip
+      description: "Data output pin from padframe to chip"
+      size: 1
+      kind: output
+      conn_type: dynamic
+    - name: nand_out
+      description: "NAND Tree Output signal"
+      size: 1
+      kind: output
+      conn_type: dynamic
+    - name: nand_in
+      description: "NAND Tree Input signal"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: pad
+      description: "Data external output"
+      size: 1
+      kind: pad
+    - name: pu_en
+      description: "Pull-up enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: pd_en
+      description: "Pull-down enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: input_en
+      description: "Input enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: schmitt_en
+      description: "Schmitt enable signal, high: Schmitt Mode, low: CMOS Mode"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+  template: |
+    tc_pad_bidir #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .pad_io           ( ${conn["pad"]}        ),
+      .pad2chip_o       ( ${conn["pad2chip"]}   ),
+      .input_en_i       ( ${conn["input_en"]}   ),
+      .pu_en_i          ( ${conn["pu_en"]}      ),
+      .pd_en_i          ( ${conn["pd_en"]}      ),
+      .schmitt_en_i     ( ${conn["schmitt_en"]} ),
+      .nand_in_i        ( ${conn["nand_in"]}    ),
+      .nand_out_o       ( ${conn["nand_out"]}   ),
+      .chip2pad_i       ( 1'b0                  ),
+      .output_en_i      ( 1'b0                  ),
+      .slew_en_i        ( 1'b0                  ),
+      .drive_strength_i ( 2'b00                 ),
+      .int_io           ( `io_pad_internals     )
+    );
+
+- name: PAD_INPUT_V
+  description: "digital input pad, vertical orientation"
+  pad_signals: *digital_input_pad_signals
+  template: |
+    tc_pad_bidir #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .pad_io           ( ${conn["pad"]}        ),
+      .pad2chip_o       ( ${conn["pad2chip"]}   ),
+      .input_en_i       ( ${conn["input_en"]}   ),
+      .pu_en_i          ( ${conn["pu_en"]}      ),
+      .pd_en_i          ( ${conn["pd_en"]}      ),
+      .schmitt_en_i     ( ${conn["schmitt_en"]} ),
+      .nand_in_i        ( ${conn["nand_in"]}    ),
+      .nand_out_o       ( ${conn["nand_out"]}   ),
+      .chip2pad_i       ( 1'b0                  ),
+      .output_en_i      ( 1'b0                  ),
+      .slew_en_i        ( 1'b0                  ),
+      .drive_strength_i ( 2'b00                 ),
+      .int_io           ( `io_pad_internals     )
+    );
+
+- name: PAD_OUTPUT_H
+  description: "digital output pad, horizontal orientation"
+  pad_signals: &digital_output_pad_signals
+    - name: pad
+      description: "Data external output"
+      size: 1
+      kind: pad
+    - name: drive_strength
+      description: "Programmable drive strength control signal, from 0 to 3"
+      size: 2
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 2'b00
+    - name: chip2pad
+      description: "Data input pin from chip to padframe"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: slew_en
+      description: "Slew rate control enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+    - name: output_en
+      description: "Output enable signal, active high"
+      size: 1
+      kind: input
+      conn_type: dynamic
+      default_reset_value: 0
+      default_static_value: 1'b0
+  template: |
+    tc_pad_bidir #(
+      .tc_pad_orientation ( tc_pad_pkg::H              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .pad_io           ( ${conn["pad"]}            ),
+      .pad2chip_o       (                           ),
+      .input_en_i       ( 1'b0                      ),
+      .pu_en_i          ( 1'b0                      ),
+      .pd_en_i          ( 1'b0                      ),
+      .schmitt_en_i     ( 1'b0                      ),
+      .nand_in_i        ( 1'b0                      ),
+      .nand_out_o       (                           ),
+      .chip2pad_i       ( ${conn["chip2pad"]}       ),
+      .output_en_i      ( ${conn["output_en"]}      ),
+      .slew_en_i        ( ${conn["slew_en"]}        ),
+      .drive_strength_i ( ${conn["drive_strength"]} ),
+      .int_io           ( `io_pad_internals         )
+    );    
+
+- name: PAD_OUTPUT_V
+  description: "digital output pad, vertical orientation"
+  pad_signals: *digital_output_pad_signals
+  template: |
+    tc_pad_bidir #(
+      .tc_pad_orientation ( tc_pad_pkg::V              ),
+      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+    ) ${instance_name} (
+      .pad_io           ( ${conn["pad"]}            ),
+      .pad2chip_o       (                           ),
+      .input_en_i       ( 1'b0                      ),
+      .pu_en_i          ( 1'b0                      ),
+      .pd_en_i          ( 1'b0                      ),
+      .schmitt_en_i     ( 1'b0                      ),
+      .nand_in_i        ( 1'b0                      ),
+      .nand_out_o       (                           ),
+      .chip2pad_i       ( ${conn["chip2pad"]}       ),
+      .output_en_i      ( ${conn["output_en"]}      ),
+      .slew_en_i        ( ${conn["slew_en"]}        ),
+      .drive_strength_i ( ${conn["drive_strength"]} ),
+      .int_io           ( `io_pad_internals         )
+    );   

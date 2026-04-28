@@ -16,8 +16,8 @@ packages:
     - common_verification
     - tech_cells_generic
   common_cells:
-    revision: 9afda9abb565971649c2aa0985639c096f351171
-    version: 1.38.0
+    revision: 9ca8a7655f741e7dd5736669a20a301325194c28
+    version: 1.39.0
     source:
       Git: https://github.com/pulp-platform/common_cells.git
     dependencies:
@@ -30,19 +30,18 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   register_interface:
-    revision: d6e1d4cdaab7870f4faf3f88a1c788eaf5ac129d
-    version: 0.4.7
+    revision: 146501d80052b61475cdc333d3aab4cd769fd5dc
+    version: 0.3.9
     source:
       Git: https://github.com/pulp-platform/register_interface.git
     dependencies:
     - apb
     - axi
     - common_cells
-    - common_verification
   tech_cells_generic:
-    revision: 7968dd6e6180df2c644636bc6d2908a49f2190cf
-    version: 0.2.13
+    revision: 9e1f4315f6296e1aee02614b52655bd49d2be0e7
+    version: 0.3.0
     source:
-      Git: https://github.com/pulp-platform/tech_cells_generic.git
+      Git: https://github.com/FondazioneChipsIT/tech_cells_generic.git
     dependencies:
     - common_verification
