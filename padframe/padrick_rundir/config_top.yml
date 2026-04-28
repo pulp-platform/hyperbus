@@ -1,0 +1,22 @@
+# Copyright 2026 Fondazione Chips-IT.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# This padframe config is a modular padframe config files for
+# easier reuse across different technologies or simulation/emulation targets.
+# The basis of it is the usage of the custom YAML directive !include <fle to
+# yaml, toml, ini, csv or txt file>. The directive also supports wildcard
+# inclusion of multiple files. Checkout the documentation of pyyaml-inlcude for
+# the complete syntax "https://pypi.org/project/pyyaml-include/".
+
+name: hyperbus_padframe
+manifest_version: 3
+pad_domains:
+  - name: topr
+    pad_types: !include ../../padframe/behav_pad_types.yml
+    pad_list: !include topr_pad_list.yml
+    # port_groups: !include topr_port_groups.yml
+
+
+    

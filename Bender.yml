@@ -14,7 +14,7 @@ package:
 dependencies:
   common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 1.21.0        }
   axi:                 { git: "https://github.com/pulp-platform/axi.git",                version: 0.39.1        }
-  tech_cells_generic:  { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.4         }
+  tech_cells_generic:  { git: "https://github.com/FondazioneChipsIT/tech_cells_generic.git", version: 0.3.0-rc.1 }
   register_interface:  { git: "https://github.com/pulp-platform/register_interface.git", version: 0.3.2         }
 
 sources:
@@ -52,7 +52,15 @@ sources:
     - src/hyperbus_phy.sv
     - src/hyperbus_phy_if.sv
     - src/hyperbus_axi.sv
-
+    - src/hyperbus.sv
+    - target: hyperbus_macro
+      files:
+        - padframe/src/pkg_hyperbus_padframe.sv
+        - padframe/src/hyperbus_padframe_topr_pads.sv
+        - src/hyperbus_wrap.sv
+    - target: all(hyperbus_macro,hyperbus_top)
+      files:
+        - src/hyperbus_top.sv
     - target: hyper_test
       files:
         # Device models. TODO: extend
@@ -63,4 +71,3 @@ sources:
         - test/dut_if.sv
         - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
-    - src/hyperbus.sv
