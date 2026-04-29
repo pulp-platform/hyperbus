@@ -36,7 +36,7 @@ module hyperbus_rwds_delay
         .UPDATE_MODE("ASYNC"),
         .SIM_DEVICE("ULTRASCALE_PLUS")
     ) i_delay (
-        .DATAOUT(out_o),
+        .DATAOUT(out_o_o),
         .DATAIN(in_i),
         .IDATAIN(1'b0),
     
@@ -54,6 +54,24 @@ module hyperbus_rwds_delay
     
         .CASC_IN(1'b0),
         .CASC_RETURN(1'b0)
+    );
+
+    /*  WORKAROUND for Xilinx FPGAs:
+        Sometimes, DRC check before place design gives the following error:
+        [DRC REQP-1741] IDELAYE3 drives invalid load: IDELAYE3 may not drive a BUFG*
+        This may occur even when constraints such as CLOCK_BUFFER_TYPE NONE and CLOCK_DEDICATED_ROUTE FALSE are applied to the IDELAYE3 output, which are intended to prevent the use of global clock buffers.
+        Xilinx docs states that the IDELAY3 primitive should not be used to delay a clock.
+        A possible workaround is to insert a LUT1 between the IDELAYE3 output and the downstream logic, while preventing its optimization. However, this solution introduces additional delay on the path.
+        Another option is to disable the specific DRC check:
+        set_property IS_ENABLED 0 [get_drc_checks {REQP-1741}]
+    */
+    logic       out_o_o;
+    (*dont_touch = "yes"*) 
+    LUT1#(
+    .INIT(2'b10)
+    ) LUT1_Inst (
+        .O( out_o),
+        .I0( out_o_o)
     );
 
 endmodule
