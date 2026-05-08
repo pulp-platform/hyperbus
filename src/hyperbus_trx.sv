@@ -65,6 +65,11 @@ module hyperbus_trx #(
     logic           rx_rwds_fifo_valid;
     logic           rx_rwds_fifo_ready;
 
+    // used to time the sampling of RWDS to determine additional latency
+    logic [2:0]     ck_cnt_d, ck_cnt_q; // TODO: check in sim if this can be one less
+    logic           rwds_sample_ena;
+    logic           rwds_sample_clk;
+
     // Feed through async reset
     assign hyper_reset_no = rst_ni;
 
@@ -127,15 +132,48 @@ module hyperbus_trx #(
         end
     end
 
-    // Sample RWDS on demand for extra latency determination
-    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rwds_sample
-        if (~rst_ni)                rwds_sample_o <= '0;
-        else if (rwds_sample_ena_i) rwds_sample_o <= hyper_rwds_i;
-    end
-
     // ========
     //    RX
     // ========
+
+    // The following guarantees a proper worst-case sampling of RWDS.
+    // RWDS may only be valid (and stable) for a single period around 
+    // the 3rd hyper_ck_o rising edge (see t_DSV, t_CSS, t_CKDS @ 166MHz).
+    // We create a clock gate that open just for this window from falling
+    // to falling edge of hyper_ck around the 3rd rising edge.
+    // Then and only then will the sample be taken.
+
+    // Constraints: 
+    // ena_i is clocked from clk_i, ck_cnt with ~clk_90_i and
+    // rwds_sample_o with clk_90_i.
+    // The paths are very short and as long the clk to clk_90
+    // constraints are proper (clk_90 being a derived shifted clock)
+    // this should not cause any problems
+    always_comb begin : gen_ck_counter
+        ck_cnt_d = clk_cnt_q;
+        // controlled by above FSM, only true in SendCA state
+        if(trx_rwds_sample_ena)
+            ck_cnt_d = ck_cnt_q +1;
+        // reset counter when the transaction ends (CS goes high)
+        if(hyper_cs_no)
+            ck_cnt_d = '0;
+    end
+    // clocked with falling edge, creates an active clk-gate around rising edge
+    `FF(ck_cnt_q, ck_cnt_d, '0, hyper_ck_no);
+
+    assign rwds_sample_ena = (ck_cnt_q == 2) & rwds_sample_ena_i; // TODO: Check proper sampling point in sim
+
+    // Gate the sampling of rwds to the third rising CK_90 edge only
+    tc_clk_gating i_rwds_in_clk_gate (
+        .clk_i      ( hyper_ck_o      ),
+        .en_i       ( rwds_sample_ena ),
+        .test_en_i  ( test_mode_i     ),
+        .clk_o      ( rwds_sample_clk )
+    );
+    // Sample RWDS on demand for extra latency determination
+    `FF(rwds_sample_o, hyper_rwds_i, '0, rwds_sample_clk);
+    //-------------------------------------------------------------------------
+
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay
