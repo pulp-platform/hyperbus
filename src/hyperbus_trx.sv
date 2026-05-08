@@ -152,7 +152,7 @@ module hyperbus_trx #(
         .hyper_ck_i      ( hyper_ck_o   ),
         .hyper_ck_ni     ( hyper_ck_no  ),
         .hyper_rwds_i    ( hyper_rwds_i )
-    )
+    );
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay
