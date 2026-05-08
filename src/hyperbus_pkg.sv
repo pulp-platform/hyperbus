@@ -14,8 +14,8 @@ package hyperbus_pkg;
         logic            en_latency_additional;
         logic [15:0]     t_burst_max;
         logic [3:0]      t_read_write_recovery;
-        logic [3:0]      t_rx_clk_delay;
-        logic [3:0]      t_tx_clk_delay;
+        logic [7:0]      t_rx_clk_delay;
+        logic [7:0]      t_tx_clk_delay;
         logic [4:0]      address_mask_msb;
         logic            address_space;
         logic            phys_in_use;
@@ -71,8 +71,8 @@ package hyperbus_pkg;
             en_latency_additional:      'b0,
             t_burst_max:                ((MinFreqMhz*35)/10), // t_{csm}: At lowest legal clock (100 MHz) 3.5us (0.5us safety margin)
             t_read_write_recovery:      'h6,
-            t_rx_clk_delay:             'h8,
-            t_tx_clk_delay:             'h8,
+            t_rx_clk_delay:             'h10,
+            t_tx_clk_delay:             'h10,
             address_mask_msb:           'd25,                // 2^(address mask MSB) = single chip size [bytes]
             address_space:              'b0,
             phys_in_use:                NumPhys-1,

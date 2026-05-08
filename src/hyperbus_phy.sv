@@ -8,7 +8,6 @@
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
 module hyperbus_phy import hyperbus_pkg::*; #(
-    parameter int unsigned IsClockODelayed = -1,
     parameter int unsigned NumChips         = 2,
     parameter int unsigned NumPhys          = -1,
     parameter int unsigned TimerWidth       = 16,
@@ -115,7 +114,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // =================
 
     hyperbus_trx #(
-        .IsClockODelayed( IsClockODelayed   ),
         .NumChips       ( NumChips          ),
         .RxFifoLogDepth ( RxFifoLogDepth    ),
         .SyncStages     ( SyncStages        )
@@ -128,7 +126,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .cs_ena_i           ( trx_cs_ena                  ),
         .rwds_sample_o      ( trx_rwds_sample             ),
         .rwds_sample_ena_i  ( trx_rwds_sample_ena         ),
-        .tx_clk_delay_i     ( cfg_i.t_tx_clk_delay        ),
         .tx_clk_ena_i       ( trx_clk_ena                 ),
         .tx_data_i          ( trx_tx_data                 ),
         .tx_data_oe_i       ( trx_tx_data_oe              ),
@@ -284,8 +281,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                         // Send 3 CA words (t_CSS respected through clock delay)
                         timer_d = 2;
                     end
-                    
-                    // Enable output driver (needs to be enabled at least 
+
+                    // Enable output driver (needs to be enabled at least
                     // one cycle earlier since tri-state enables of IO pads
                     // are quite slow compared to the data pins)
                     trx_tx_data_oe = 1'b1;
@@ -351,7 +348,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 end
             end
             WaitAddLatAccess: begin
-                // Same as WaitLatAccess but without possibility 
+                // Same as WaitLatAccess but without possibility
                 // of adding another latency count
                 trx_clk_ena = 1'b1;
                 trx_tx_data_oe = 1'b1;
