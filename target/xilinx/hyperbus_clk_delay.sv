@@ -13,7 +13,7 @@ module hyperbus_clk_delay
     input  logic       clk_ref200_i, // 200 MHz reference clock
     input  logic       clk_i,        // control clock used to load delay_i
     input  logic       in_i,
-    input  logic [4:0] delay_i,
+    input  logic [7:0] delay_i,
     output logic       out_o
 );
 
@@ -50,7 +50,7 @@ module hyperbus_clk_delay
     //     .DATAOUT     ( out_o       ), // output: delayed from ODATAIN (drives IO) or CLKIN (back into clock network)
     //     .CE          ( 1'b0        ), // input: increment/decrement enable
     //     .CINVCTRL    ( 1'b0        ), // input: switch clock polarity during operation (glitches!)
-    //     .CNTVALUEIN  ( delay_i     ), // 5 bit input: delay tap
+    //     .CNTVALUEIN  ( delay_i[4:0] ), // 5 bit input: delay tap
     //     .CNTVALUEOUT (             ), // 5 bit output: delay tap
     //     .INC         ( 1'b0        ), // input: increment/decrement delay tap
     //     .LD          ( 1'b0        ), // input: load ODELAY_VALUE param or CNTVALUEIN (depends on IDELAY_TYPE)
@@ -73,7 +73,7 @@ module hyperbus_clk_delay
         .DATAOUT     ( out_o       ), // output: delayed from DATAIN or IDATAIN (drives ISERDESE2 or logic, not IO!)
         .CE          ( 1'b0        ), // input: increment/decrement enable
         .CINVCTRL    ( 1'b0        ), // input: switch clock polarity during operation (glitches!)
-        .CNTVALUEIN  ( delay_i     ), // 5 bit input: delay tap
+        .CNTVALUEIN  ( delay_i[4:0] ), // 5 bit input: delay tap
         .CNTVALUEOUT (             ), // 5 bit output: delay tap
         .LD          ( 1'b1        ), // input: load IDELAY_VALUE param or CNTVALUEIN (depends on IDELAY_TYPE)
         .INC         ( 1'b0        ), // input: increment/decrement delay tap

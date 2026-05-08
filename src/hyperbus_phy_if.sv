@@ -62,7 +62,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
 
         `ifdef TARGET_XILINX
             hyperbus_clk_delay i_delay_tx_clk_90 (
-                .rst_i         ( ~rst_ni ),
+                .rst_i         ( ~rst_phy_ni ),
                 .clk_ref200_i,
                 .clk_i         ( clk_phy_i            ),
                 .in_i          ( clk_phy_0            ),
