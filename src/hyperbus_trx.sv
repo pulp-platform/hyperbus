@@ -13,11 +13,12 @@ module hyperbus_trx #(
     parameter int unsigned SyncStages      = 2
 )(
     // Global signals
-    input  logic            clk_i,
-    input  logic            clk_i_90,
-    input  logic            rst_ni,
-    input  logic            test_mode_i,
-    // Transciever control: facing controller
+    input  logic       clk_i,
+    input  logic       clk_i_90,
+    input  logic       rst_ni,
+    input  logic       test_mode_i,
+
+    // Transceiver control: facing controller
     input  logic [NumChips-1:0]    cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
@@ -36,7 +37,7 @@ module hyperbus_trx #(
     output logic [15:0]            rx_data_o,
     output logic                   rx_valid_o,
     input  logic                   rx_ready_i,
-    // Physical interace: facing HyperBus
+    // Physical interface: facing HyperBus
     output logic [NumChips-1:0]    hyper_cs_no,
     output logic                   hyper_ck_o,
     output logic                   hyper_ck_no,
@@ -76,6 +77,8 @@ module hyperbus_trx #(
     assign tx_clk_90 = clk_i_90;
 
     // 90deg-shifted differential output clock, sampling output bytes centrally
+    // TODO: tx_clk_ena_q to tx_clk_90 may need a constraint at the pins of this module
+    // specifically tx_clk_ena_q must arrive BEFORE tx_clk_90 otherwise the gating may fail
     hyperbus_clock_diff_out i_clock_diff_out (
         .in_i   ( tx_clk_90     ),
         .en_i   ( tx_clk_ena_q  ),
@@ -84,7 +87,7 @@ module hyperbus_trx #(
     );
 
     // Synchronize output chip select to shifted differential output clock
-    always_ff @(posedge tx_clk_90 or negedge rst_ni) begin : proc_ff_tx_shift90
+    always_ff @(negedge clk_i or negedge rst_ni) begin : proc_ff_tx_shift90
         if (~rst_ni)    hyper_cs_no <= '1;
         else            hyper_cs_no <= cs_ena_i ? ~cs_i : '1;
     end
@@ -127,15 +130,15 @@ module hyperbus_trx #(
         end
     end
 
-    // Sample RWDS on demand for extra latency determination
+    // ========
+    //    RX
+    // ========
+
+    // Sample RWDS for extra latency determination.
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rwds_sample
         if (~rst_ni)                rwds_sample_o <= '0;
         else if (rwds_sample_ena_i) rwds_sample_o <= hyper_rwds_i;
     end
-
-    // ========
-    //    RX
-    // ========
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay
