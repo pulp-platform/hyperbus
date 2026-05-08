@@ -70,7 +70,7 @@ package hyperbus_pkg;
             t_read_write_recovery:      'h6,
             t_rx_clk_delay:             'h8,
             t_tx_clk_delay:             'h8,
-            address_mask_msb:           'd25,                // 26 bit addresses = 2^6*2^20B == 64 MB per chip (biggest availale as of now)
+            address_mask_msb:           'd25,                // 2^(address mask MSB) = single chip size [bytes]
             address_space:              'b0,
             phys_in_use:                NumPhys-1,
             which_phy:                  NumPhys-1,

@@ -431,9 +431,9 @@ module fixture_hyperbus #(
               if(clear)
                 w_beat.w_data = '1;
               else
-                randomize(w_beat.w_data);
+                w_beat.w_data = {$urandom(), $urandom()};
               axi_master_drv.send_w(w_beat);
-              trans_wdata = '1; //the memory regions where we do not write are have all ones in the hyperram.
+              trans_wdata = '1; // Unwritten memory regions are initialized to all ones in the HyperRAM.
               `ifdef AXI_VERBOSE
               $display("%p", w_beat);
               $display("%x", w_beat.w_data);

@@ -92,6 +92,15 @@ module axi_hyper_tb
     .TT( TbTestTime         )
   ) axi_scoreboard_mst_t;
 
+  typedef axi_test::axi_driver #(
+    .AW ( TbAxiAddrWidthFull ),
+    .DW ( TbAxiDataWidthFull ),
+    .IW ( TbAxiIdWidthFull   ),
+    .UW ( TbAxiUserWidthFull ),
+    .TA ( TbApplTime         ),
+    .TT ( TbTestTime         )
+  ) axi_driver_t;
+
   typedef reg_test::reg_driver #(
     .AW ( RegBusAW   ),
     .DW ( RegBusDW   ),
@@ -133,17 +142,112 @@ module axi_hyper_tb
 
   logic s_error;
   logic [31:0] reg_read;
+
+  function automatic logic [TbAxiDataWidthFull/8-1:0] subword_strb(
+    input axi_addr_t addr,
+    input int unsigned size
+  );
+    automatic int unsigned num_bytes = 1 << size;
+    automatic logic [TbAxiDataWidthFull/8-1:0] strb = '0;
+    for (int unsigned i = 0; i < num_bytes; i++) begin
+      strb[addr[$clog2(TbAxiDataWidthFull/8)-1:0] + i] = 1'b1;
+    end
+    return strb;
+  endfunction
+
+  function automatic logic [TbAxiDataWidthFull-1:0] subword_data(
+    input logic [TbAxiDataWidthFull-1:0] data,
+    input axi_addr_t addr
+  );
+    return data << (8 * addr[$clog2(TbAxiDataWidthFull/8)-1:0]);
+  endfunction
+
+  task automatic axi_write_subword(
+    input axi_driver_t axi_drv,
+    input axi_addr_t addr,
+    input logic [TbAxiDataWidthFull-1:0] data,
+    input int unsigned size
+  );
+    axi_driver_t::ax_beat_t ax = new();
+    axi_driver_t::w_beat_t w = new();
+    axi_driver_t::b_beat_t b;
+
+    ax.ax_addr  = addr;
+    ax.ax_id    = '0;
+    ax.ax_len   = '0;
+    ax.ax_size  = size;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_aw(ax);
+
+    w.w_data = subword_data(data, addr);
+    w.w_strb = subword_strb(addr, size);
+    w.w_last = 1'b1;
+    axi_drv.send_w(w);
+    axi_drv.recv_b(b);
+    if (b.b_resp != axi_pkg::RESP_OKAY) begin
+      $error("[AXI] Write to 0x%08x returned response %0d", addr, b.b_resp);
+    end
+  endtask
+
+  task automatic axi_check_subword(
+    input axi_driver_t axi_drv,
+    input axi_addr_t addr,
+    input logic [TbAxiDataWidthFull-1:0] expected,
+    input int unsigned size
+  );
+    axi_driver_t::ax_beat_t ax = new();
+    axi_driver_t::r_beat_t r;
+    logic [TbAxiDataWidthFull-1:0] mask;
+    logic [TbAxiDataWidthFull-1:0] actual;
+    int unsigned num_bytes;
+
+    ax.ax_addr  = addr;
+    ax.ax_id    = '0;
+    ax.ax_len   = '0;
+    ax.ax_size  = size;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_ar(ax);
+    axi_drv.recv_r(r);
+
+    num_bytes = 1 << size;
+    mask = '0;
+    for (int unsigned i = 0; i < num_bytes; i++) begin
+      mask[i*8 +: 8] = 8'hff;
+    end
+    actual = r.r_data >> (8 * addr[$clog2(TbAxiDataWidthFull/8)-1:0]);
+
+    if (r.r_resp != axi_pkg::RESP_OKAY || (actual & mask) != (expected & mask)) begin
+      $error("[AXI] Read from 0x%08x returned 0x%016x, expected 0x%016x, response %0d",
+             addr, actual & mask, expected & mask, r.r_resp);
+    end
+  endtask
+
+  task automatic check_odd_subword_accesses(input axi_driver_t axi_drv);
+    localparam axi_addr_t BaseAddr = axi_addr_t'(32'h8000_0100);
+
+    axi_write_subword(axi_drv, BaseAddr + 32'h0, 64'h0000_0000_0000_1234, 1);
+    axi_write_subword(axi_drv, BaseAddr + 32'h2, 64'h0000_0000_0000_abcd, 1);
+    axi_check_subword(axi_drv, BaseAddr + 32'h0, 64'h0000_0000_0000_1234, 1);
+    axi_check_subword(axi_drv, BaseAddr + 32'h2, 64'h0000_0000_0000_abcd, 1);
+
+    axi_write_subword(axi_drv, BaseAddr + 32'h4, 64'h0000_0000_0000_005a, 0);
+    axi_write_subword(axi_drv, BaseAddr + 32'h5, 64'h0000_0000_0000_00c3, 0);
+    axi_check_subword(axi_drv, BaseAddr + 32'h4, 64'h0000_0000_0000_005a, 0);
+    axi_check_subword(axi_drv, BaseAddr + 32'h5, 64'h0000_0000_0000_00c3, 0);
+  endtask
      
   initial begin : proc_sim_crtl
 
     automatic axi_scoreboard_mst_t   mst_scoreboard  = new( score_mst_intf_dv );
     automatic axi_rand_master_t      axi_master      = new( axi_mst_intf_dv   );
+    automatic axi_driver_t           axi_driver      = new( axi_mst_intf_dv   );
     automatic reg_bus_master_t       reg_master      = new( reg_bus_mst       );
 
     // Reset the AXI drivers and scoreboards
     end_of_sim = 1'b0;
     mst_scoreboard.reset();
     axi_master.reset();
+    axi_driver.reset_master();
     reg_master.reset_master();
 
     // Set some mem regions for rand axi master
@@ -181,6 +285,8 @@ module axi_hyper_tb
        if (s_reg_error != 1'b0) $error("unexpected error");
 
        axi_master.reset();
+       axi_driver.reset_master();
+       check_odd_subword_accesses(axi_driver);
 
        $display("===========================");
        $display("= Random AXI transactions =");
@@ -202,6 +308,8 @@ module axi_hyper_tb
        if (s_reg_error != 1'b0) $error("unexpected error");
 
        axi_master.reset();
+       axi_driver.reset_master();
+       check_odd_subword_accesses(axi_driver);
 
        $display("===========================");
        $display("= Random AXI transactions =");

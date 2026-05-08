@@ -198,7 +198,8 @@ module dut_if
        for (genvar p=0; p<NumPhys; p++) begin : sdf_annotation
           for (genvar l=0; l<NumChips; l++) begin : sdf_annotation
              initial begin
-                automatic string sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
+                string sdf_file_path;
+                sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
                 $sdf_annotate(sdf_file_path, hyperrams[p].chips[l].dut);
                 $display("Mem (%d,%d)",p,l);
              end
