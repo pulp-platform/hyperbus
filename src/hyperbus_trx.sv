@@ -18,13 +18,11 @@ module hyperbus_trx #(
     input  logic       rst_ni,
     input  logic       test_mode_i,
 
-    input  logic [3:0] cfg_edge_idx_i,
-    input  logic       cfg_edge_pol_i,
-
     // Transceiver control: facing controller
     input  logic [NumChips-1:0]    cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
+    input  logic                   rwds_sample_ena_i,
 
     input  logic [3:0]             tx_clk_delay_i,
     input  logic                   tx_clk_ena_i,
@@ -136,17 +134,11 @@ module hyperbus_trx #(
     //    RX
     // ========
 
-    // sample RWDS for extra latency determination (adjustable sampling edge)
-    hyperbus_rwds_sampler i_rwds_sampler (
-        .clk_i,
-        .rst_ni,
-        .test_mode_i,
-        .cfg_edge_idx_i,
-        .cfg_edge_pol_i,
-        .rwds_sample_o,
-        .hyper_cs_ni     ( &hyper_cs_no ),
-        .hyper_rwds_i    ( hyper_rwds_i )
-    );
+    // Sample RWDS for extra latency determination.
+    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rwds_sample
+        if (~rst_ni)                rwds_sample_o <= '0;
+        else if (rwds_sample_ena_i) rwds_sample_o <= hyper_rwds_i;
+    end
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay

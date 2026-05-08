@@ -67,6 +67,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic [TimerWidth-1:0]  timer_d,    timer_q;
     hyper_tf_t              tf_d,       tf_q;
     logic [NumChips-1:0]    cs_d,       cs_q;
+    logic                   add_latency_d, add_latency_q;
 
     // Whether B response is pending
     logic b_pending_q;
@@ -98,6 +99,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic           trx_clk_ena;
     logic           trx_cs_ena;
     logic           trx_rwds_sample;
+    logic           trx_rwds_sample_ena;
     logic [15:0]    trx_tx_data;
     logic           trx_tx_data_oe;
     logic [1:0]     trx_tx_rwds;
@@ -122,11 +124,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .clk_i_90,
         .rst_ni,
         .test_mode_i,
-        .cfg_edge_idx_i     ( cfg_i.rwds_sample.cylce_idx ),
-        .cfg_edge_pol_i     ( cfg_i.rwds_sample.polarity  ),
         .cs_i               ( cs_q                        ),
         .cs_ena_i           ( trx_cs_ena                  ),
         .rwds_sample_o      ( trx_rwds_sample             ),
+        .rwds_sample_ena_i  ( trx_rwds_sample_ena         ),
         .tx_clk_delay_i     ( cfg_i.t_tx_clk_delay        ),
         .tx_clk_ena_i       ( trx_clk_ena                 ),
         .tx_data_i          ( trx_tx_data                 ),
@@ -221,7 +222,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     // Auxiliary control signals
     assign ctl_write_zero_lat   = tf_q.address_space & tf_q.write;
-    // cfg_i.latency_addentional overwrites the trx_rwds_sample. Be careful.
+    // cfg_i.en_latency_additional overwrites the sampled RWDS value.
     assign ctl_add_latency      = trx_rwds_sample | cfg_i.en_latency_additional;
 
     assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == phys_in_use);
@@ -243,11 +244,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         trx_cs_ena          = 1'b1;
         trx_clk_ena         = 1'b0;
         trx_rx_clk_set      = 1'b0;
+        trx_rwds_sample_ena = 1'b0;
         // Default next state
         state_d = state_q;
         timer_d = timer_q - 1;
         tf_d    = tf_q;
         cs_d    = cs_q;
+        add_latency_d = add_latency_q;
         // Tri-state control of dq and rwds
         trx_tx_rwds_oe = 1'b0;
         trx_tx_data_oe = 1'b0;
@@ -268,6 +271,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (trans_valid_i & ~b_pending_q & r_outstand_q == '0) begin
                     tf_d    = trans_i;
                     cs_d    = trans_cs_i;
+                    add_latency_d = 1'b0;
 
                     if(cfg_i.csn_to_ck_cycles != 0) begin
                         // assert CS but delay hyper_ck to allow more time
@@ -289,6 +293,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             end
             DelayCK: begin
                 trx_clk_ena = 1'b0;
+                trx_rwds_sample_ena = ~ctl_write_zero_lat;
                 if (ctl_timer_zero) begin
                     timer_d = 2; // Send 3 CA words
                     state_d = SendCA;
@@ -298,12 +303,14 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Dataflow handled outside FSM
                 trx_clk_ena         = 1'b1;
                 trx_tx_data_oe      = 1'b1;
+                trx_rwds_sample_ena = ~ctl_write_zero_lat;
                 if (ctl_timer_zero) begin
                     if (ctl_write_zero_lat) begin
                         timer_d = cfg_i.t_burst_max;
                         state_d = Write;
                     end else begin
                         timer_d = TimerWidth'(cfg_i.t_latency_access);
+                        add_latency_d = ctl_add_latency;
                         state_d = WaitLatAccess;
                     end
                 end
@@ -311,9 +318,12 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             WaitLatAccess: begin
                 trx_clk_ena = 1'b1;
                 trx_tx_data_oe = 1'b1;
-                // ctl_add_latency may arrive at any time (adjustable RWDS sampling)
-                // If no additional latency required:
-                if (~ctl_add_latency) begin
+                // Keep sampling until the cycle before the normal-latency decision.
+                // The FFed sample is then visible when ctl_timer_two is evaluated.
+                trx_rwds_sample_ena = ~ctl_write_zero_lat & (timer_q > 2);
+                // The additional-latency decision is latched at the end of CA so
+                // later RWDS changes cannot erase it before the FSM decision.
+                if (~add_latency_q) begin
                     // Substract cycle for last CA and another for state delay
                     if(ctl_timer_two) begin
                         timer_d = cfg_i.t_burst_max;
@@ -337,6 +347,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     // instead of going to 0, add another latency count
                     state_d = WaitAddLatAccess;
                     timer_d = TimerWidth'(cfg_i.t_latency_access);
+                    add_latency_d = 1'b0;
                 end
             end
             WaitAddLatAccess: begin
@@ -429,11 +440,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             timer_q <= StartupCycles;
             tf_q    <= hyper_tf_t'{burst_type: 1'b1, default:'0};
             cs_q    <= '0;
+            add_latency_q <= 1'b0;
         end else begin
             state_q <= state_d;
             timer_q <= timer_d;
             tf_q    <= tf_d;
             cs_q    <= cs_d;
+            add_latency_q <= add_latency_d;
         end
     end
 
