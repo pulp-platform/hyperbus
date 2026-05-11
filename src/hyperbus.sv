@@ -215,6 +215,7 @@ module hyperbus #(
         .test_mode_i    ( test_mode_i       ),
 
         .cfg_i          ( cfg               ),
+        .busy_o         (                   ),
 
         .rx_o           ( phy_rx            ),
         .rx_valid_o     ( phy_rx_valid      ),

@@ -166,7 +166,7 @@ module fixture_hyperbus #(
     wire  [NumPhys-1:0][7:0]           pad_hyper_dq;
                 
     // DUT
-    hyperbus #(
+    hyperbus_asynchronous #(
         .NumChips       ( NumChips    ),
         .NumPhys        ( NumPhys     ),
         .AxiAddrWidth   ( AxiAw       ),
@@ -184,13 +184,13 @@ module fixture_hyperbus #(
         .RegDataWidth   ( RegDw       ),
         .reg_req_t      ( reg_req_t   ),
         .reg_rsp_t      ( reg_rsp_t   ),
-        .IsClockODelayed( 0           ),
+        .UsePhyClkDivider ( 1'b1      ),
         .axi_rule_t     ( rule_t      )
     ) i_dut (
-        .clk_phy_i              ( phy_clk            ),
-        .rst_phy_ni             ( rst_n              ),
         .clk_sys_i              ( sys_clk            ),
         .rst_sys_ni             ( rst_n              ),
+        .clk_phy_i              ( phy_clk            ),
+        .rst_phy_ni             ( rst_n              ),
         .test_mode_i            ( test_mode          ),
         .axi_req_i              ( axi_master_req     ),
         .axi_rsp_o              ( axi_master_rsp     ),

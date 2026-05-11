@@ -2,7 +2,7 @@
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
 
-vsim axi_hyper_tb -t 1ps -voptargs=+acc -classdebug
+vsim axi_hyper_tb -wlf sim_run.wlf -t 1ps -voptargs=+acc -classdebug
 
 set StdArithNoWarnings 1
 set NumericStdNoWarnings 1

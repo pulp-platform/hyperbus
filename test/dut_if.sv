@@ -123,7 +123,7 @@ module dut_if
      );
 
     // DUT
-    hyperbus #(
+    hyperbus_asynchronous #(
         .NumChips         ( NumChips      ),
         .NumPhys          ( NumPhys       ),
         .AxiAddrWidth     ( AxiAddrWidth  ),
@@ -141,13 +141,13 @@ module dut_if
         .RegDataWidth     ( RegDw         ),
         .reg_req_t        ( reg_req_t     ),
         .reg_rsp_t        ( reg_rsp_t     ),
-        .UsePhyClkDivider ( 1             ),
+        .UsePhyClkDivider ( 1'b1          ),
         .axi_rule_t       ( axi_rule_t    )
     ) i_dut (
-        .clk_phy_i              ( clk_i              ),
-        .rst_phy_ni             ( rst_ni             ),
         .clk_sys_i              ( clk_i              ),
         .rst_sys_ni             ( rst_ni             ),
+        .clk_phy_i              ( clk_i              ),
+        .rst_phy_ni             ( rst_ni             ),
         .test_mode_i            ( 1'b0               ),
         .axi_req_i              ( axi_req            ),
         .axi_rsp_o              ( axi_resp           ),

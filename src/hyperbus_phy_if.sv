@@ -23,6 +23,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     input  logic                test_mode_i,
     // Config registers
     input  hyper_cfg_t          cfg_i,
+    output logic                busy_o,
     // Transactions
     input  logic                trans_valid_i,
     output logic                trans_ready_o,
@@ -124,6 +125,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
             end
         end
 
+        assign busy_o         = |phy_busy;
         assign rx_both_valid  = & (fifo_axi_valid | ~phy_active_q);
         assign rx_valid_o     = rx_both_valid;
         assign fifo_axi_ready = rx_ready_i && rx_both_valid;
@@ -231,7 +233,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
 
                  .cfg_i          ( cfg_i           ),
 
-            .busy_o         (                 ),
+            .busy_o         ( busy_o          ),
 
             .rx_data_o      ( rx_o.data       ),
             .rx_last_o      ( rx_o.last       ),
