@@ -2,7 +2,7 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
-module hyperbus_asynchronous #(
+module hyperbus_isochronous #(
     parameter int unsigned  NumChips         = -1,
     parameter int unsigned  NumPhys          = 2,
     parameter int unsigned  AxiAddrWidth     = -1,
@@ -22,9 +22,8 @@ module hyperbus_asynchronous #(
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          axi_rule_t       = logic,
-    parameter int unsigned  RxFifoLogDepth   = 3,
+    parameter int unsigned  RxFifoLogDepth   = 8,
     parameter int unsigned  TxFifoLogDepth   = 3,
-    parameter bit           UsePhyClkDivider = 1'b0,
     parameter logic [RegDataWidth-1:0]  RstChipBase  = 'h0,
     parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000,
     parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys, MinFreqMHz),
@@ -33,8 +32,6 @@ module hyperbus_asynchronous #(
 ) (
     input  logic                        clk_sys_i,
     input  logic                        rst_sys_ni,
-    input  logic                        clk_phy_i,
-    input  logic                        rst_phy_ni,
 `ifdef TARGET_XILINX
     input  logic                        clk_ref200_i,
 `endif
@@ -83,6 +80,7 @@ module hyperbus_asynchronous #(
     hyperbus_pkg::hyper_cfg_t  cfg_backend_apply;
     logic                      cfg_backend_apply_valid;
     logic                      cfg_backend_apply_ready;
+    logic                      rst_backend_async_n;
 
     hyper_rx_t                 frontend_rx;
     logic                      frontend_rx_valid;
@@ -110,40 +108,23 @@ module hyperbus_asynchronous #(
     logic                      backend_trans_valid;
     logic                      backend_trans_ready;
 
-    logic                      rst_phy_async_n;
-    logic                      rst_clk_gen_n;
-    assign rst_phy_async_n = rst_sys_ni & rst_phy_ni;
+    hyperbus_clk_gen i_clk_gen (
+        .clk_i    ( clk_sys_i        ),
+        .rst_ni   ( rst_sys_ni       ),
+        .clk0_o   ( clk_backend      ),
+        .clk90_o  ( clk_backend_90   ),
+        .clk180_o (                  ),
+        .clk270_o (                  ),
+        .rst_no   ( rst_backend_async_n )
+    );
 
-    if (UsePhyClkDivider) begin : gen_phy_clk_divider
-        hyperbus_clk_gen i_clk_gen (
-            .clk_i    ( clk_phy_i        ),
-            .rst_ni   ( rst_phy_async_n  ),
-            .clk0_o   ( clk_backend      ),
-            .clk90_o  ( clk_backend_90   ),
-            .clk180_o (                  ),
-            .clk270_o (                  ),
-            .rst_no   ( rst_clk_gen_n    )
-        );
-
-        rstgen i_rstgen_phy (
-            .clk_i       ( clk_backend    ),
-            .rst_ni      ( rst_clk_gen_n  ),
-            .test_mode_i ( test_mode_i    ),
-            .rst_no      ( rst_backend_n  ),
-            .init_no     (                )
-        );
-    end else begin : gen_phy_rst_sync
-        assign clk_backend    = clk_phy_i;
-        assign clk_backend_90 = 1'b0;
-
-        rstgen i_rstgen_phy (
-            .clk_i       ( clk_phy_i        ),
-            .rst_ni      ( rst_phy_async_n  ),
-            .test_mode_i ( test_mode_i      ),
-            .rst_no      ( rst_backend_n    ),
-            .init_no     (                  )
-        );
-    end
+    rstgen i_rstgen_backend (
+        .clk_i       ( clk_backend         ),
+        .rst_ni      ( rst_backend_async_n ),
+        .test_mode_i ( test_mode_i         ),
+        .rst_no      ( rst_backend_n       ),
+        .init_no     (                     )
+    );
 
     hyperbus_frontend #(
         .NumChips      ( NumChips      ),
@@ -188,7 +169,7 @@ module hyperbus_asynchronous #(
         .trans_ready_i      ( frontend_trans_ready   )
     );
 
-    hyperbus_async_bridge #(
+    hyperbus_iso_bridge #(
         .RxFifoLogDepth ( RxFifoLogDepth ),
         .TxFifoLogDepth ( TxFifoLogDepth ),
         .hyper_rx_t     ( hyper_rx_t     ),
@@ -234,7 +215,7 @@ module hyperbus_asynchronous #(
     hyperbus_backend #(
         .NumChips         ( NumChips          ),
         .NumPhys          ( NumPhys           ),
-        .UsePhyClkDivider ( UsePhyClkDivider  ),
+        .UsePhyClkDivider ( 1'b1              ),
         .StartupCycles    ( PhyStartupCycles  ),
         .SyncStages       ( SyncStages        ),
         .hyper_rx_t       ( hyper_rx_t        ),

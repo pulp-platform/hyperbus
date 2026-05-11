@@ -12,7 +12,8 @@
 
 module fixture_hyperbus #(
     parameter int unsigned NumChips = 2,
-    parameter int unsigned NumPhys = 2
+    parameter int unsigned NumPhys = 2,
+    parameter bit AnnotateSdf = 1'b1
 );
 
    
@@ -166,7 +167,7 @@ module fixture_hyperbus #(
     wire  [NumPhys-1:0][7:0]           pad_hyper_dq;
                 
     // DUT
-    hyperbus_asynchronous #(
+    hyperbus_isochronous #(
         .NumChips       ( NumChips    ),
         .NumPhys        ( NumPhys     ),
         .AxiAddrWidth   ( AxiAw       ),
@@ -184,13 +185,10 @@ module fixture_hyperbus #(
         .RegDataWidth   ( RegDw       ),
         .reg_req_t      ( reg_req_t   ),
         .reg_rsp_t      ( reg_rsp_t   ),
-        .UsePhyClkDivider ( 1'b1      ),
         .axi_rule_t     ( rule_t      )
     ) i_dut (
         .clk_sys_i              ( sys_clk            ),
         .rst_sys_ni             ( rst_n              ),
-        .clk_phy_i              ( phy_clk            ),
-        .rst_phy_ni             ( rst_n              ),
         .test_mode_i            ( test_mode          ),
         .axi_req_i              ( axi_master_req     ),
         .axi_rsp_o              ( axi_master_rsp     ),
@@ -236,17 +234,17 @@ module fixture_hyperbus #(
        end // block: hyperrams
     endgenerate
    
-    generate
+    if (AnnotateSdf) begin : gen_sdf_annotation
        for (genvar p=0; p<NumPhys; p++) begin : sdf_annotation
           for (genvar l=0; l<NumChips; l++) begin : sdf_annotation
              initial begin
                 automatic string sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
                 $sdf_annotate(sdf_file_path, hyperrams[p].chips[l].dut);
-                $display("Mem (%d,%d)",p,l);
+                $display("Mem (%d,%d)", p, l);
              end
-         end
+          end
        end
-    endgenerate
+    end
 
    for (genvar i = 0 ; i<NumPhys; i++) begin: pad_gen
     for (genvar j = 0; j<NumChips; j++) begin

@@ -26,7 +26,9 @@ module axi_hyper_tb
   /// Application time to the DUT
   parameter time         TbApplTime =  1ns,
   /// Test time of the DUT
-  parameter time         TbTestTime =  4ns
+  parameter time         TbTestTime =  4ns,
+  /// Annotate the HyperRAM timing SDF. Disable for fast RTL regressions.
+  parameter bit          TbAnnotateSdf = 1'b1
 );
   import hyperbus_tb_pkg::*;
   /////////////////////////////
@@ -452,6 +454,7 @@ module axi_hyper_tb
 
     .NumChips        ( NumChips           ),
     .NumPhys         ( NumPhys            ),
+    .AnnotateSdf     ( TbAnnotateSdf      ),
     .IsClockODelayed ( IsClockODelayed    ),
     .axi_rule_t      ( rule_t             )
   ) i_dut_if (

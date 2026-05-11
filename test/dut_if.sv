@@ -24,6 +24,7 @@ module dut_if
                  
   parameter int  NumChips        = -1,
   parameter int  NumPhys         = -1,
+  parameter bit  AnnotateSdf     = 1'b1,
   parameter int  IsClockODelayed = -1,
   parameter type axi_rule_t      = logic
 )(
@@ -123,7 +124,7 @@ module dut_if
      );
 
     // DUT
-    hyperbus_asynchronous #(
+    hyperbus_isochronous #(
         .NumChips         ( NumChips      ),
         .NumPhys          ( NumPhys       ),
         .AxiAddrWidth     ( AxiAddrWidth  ),
@@ -141,13 +142,10 @@ module dut_if
         .RegDataWidth     ( RegDw         ),
         .reg_req_t        ( reg_req_t     ),
         .reg_rsp_t        ( reg_rsp_t     ),
-        .UsePhyClkDivider ( 1'b1          ),
         .axi_rule_t       ( axi_rule_t    )
     ) i_dut (
         .clk_sys_i              ( clk_i              ),
         .rst_sys_ni             ( rst_ni             ),
-        .clk_phy_i              ( clk_i              ),
-        .rst_phy_ni             ( rst_ni             ),
         .test_mode_i            ( 1'b0               ),
         .axi_req_i              ( axi_req            ),
         .axi_rsp_o              ( axi_resp           ),
@@ -194,18 +192,18 @@ module dut_if
        end // block: hyperrams
     endgenerate
    
-    generate
+    if (AnnotateSdf) begin : gen_sdf_annotation
        for (genvar p=0; p<NumPhys; p++) begin : sdf_annotation
           for (genvar l=0; l<NumChips; l++) begin : sdf_annotation
              initial begin
                 string sdf_file_path;
                 sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
                 $sdf_annotate(sdf_file_path, hyperrams[p].chips[l].dut);
-                $display("Mem (%d,%d)",p,l);
+                $display("Mem (%d,%d)", p, l);
              end
-         end
+          end
        end
-    endgenerate
+    end
 
    for (genvar i = 0 ; i<NumPhys; i++) begin: pad_gen
     for (genvar j = 0; j<NumChips; j++) begin
