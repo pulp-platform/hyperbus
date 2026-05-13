@@ -59,7 +59,6 @@ sources:
     - src/hyperbus_backend.sv
     - src/hyperbus_asynchronous.sv
     - src/hyperbus_isochronous.sv
-    - src/hyperbus.sv
 
     - target: hyper_test
       files:
