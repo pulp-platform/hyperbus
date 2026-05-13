@@ -33,7 +33,9 @@ module hyperbus_frontend #(
     output reg_rsp_t                   reg_rsp_o,
 
     output hyperbus_pkg::hyper_cfg_t   cfg_o,
-    input  logic                       cfg_apply_busy_i,
+    output hyperbus_pkg::hyper_cfg_t   cfg_apply_o,
+    output logic                       cfg_apply_valid_o,
+    input  logic                       cfg_apply_ready_i,
 
     input  hyper_rx_t                  rx_i,
     input  logic                       rx_valid_i,
@@ -49,10 +51,65 @@ module hyperbus_frontend #(
     input  logic                       trans_ready_i
 );
 
+    typedef enum logic [1:0] {
+        CfgIdle,
+        CfgSend,
+        CfgWaitAck
+    } cfg_state_e;
+
     axi_rule_t [NumChips-1:0] chip_rules;
     logic                     trans_active;
     logic                     axi_trans_valid;
     logic                     axi_trans_ready;
+    cfg_state_e               cfg_state_d, cfg_state_q;
+    hyperbus_pkg::hyper_cfg_t cfg_applied_d, cfg_applied_q;
+    hyperbus_pkg::hyper_cfg_t cfg_pending_d, cfg_pending_q;
+    logic                     cfg_changed;
+    logic                     cfg_apply_busy;
+
+    assign cfg_changed       = cfg_o != cfg_applied_q;
+    assign cfg_apply_busy    = (cfg_state_q != CfgIdle) | cfg_changed;
+    assign cfg_apply_valid_o = cfg_state_q == CfgSend;
+    assign cfg_apply_o       = cfg_pending_q;
+
+    always_comb begin
+        cfg_state_d   = cfg_state_q;
+        cfg_applied_d = cfg_applied_q;
+        cfg_pending_d = cfg_pending_q;
+
+        unique case (cfg_state_q)
+            CfgIdle: begin
+                if (cfg_changed) begin
+                    cfg_pending_d = cfg_o;
+                    cfg_state_d   = CfgSend;
+                end
+            end
+            CfgSend: begin
+                if (cfg_apply_ready_i) begin
+                    cfg_state_d = CfgWaitAck;
+                end
+            end
+            CfgWaitAck: begin
+                if (cfg_apply_ready_i) begin
+                    cfg_applied_d = cfg_pending_q;
+                    cfg_state_d   = CfgIdle;
+                end
+            end
+            default: cfg_state_d = CfgIdle;
+        endcase
+    end
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+            cfg_state_q   <= CfgIdle;
+            cfg_applied_q <= RstCfg;
+            cfg_pending_q <= RstCfg;
+        end else begin
+            cfg_state_q   <= cfg_state_d;
+            cfg_applied_q <= cfg_applied_d;
+            cfg_pending_q <= cfg_pending_d;
+        end
+    end
 
     hyperbus_cfg_regs #(
         .NumChips       ( NumChips      ),
@@ -113,7 +170,7 @@ module hyperbus_frontend #(
         .trans_active_o  ( trans_active         )
     );
 
-    assign trans_valid_o  = axi_trans_valid & ~cfg_apply_busy_i;
-    assign axi_trans_ready = trans_ready_i & ~cfg_apply_busy_i;
+    assign trans_valid_o  = axi_trans_valid & ~cfg_apply_busy;
+    assign axi_trans_ready = trans_ready_i & ~cfg_apply_busy;
 
 endmodule

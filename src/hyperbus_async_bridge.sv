@@ -7,16 +7,16 @@ module hyperbus_async_bridge #(
     parameter int unsigned TxFifoLogDepth = 3,
     parameter type         hyper_rx_t     = logic,
     parameter type         hyper_tx_t     = logic,
-    parameter type         tf_cdc_t       = logic,
-    parameter hyperbus_pkg::hyper_cfg_t RstCfg = '0
+    parameter type         tf_cdc_t       = logic
 ) (
     input  logic                     clk_sys_i,
     input  logic                     rst_sys_ni,
     input  logic                     clk_phy_i,
     input  logic                     rst_phy_ni,
 
-    input  hyperbus_pkg::hyper_cfg_t cfg_i,
-    output logic                     cfg_apply_busy_o,
+    input  hyperbus_pkg::hyper_cfg_t cfg_apply_i,
+    input  logic                     frontend_cfg_apply_valid_i,
+    output logic                     frontend_cfg_apply_ready_o,
 
     output hyper_rx_t                frontend_rx_o,
     output logic                     frontend_rx_valid_o,
@@ -49,70 +49,14 @@ module hyperbus_async_bridge #(
     input  logic                     cfg_apply_ready_i
 );
 
-    typedef enum logic [1:0] {
-        CfgIdle,
-        CfgSend,
-        CfgWaitAck
-    } cfg_state_e;
-
-    cfg_state_e                  cfg_state_d, cfg_state_q;
-    hyperbus_pkg::hyper_cfg_t    cfg_applied_d, cfg_applied_q;
-    hyperbus_pkg::hyper_cfg_t    cfg_pending_d, cfg_pending_q;
-    logic                        cfg_src_valid;
-    logic                        cfg_src_ready;
-    logic                        cfg_changed;
-
-    assign cfg_changed      = cfg_i != cfg_applied_q;
-    assign cfg_src_valid    = cfg_state_q == CfgSend;
-    assign cfg_apply_busy_o = (cfg_state_q != CfgIdle) | cfg_changed;
-
-    always_comb begin
-        cfg_state_d   = cfg_state_q;
-        cfg_applied_d = cfg_applied_q;
-        cfg_pending_d = cfg_pending_q;
-
-        unique case (cfg_state_q)
-            CfgIdle: begin
-                if (cfg_changed) begin
-                    cfg_pending_d = cfg_i;
-                    cfg_state_d   = CfgSend;
-                end
-            end
-            CfgSend: begin
-                if (cfg_src_ready) begin
-                    cfg_state_d = CfgWaitAck;
-                end
-            end
-            CfgWaitAck: begin
-                if (cfg_src_ready) begin
-                    cfg_applied_d = cfg_pending_q;
-                    cfg_state_d   = CfgIdle;
-                end
-            end
-            default: cfg_state_d = CfgIdle;
-        endcase
-    end
-
-    always_ff @(posedge clk_sys_i or negedge rst_sys_ni) begin
-        if (!rst_sys_ni) begin
-            cfg_state_q   <= CfgIdle;
-            cfg_applied_q <= RstCfg;
-            cfg_pending_q <= RstCfg;
-        end else begin
-            cfg_state_q   <= cfg_state_d;
-            cfg_applied_q <= cfg_applied_d;
-            cfg_pending_q <= cfg_pending_d;
-        end
-    end
-
     cdc_2phase #(
         .T ( hyperbus_pkg::hyper_cfg_t )
     ) i_cdc_2phase_cfg (
         .src_rst_ni   ( rst_sys_ni        ),
         .src_clk_i    ( clk_sys_i         ),
-        .src_data_i   ( cfg_pending_q     ),
-        .src_valid_i  ( cfg_src_valid     ),
-        .src_ready_o  ( cfg_src_ready     ),
+        .src_data_i   ( cfg_apply_i       ),
+        .src_valid_i  ( frontend_cfg_apply_valid_i ),
+        .src_ready_o  ( frontend_cfg_apply_ready_o ),
         .dst_rst_ni   ( rst_phy_ni        ),
         .dst_clk_i    ( clk_phy_i         ),
         .dst_data_o   ( cfg_apply_o       ),

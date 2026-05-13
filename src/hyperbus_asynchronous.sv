@@ -78,8 +78,9 @@ module hyperbus_asynchronous #(
     logic                      clk_backend;
     logic                      clk_backend_90;
     logic                      rst_backend_n;
-    logic                      cfg_apply_busy;
-    hyperbus_pkg::hyper_cfg_t  cfg_frontend;
+    hyperbus_pkg::hyper_cfg_t  cfg_frontend_apply;
+    logic                      cfg_frontend_apply_valid;
+    logic                      cfg_frontend_apply_ready;
     hyperbus_pkg::hyper_cfg_t  cfg_backend_apply;
     logic                      cfg_backend_apply_valid;
     logic                      cfg_backend_apply_ready;
@@ -172,8 +173,10 @@ module hyperbus_asynchronous #(
         .axi_rsp_o          ( axi_rsp_o              ),
         .reg_req_i          ( reg_req_i              ),
         .reg_rsp_o          ( reg_rsp_o              ),
-        .cfg_o              ( cfg_frontend           ),
-        .cfg_apply_busy_i   ( cfg_apply_busy         ),
+        .cfg_o              (                        ),
+        .cfg_apply_o        ( cfg_frontend_apply     ),
+        .cfg_apply_valid_o  ( cfg_frontend_apply_valid ),
+        .cfg_apply_ready_i  ( cfg_frontend_apply_ready ),
         .rx_i               ( frontend_rx            ),
         .rx_valid_i         ( frontend_rx_valid      ),
         .rx_ready_o         ( frontend_rx_ready      ),
@@ -193,15 +196,15 @@ module hyperbus_asynchronous #(
         .TxFifoLogDepth ( TxFifoLogDepth ),
         .hyper_rx_t     ( hyper_rx_t     ),
         .hyper_tx_t     ( hyper_tx_t     ),
-        .tf_cdc_t       ( tf_cdc_t       ),
-        .RstCfg         ( RstCfg         )
+        .tf_cdc_t       ( tf_cdc_t       )
     ) i_bridge (
         .clk_sys_i                ( clk_sys_i                 ),
         .rst_sys_ni               ( rst_sys_ni                ),
         .clk_phy_i                ( clk_backend               ),
         .rst_phy_ni               ( rst_backend_n             ),
-        .cfg_i                    ( cfg_frontend              ),
-        .cfg_apply_busy_o         ( cfg_apply_busy            ),
+        .cfg_apply_i              ( cfg_frontend_apply        ),
+        .frontend_cfg_apply_valid_i ( cfg_frontend_apply_valid ),
+        .frontend_cfg_apply_ready_o ( cfg_frontend_apply_ready ),
         .frontend_rx_o            ( frontend_rx               ),
         .frontend_rx_valid_o      ( frontend_rx_valid         ),
         .frontend_rx_ready_i      ( frontend_rx_ready         ),

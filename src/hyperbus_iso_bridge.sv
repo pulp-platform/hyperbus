@@ -7,16 +7,16 @@ module hyperbus_iso_bridge #(
     parameter int unsigned TxFifoLogDepth = 3,
     parameter type hyper_rx_t = logic,
     parameter type hyper_tx_t = logic,
-    parameter type tf_cdc_t   = logic,
-    parameter hyperbus_pkg::hyper_cfg_t RstCfg = '0
+    parameter type tf_cdc_t   = logic
 ) (
     input  logic                     clk_sys_i,
     input  logic                     rst_sys_ni,
     input  logic                     clk_phy_i,
     input  logic                     rst_phy_ni,
 
-    input  hyperbus_pkg::hyper_cfg_t cfg_i,
-    output logic                     cfg_apply_busy_o,
+    input  hyperbus_pkg::hyper_cfg_t cfg_apply_i,
+    input  logic                     frontend_cfg_apply_valid_i,
+    output logic                     frontend_cfg_apply_ready_o,
 
     output hyper_rx_t                frontend_rx_o,
     output logic                     frontend_rx_valid_o,
@@ -49,18 +49,6 @@ module hyperbus_iso_bridge #(
     input  logic                     cfg_apply_ready_i
 );
 
-    typedef enum logic [1:0] {
-        CfgIdle,
-        CfgSend,
-        CfgWaitAck
-    } cfg_state_e;
-
-    cfg_state_e                  cfg_state_d, cfg_state_q;
-    hyperbus_pkg::hyper_cfg_t    cfg_applied_d, cfg_applied_q;
-    hyperbus_pkg::hyper_cfg_t    cfg_pending_d, cfg_pending_q;
-    logic                        cfg_src_valid;
-    logic                        cfg_src_ready;
-    logic                        cfg_changed;
     hyperbus_pkg::hyper_cfg_t    cfg_apply_data_q;
     logic                        cfg_apply_src_fire;
     tf_cdc_t                     trans_data_q;
@@ -86,50 +74,7 @@ module hyperbus_iso_bridge #(
     logic                        rx_fifo_ready;
     logic [RxFifoLogDepth-1:0]   rx_fifo_usage;
 
-    assign cfg_changed      = cfg_i != cfg_applied_q;
-    assign cfg_src_valid    = cfg_state_q == CfgSend;
-    assign cfg_apply_busy_o = (cfg_state_q != CfgIdle) | cfg_changed;
-
-    always_comb begin
-        cfg_state_d   = cfg_state_q;
-        cfg_applied_d = cfg_applied_q;
-        cfg_pending_d = cfg_pending_q;
-
-        unique case (cfg_state_q)
-            CfgIdle: begin
-                if (cfg_changed) begin
-                    cfg_pending_d = cfg_i;
-                    cfg_state_d   = CfgSend;
-                end
-            end
-            CfgSend: begin
-                if (cfg_src_ready) begin
-                    cfg_state_d = CfgWaitAck;
-                end
-            end
-            CfgWaitAck: begin
-                if (cfg_src_ready) begin
-                    cfg_applied_d = cfg_pending_q;
-                    cfg_state_d   = CfgIdle;
-                end
-            end
-            default: cfg_state_d = CfgIdle;
-        endcase
-    end
-
-    always_ff @(posedge clk_sys_i or negedge rst_sys_ni) begin
-        if (!rst_sys_ni) begin
-            cfg_state_q   <= CfgIdle;
-            cfg_applied_q <= RstCfg;
-            cfg_pending_q <= RstCfg;
-        end else begin
-            cfg_state_q   <= cfg_state_d;
-            cfg_applied_q <= cfg_applied_d;
-            cfg_pending_q <= cfg_pending_d;
-        end
-    end
-
-    assign cfg_apply_src_fire = cfg_src_valid & cfg_src_ready;
+    assign cfg_apply_src_fire = frontend_cfg_apply_valid_i & frontend_cfg_apply_ready_o;
     assign trans_src_fire     = frontend_trans_valid_i & frontend_trans_ready_o;
     assign tx_src_fire        = tx_fifo_valid & tx_fifo_ready;
     assign rx_src_fire        = rx_src_fifo_valid & rx_src_fifo_ready;
@@ -137,11 +82,11 @@ module hyperbus_iso_bridge #(
 
     always_ff @(posedge clk_sys_i or negedge rst_sys_ni) begin
         if (!rst_sys_ni) begin
-            cfg_apply_data_q <= RstCfg;
+            cfg_apply_data_q <= '0;
             trans_data_q     <= '0;
             tx_data_q        <= '0;
         end else begin
-            if (cfg_apply_src_fire) cfg_apply_data_q <= cfg_pending_q;
+            if (cfg_apply_src_fire) cfg_apply_data_q <= cfg_apply_i;
             if (trans_src_fire)     trans_data_q     <= frontend_trans_i;
             if (tx_src_fire)        tx_data_q        <= tx_fifo_data;
         end
@@ -160,8 +105,8 @@ module hyperbus_iso_bridge #(
     isochronous_4phase_handshake i_iso_cfg_apply (
         .src_clk_i   ( clk_sys_i           ),
         .src_rst_ni  ( rst_sys_ni          ),
-        .src_valid_i ( cfg_src_valid       ),
-        .src_ready_o ( cfg_src_ready       ),
+        .src_valid_i ( frontend_cfg_apply_valid_i ),
+        .src_ready_o ( frontend_cfg_apply_ready_o ),
         .dst_clk_i   ( clk_phy_i           ),
         .dst_rst_ni  ( rst_phy_ni          ),
         .dst_valid_o ( cfg_apply_valid_o   ),
