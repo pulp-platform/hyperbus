@@ -41,6 +41,7 @@ sources:
       files:
         - src/hyperbus_delay.sv
 
+    - src/hyperbus_tx_clk_delay.sv
     - src/hyperbus_pkg.sv
     - src/hyperbus_clk_gen.sv
     - src/hyperbus_clock_diff_out.sv
@@ -58,6 +59,7 @@ sources:
     - src/hyperbus_backend.sv
     - src/hyperbus_asynchronous.sv
     - src/hyperbus_isochronous.sv
+    - src/hyperbus.sv
 
     - target: hyper_test
       files:
@@ -69,4 +71,3 @@ sources:
         - test/dut_if.sv
         - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
-    - src/hyperbus.sv

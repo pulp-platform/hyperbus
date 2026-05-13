@@ -24,7 +24,6 @@ module hyperbus_asynchronous #(
     parameter type          axi_rule_t       = logic,
     parameter int unsigned  RxFifoLogDepth   = 3,
     parameter int unsigned  TxFifoLogDepth   = 3,
-    parameter bit           UsePhyClkDivider = 1'b0,
     parameter logic [RegDataWidth-1:0]  RstChipBase  = 'h0,
     parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000,
     parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys, MinFreqMHz),
@@ -78,6 +77,7 @@ module hyperbus_asynchronous #(
     logic                      clk_backend;
     logic                      clk_backend_90;
     logic                      rst_backend_n;
+    logic [7:0]                backend_tx_clk_delay;
     hyperbus_pkg::hyper_cfg_t  cfg_frontend_apply;
     logic                      cfg_frontend_apply_valid;
     logic                      cfg_frontend_apply_ready;
@@ -112,39 +112,28 @@ module hyperbus_asynchronous #(
     logic                      backend_trans_ready;
 
     logic                      rst_phy_async_n;
-    logic                      rst_clk_gen_n;
     assign rst_phy_async_n = rst_sys_ni & rst_phy_ni;
 
-    if (UsePhyClkDivider) begin : gen_phy_clk_divider
-        hyperbus_clk_gen i_clk_gen (
-            .clk_i    ( clk_phy_i        ),
-            .rst_ni   ( rst_phy_async_n  ),
-            .clk0_o   ( clk_backend      ),
-            .clk90_o  ( clk_backend_90   ),
-            .clk180_o (                  ),
-            .clk270_o (                  ),
-            .rst_no   ( rst_clk_gen_n    )
-        );
+    assign clk_backend = clk_phy_i;
 
-        rstgen i_rstgen_phy (
-            .clk_i       ( clk_backend    ),
-            .rst_ni      ( rst_clk_gen_n  ),
-            .test_mode_i ( test_mode_i    ),
-            .rst_no      ( rst_backend_n  ),
-            .init_no     (                )
-        );
-    end else begin : gen_phy_rst_sync
-        assign clk_backend    = clk_phy_i;
-        assign clk_backend_90 = 1'b0;
+    rstgen i_rstgen_phy (
+        .clk_i       ( clk_backend     ),
+        .rst_ni      ( rst_phy_async_n ),
+        .test_mode_i ( test_mode_i     ),
+        .rst_no      ( rst_backend_n   ),
+        .init_no     (                 )
+    );
 
-        rstgen i_rstgen_phy (
-            .clk_i       ( clk_phy_i        ),
-            .rst_ni      ( rst_phy_async_n  ),
-            .test_mode_i ( test_mode_i      ),
-            .rst_no      ( rst_backend_n    ),
-            .init_no     (                  )
-        );
-    end
+    hyperbus_tx_clk_delay i_tx_clk_delay (
+        .rst_ni        ( rst_backend_n        ),
+`ifdef TARGET_XILINX
+        .clk_ref200_i  ( clk_ref200_i         ),
+`endif
+        .clk_i         ( clk_backend          ),
+        .in_i          ( clk_backend          ),
+        .delay_i       ( backend_tx_clk_delay ),
+        .out_o         ( clk_backend_90       )
+    );
 
     hyperbus_frontend #(
         .NumChips      ( NumChips      ),
@@ -237,7 +226,6 @@ module hyperbus_asynchronous #(
     hyperbus_backend #(
         .NumChips         ( NumChips          ),
         .NumPhys          ( NumPhys           ),
-        .UsePhyClkDivider ( UsePhyClkDivider  ),
         .StartupCycles    ( PhyStartupCycles  ),
         .SyncStages       ( SyncStages        ),
         .hyper_rx_t       ( hyper_rx_t        ),
@@ -247,15 +235,13 @@ module hyperbus_asynchronous #(
     ) i_backend (
         .clk_i                  ( clk_backend               ),
         .clk_90_i               ( clk_backend_90            ),
-`ifdef TARGET_XILINX
-        .clk_ref200_i           ( clk_ref200_i              ),
-`endif
         .rst_ni                 ( rst_backend_n             ),
         .test_mode_i            ( test_mode_i               ),
         .cfg_apply_i            ( cfg_backend_apply         ),
         .cfg_apply_valid_i      ( cfg_backend_apply_valid   ),
         .cfg_apply_ready_o      ( cfg_backend_apply_ready   ),
         .busy_o                 (                           ),
+        .tx_clk_delay_o         ( backend_tx_clk_delay      ),
         .rx_o                   ( backend_rx                ),
         .rx_valid_o             ( backend_rx_valid          ),
         .rx_ready_i             ( backend_rx_ready          ),

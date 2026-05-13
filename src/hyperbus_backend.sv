@@ -5,7 +5,6 @@
 module hyperbus_backend #(
     parameter int unsigned  NumChips         = -1,
     parameter int unsigned  NumPhys          = 2,
-    parameter bit           UsePhyClkDivider = 1,
     parameter int unsigned  StartupCycles    = 60000,
     parameter int unsigned  SyncStages       = 2,
     parameter type          hyper_rx_t       = logic,
@@ -15,9 +14,6 @@ module hyperbus_backend #(
 ) (
     input  logic                       clk_i,
     input  logic                       clk_90_i,
-`ifdef TARGET_XILINX
-    input  logic                       clk_ref200_i,
-`endif
     input  logic                       rst_ni,
     input  logic                       test_mode_i,
 
@@ -26,6 +22,7 @@ module hyperbus_backend #(
     output logic                       cfg_apply_ready_o,
 
     output logic                       busy_o,
+    output logic [7:0]                 tx_clk_delay_o,
 
     output hyper_rx_t                  rx_o,
     output logic                       rx_valid_o,
@@ -60,6 +57,7 @@ module hyperbus_backend #(
     assign cfg_apply_fire    = cfg_apply_valid_i & cfg_apply_ready_o;
     assign cfg_d             = cfg_apply_fire ? cfg_apply_i : cfg_q;
     assign busy_o            = phy_busy | cfg_apply_valid_i;
+    assign tx_clk_delay_o    = cfg_q.t_tx_clk_delay;
 
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (!rst_ni) cfg_q <= RstCfg;
@@ -67,7 +65,6 @@ module hyperbus_backend #(
     end
 
     hyperbus_phy_if #(
-        .UsePhyClkDivider ( UsePhyClkDivider ),
         .NumChips         ( NumChips         ),
         .NumPhys          ( NumPhys          ),
         .StartupCycles    ( StartupCycles    ),
@@ -77,9 +74,6 @@ module hyperbus_backend #(
     ) i_phy (
         .clk_phy_i       ( clk_i          ),
         .clk_phy_i_90    ( clk_90_i       ),
-`ifdef TARGET_XILINX
-        .clk_ref200_i    ( clk_ref200_i   ),
-`endif
         .rst_phy_ni      ( rst_ni         ),
         .test_mode_i     ( test_mode_i    ),
         .cfg_i           ( cfg_q          ),

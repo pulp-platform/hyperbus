@@ -218,7 +218,6 @@ module hyperbus_isochronous #(
     hyperbus_backend #(
         .NumChips         ( NumChips          ),
         .NumPhys          ( NumPhys           ),
-        .UsePhyClkDivider ( 1'b1              ),
         .StartupCycles    ( PhyStartupCycles  ),
         .SyncStages       ( SyncStages        ),
         .hyper_rx_t       ( hyper_rx_t        ),
@@ -228,15 +227,13 @@ module hyperbus_isochronous #(
     ) i_backend (
         .clk_i                  ( clk_backend               ),
         .clk_90_i               ( clk_backend_90            ),
-`ifdef TARGET_XILINX
-        .clk_ref200_i           ( clk_ref200_i              ),
-`endif
         .rst_ni                 ( rst_backend_n             ),
         .test_mode_i            ( test_mode_i               ),
         .cfg_apply_i            ( cfg_backend_apply         ),
         .cfg_apply_valid_i      ( cfg_backend_apply_valid   ),
         .cfg_apply_ready_o      ( cfg_backend_apply_ready   ),
         .busy_o                 (                           ),
+        .tx_clk_delay_o         (                           ),
         .rx_o                   ( backend_rx                ),
         .rx_valid_o             ( backend_rx_valid          ),
         .rx_ready_i             ( backend_rx_ready          ),

@@ -193,12 +193,21 @@ module hyperbus #(
         );
     end else begin
         assign clk_phy_0  = clk_phy_i;
-        assign clk_phy_90 = '0;
         assign rst_phy    = rst_phy_ni;
+
+        hyperbus_tx_clk_delay i_tx_clk_delay (
+            .rst_ni        ( rst_phy              ),
+`ifdef TARGET_XILINX
+            .clk_ref200_i  ( clk_ref200_i         ),
+`endif
+            .clk_i         ( clk_phy_0            ),
+            .in_i          ( clk_phy_0            ),
+            .delay_i       ( cfg.t_tx_clk_delay   ),
+            .out_o         ( clk_phy_90           )
+        );
     end
 
     hyperbus_phy_if #(
-        .UsePhyClkDivider       ( UsePhyClkDivider       ),
         .NumChips            ( NumChips            ),
         .NumPhys             ( NumPhys             ),
         .StartupCycles       ( PhyStartupCycles    ),
@@ -208,9 +217,6 @@ module hyperbus #(
     ) i_phy (
         .clk_phy_i      ( clk_phy_0         ),
         .clk_phy_i_90   ( clk_phy_90        ),
-`ifdef TARGET_XILINX
-        .clk_ref200_i   ( clk_ref200_i      ),
-`endif
         .rst_phy_ni     ( rst_phy           ),
         .test_mode_i    ( test_mode_i       ),
 
