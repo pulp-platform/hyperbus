@@ -23,28 +23,55 @@ module hyperbus_rwds_delay
     // - VARIABLE: start with param value then increment/decrement
     // - VAR_LOAD: dynamically load tap values
     // - VAR_LOAD_PIPE: pipelines dynamic load
-    IDELAYE2 #(
-        .CINVCTRL_SEL          ( "FALSE"    ), // "TRUE" actives CINVCTRL functionality
-        .DELAY_SRC             ( "DATAIN"   ), // source to delay chain ("CLKIN" or "IDATAIN")
-        .HIGH_PERFORMANCE_MODE ( "TRUE"     ),  // "TRUE" for less jitter; "FALSE" for low power
-        .IDELAY_TYPE           ( "VAR_LOAD" ), // mode of operation, see above
-        .IDELAY_VALUE          ( 0          ), // delay value 0-31 (used in "VARIABLE" and "FIXED" mode)
-        .PIPE_SEL              ( "FALSE"    ), // "TRUE" activates pipelined operation 
-        .REFCLK_FREQUENCY      ( 200.0      ), // used for STA and simulation (190.0 - 310.0 MHz)
-        .SIGNAL_PATTERN        ( "CLOCK"    ) // "DATA" or "CLOCK" depending on function, used in STA
+
+
+    // Ultrascale FGPAs require IDELAY3
+    IDELAYE3 #(
+        .CASCADE("NONE"),
+        .DELAY_FORMAT("COUNT"),
+        .DELAY_TYPE("VAR_LOAD"),
+        .DELAY_VALUE(0),
+        .DELAY_SRC("DATAIN"),
+        .REFCLK_FREQUENCY(200.0),
+        .UPDATE_MODE("ASYNC"),
+        .SIM_DEVICE("ULTRASCALE_PLUS")
     ) i_delay (
-        .REGRST      ( rst_i       ), // input: reset delay tap value to IDELAY_VALUE or CNTVALUEIN
-        .C           ( clk_i       ), // input: control input clock
-        .DATAIN      ( in_i        ), // input: signal from FPGA logic to be delayed
-        .IDATAIN     ( 1'b0        ), // input: signal from IO to be delayed
-        .DATAOUT     ( out_o       ), // output: delayed from DATAIN or IDATAIN (drives ISERDESE2 or logic, not IO!)
-        .CE          ( 1'b0        ), // input: increment/decrement enable
-        .CINVCTRL    ( 1'b0        ), // input: switch clock polarity during operation (glitches!)
-        .CNTVALUEIN  ( delay_i     ), // 5 bit input: delay tap
-        .CNTVALUEOUT (             ), // 5 bit output: delay tap
-        .LD          ( 1'b1        ), // input: load IDELAY_VALUE param or CNTVALUEIN (depends on IDELAY_TYPE)
-        .INC         ( 1'b0        ), // input: increment/decrement delay tap
-        .LDPIPEEN    ( 1'b0        ) // input: enable the pipeline register to load data from LD
+        .DATAOUT(out_o_o),
+        .DATAIN(in_i),
+        .IDATAIN(1'b0),
+    
+        .CNTVALUEIN(delay_i),
+        .CNTVALUEOUT(),
+    
+        .LOAD(1'b1),
+        .CE(1'b0),
+        .INC(1'b0),
+    
+        .CLK(clk_i),
+        .RST(rst_i),
+    
+        .EN_VTC(1'b0),
+    
+        .CASC_IN(1'b0),
+        .CASC_RETURN(1'b0)
+    );
+
+    /*  WORKAROUND for Xilinx FPGAs:
+        Sometimes, DRC check before place design gives the following error:
+        [DRC REQP-1741] IDELAYE3 drives invalid load: IDELAYE3 may not drive a BUFG*
+        This may occur even when constraints such as CLOCK_BUFFER_TYPE NONE and CLOCK_DEDICATED_ROUTE FALSE are applied to the IDELAYE3 output, which are intended to prevent the use of global clock buffers.
+        Xilinx docs states that the IDELAY3 primitive should not be used to delay a clock.
+        A possible workaround is to insert a LUT1 between the IDELAYE3 output and the downstream logic, while preventing its optimization. However, this solution introduces additional delay on the path.
+        Another option is to disable the specific DRC check:
+        set_property IS_ENABLED 0 [get_drc_checks {REQP-1741}]
+    */
+    logic       out_o_o;
+    (*dont_touch = "yes"*) 
+    LUT1#(
+    .INIT(2'b10)
+    ) LUT1_Inst (
+        .O( out_o),
+        .I0( out_o_o)
     );
 
 endmodule
