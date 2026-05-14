@@ -66,6 +66,7 @@ sources:
         # Device models. TODO: extend
         - models/s27ks0641/s27ks0641.v
         # Testbench
+        - test/hyperbus_test_dut.sv
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb.sv
         - test/dut_if.sv

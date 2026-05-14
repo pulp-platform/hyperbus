@@ -26,11 +26,14 @@ module dut_if
   parameter int  NumPhys         = -1,
   parameter bit  AnnotateSdf     = 1'b1,
   parameter int  IsClockODelayed = -1,
+  parameter int unsigned DutVariant = 0,
+  parameter time PhyCyclTime     = 6ns,
   parameter type axi_rule_t      = logic
 )(
  input logic clk_i,
  input logic rst_ni,
  input logic end_sim_i,
+ output logic [31:0] segment_start_count_o,
 
  AXI_BUS.Slave axi_slv_if,
  REG_BUS.in    reg_slv_if
@@ -81,6 +84,9 @@ module dut_if
     logic [NumPhys-1:0][7:0]          hyper_dq_o;
     logic [NumPhys-1:0]               hyper_dq_oe;
     logic [NumPhys-1:0]               hyper_reset_n_wire;
+    logic                             phy_clk;
+    logic [NumPhys-1:0][NumChips-1:0] hyper_cs_n_q;
+    logic                             segment_start;
              
     wire  [NumPhys-1:0][NumChips-1:0]  pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
@@ -123,8 +129,31 @@ module dut_if
     .r_ready_i  ( axi_req.r_ready   )
      );
 
+    initial begin
+        phy_clk = 1'b0;
+        forever begin
+            #(PhyCyclTime/2);
+            phy_clk = ~phy_clk;
+        end
+    end
+
+    assign segment_start = |(hyper_cs_n_q & ~hyper_cs_n_wire);
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+            hyper_cs_n_q          <= '1;
+            segment_start_count_o <= '0;
+        end else begin
+            hyper_cs_n_q <= hyper_cs_n_wire;
+            if (segment_start) begin
+                segment_start_count_o <= segment_start_count_o + 1;
+            end
+        end
+    end
+
     // DUT
-    hyperbus_isochronous #(
+    hyperbus_test_dut #(
+        .DutVariant       ( DutVariant   ),
         .NumChips         ( NumChips      ),
         .NumPhys          ( NumPhys       ),
         .AxiAddrWidth     ( AxiAddrWidth  ),
@@ -146,6 +175,11 @@ module dut_if
     ) i_dut (
         .clk_sys_i              ( clk_i              ),
         .rst_sys_ni             ( rst_ni             ),
+        .clk_phy_i              ( phy_clk            ),
+        .rst_phy_ni             ( rst_ni             ),
+`ifdef TARGET_XILINX
+        .clk_ref200_i           ( clk_i              ),
+`endif
         .test_mode_i            ( 1'b0               ),
         .axi_req_i              ( axi_req            ),
         .axi_rsp_o              ( axi_resp           ),

@@ -13,6 +13,7 @@
 module fixture_hyperbus #(
     parameter int unsigned NumChips = 2,
     parameter int unsigned NumPhys = 2,
+    parameter int unsigned DutVariant = 0,
     parameter bit AnnotateSdf = 1'b1
 );
 
@@ -167,7 +168,8 @@ module fixture_hyperbus #(
     wire  [NumPhys-1:0][7:0]           pad_hyper_dq;
                 
     // DUT
-    hyperbus_isochronous #(
+    hyperbus_test_dut #(
+        .DutVariant     ( DutVariant ),
         .NumChips       ( NumChips    ),
         .NumPhys        ( NumPhys     ),
         .AxiAddrWidth   ( AxiAw       ),
@@ -189,6 +191,11 @@ module fixture_hyperbus #(
     ) i_dut (
         .clk_sys_i              ( sys_clk            ),
         .rst_sys_ni             ( rst_n              ),
+        .clk_phy_i              ( phy_clk            ),
+        .rst_phy_ni             ( rst_n              ),
+`ifdef TARGET_XILINX
+        .clk_ref200_i           ( sys_clk            ),
+`endif
         .test_mode_i            ( test_mode          ),
         .axi_req_i              ( axi_master_req     ),
         .axi_rsp_o              ( axi_master_rsp     ),
