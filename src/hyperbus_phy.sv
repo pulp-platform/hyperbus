@@ -57,6 +57,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     output logic                hyper_reset_no
 );
 
+    localparam int unsigned RxFifoDepth = 2 ** RxFifoLogDepth;
+    // Stop before the RWDS CDC FIFO can become completely full. The extra
+    // margin covers pointer synchronization and the delayed effect of CK gating.
+    localparam int unsigned RxFifoStopMargin = SyncStages + 2;
+    localparam int unsigned RxOutstandingLimit = (RxFifoDepth > RxFifoStopMargin) ?
+                                                 (RxFifoDepth - RxFifoStopMargin) : 1;
+
     logic [1:0]                  phys_in_use;
 
     assign phys_in_use = (NumPhys==2) ? (cfg_i.phys_in_use + 1) : 1;
@@ -90,6 +97,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic ctl_rclk_ena;
     logic ctl_rcnt_ena;
     logic ctl_wclk_ena;
+    logic rx_outstanding_room;
 
     // Command-address
     hyper_phy_ca_t  ca;
@@ -199,11 +207,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     assign trx_rx_ready     = rx_ready_i;
     assign rx_valid_o       = trx_rx_valid & (r_outstand_q != '0);
-    // Suspend clock one cycle for every stall caused by upstream.
-    // This ensures that a sufficiently large RX FIFO will not overflow.
-    assign ctl_rclk_ena     = ~(rx_valid_o & ~rx_ready_i);
-    // Disable incoming RWDS clock enable once all words received
-    assign trx_rx_clk_reset = b_pending_clear;
+    assign rx_outstanding_room = r_outstand_q < RxOutstandingLimit;
+    // Suspend CK for visible downstream stalls and before the RWDS CDC FIFO can
+    // fill with already-launched, not-yet-drained read words.
+    assign ctl_rclk_ena     = rx_outstanding_room & ~(rx_valid_o & ~rx_ready_i);
+    // Keep RWDS sampling enabled until all read words launched before a CS break
+    // have crossed back into the PHY clock domain.
+    assign trx_rx_clk_reset = (state_q != Read) & (r_outstand_q == '0);
 
     // Counter for outstanding R responses
     assign r_outstand_dec   = rx_valid_o & rx_ready_i;
@@ -263,9 +273,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             Idle: begin
                 trx_cs_ena  = 1'b0;
                 timer_d     = timer_q;
-                // Signal ready for, pop next transfer if Write response sent
-                 trans_ready_o   = 1'b1;
-                if (trans_valid_i & ~b_pending_q & r_outstand_q == '0) begin
+                // Accept the next transfer only after pending responses and
+                // read samples from the previous segment have drained.
+                trans_ready_o = ~b_pending_q & (r_outstand_q == '0);
+                if (trans_valid_i & trans_ready_o) begin
                     tf_d    = trans_i;
                     cs_d    = trans_cs_i;
                     add_latency_d = 1'b0;
@@ -419,6 +430,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (ctl_timer_rwr_done) begin
                     if (ctl_tf_burst_done) begin
                         state_d = Idle;
+                    end else if (!tf_q.write && (r_outstand_q != '0)) begin
+                        // Before starting the next read segment, let all samples
+                        // from the previous segment drain and reset RWDS sampling.
+                        timer_d = timer_q;
                     end else begin
                         state_d = SendCA;
                         // Re-enable the io driver if we immediately start the

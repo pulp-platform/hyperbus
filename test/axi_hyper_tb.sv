@@ -23,10 +23,26 @@ module axi_hyper_tb
   parameter int unsigned TbNumReads = 32'd1000,
   /// Cycle time for the TB clock generator
   parameter time         TbCyclTime =  5ns,
+  /// Cycle time for the optional asynchronous PHY clock
+  parameter time         TbPhyCyclTime = 6ns,
   /// Application time to the DUT
   parameter time         TbApplTime =  1ns,
   /// Test time of the DUT
-  parameter time         TbTestTime =  4ns
+  parameter time         TbTestTime =  4ns,
+  /// DUT variant: 0 is isochronous, 1 is synchronous, 2 is asynchronous
+  parameter int unsigned TbDutVariant = 0,
+  /// RX delay-line tap value used by variants with explicit delay lines.
+  parameter int unsigned TbRxDelayLineTaps = 16,
+  /// TX delay-line tap value used by variants with explicit delay lines.
+  parameter int unsigned TbTxDelayLineTaps = 19,
+  /// Number of AXI beats in the directed slow read/write stress transactions.
+  parameter int unsigned TbSlowNumBeats = 64,
+  /// Idle cycles inserted between each accepted AXI beat in the slow stress transactions.
+  parameter int unsigned TbSlowGapCycles = 64,
+  /// Temporary t_burst_max used to force HyperBus segment restarts in the slow stress phase.
+  parameter int unsigned TbSlowBurstMax = 16,
+  /// Annotate the HyperRAM timing SDF. Disable for fast RTL regressions.
+  parameter bit          TbAnnotateSdf = 1'b1
 );
   import hyperbus_tb_pkg::*;
   /////////////////////////////
@@ -60,6 +76,7 @@ module axi_hyper_tb
   localparam int unsigned TbDramLenWidth  = 32'h80000;
 
   logic                  end_of_sim;
+  logic [31:0]           segment_start_count;
 
 
   ///////////////////////
@@ -259,6 +276,17 @@ module axi_hyper_tb
     return data << (8 * addr[$clog2(TbAxiDataWidthFull/8)-1:0]);
   endfunction
 
+  function automatic logic [TbAxiDataWidthFull-1:0] slow_stress_data(
+    input axi_addr_t addr,
+    input int unsigned beat
+  );
+    automatic logic [TbAxiDataWidthFull-1:0] data = '0;
+    for (int unsigned byte_idx = 0; byte_idx < TbAxiDataWidthFull/8; byte_idx++) begin
+      data[8*byte_idx +: 8] = 8'(addr[7:0] + beat + (byte_idx * 17));
+    end
+    return data;
+  endfunction
+
   task automatic axi_write_subword(
     input axi_ctrl_master_t axi_drv,
     input axi_addr_t addr,
@@ -333,6 +361,122 @@ module axi_hyper_tb
     axi_check_subword(axi_drv, BaseAddr + 32'h5, 64'h0000_0000_0000_00c3, 0);
   endtask
 
+  task automatic axi_write_slow(
+    input axi_ctrl_master_t axi_drv,
+    input axi_addr_t addr,
+    input int unsigned num_beats,
+    input int unsigned gap_cycles
+  );
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::w_beat_t w;
+    axi_ctrl_master_t::b_beat_t b;
+
+    if (num_beats == 0 || num_beats > 256) begin
+      $fatal(1, "Slow AXI write num_beats must be in [1, 256], got %0d", num_beats);
+    end
+
+    ax.ax_addr  = addr;
+    ax.ax_id    = '0;
+    ax.ax_len   = 8'(num_beats - 1);
+    ax.ax_size  = $clog2(TbAxiDataWidthFull/8);
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_aw(ax);
+
+    for (int unsigned beat = 0; beat < num_beats; beat++) begin
+      repeat (gap_cycles) @(posedge clk);
+      w = new();
+      w.w_data = slow_stress_data(addr, beat);
+      w.w_strb = '1;
+      w.w_last = beat == (num_beats - 1);
+      axi_drv.send_w(w);
+    end
+
+    axi_drv.recv_b(b);
+    if (b.b_resp != axi_pkg::RESP_OKAY) begin
+      $error("[AXI-SLOW] Write to 0x%08x returned response %0d", addr, b.b_resp);
+    end
+  endtask
+
+  task automatic axi_read_slow_check(
+    input axi_ctrl_master_t axi_drv,
+    input axi_addr_t addr,
+    input int unsigned num_beats,
+    input int unsigned gap_cycles
+  );
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::r_beat_t r;
+    logic [TbAxiDataWidthFull-1:0] expected;
+
+    if (num_beats == 0 || num_beats > 256) begin
+      $fatal(1, "Slow AXI read num_beats must be in [1, 256], got %0d", num_beats);
+    end
+
+    ax.ax_addr  = addr;
+    ax.ax_id    = '0;
+    ax.ax_len   = 8'(num_beats - 1);
+    ax.ax_size  = $clog2(TbAxiDataWidthFull/8);
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_ar(ax);
+
+    for (int unsigned beat = 0; beat < num_beats; beat++) begin
+      repeat (gap_cycles) @(posedge clk);
+      axi_drv.recv_r(r);
+      expected = slow_stress_data(addr, beat);
+      if (r.r_resp != axi_pkg::RESP_OKAY || r.r_data != expected ||
+          r.r_last != (beat == (num_beats - 1))) begin
+        $error("[AXI-SLOW] Read beat %0d from 0x%08x returned data=0x%016x last=%0b resp=%0d, expected data=0x%016x last=%0b",
+               beat, addr, r.r_data, r.r_last, r.r_resp, expected, beat == (num_beats - 1));
+      end
+    end
+  endtask
+
+  task automatic run_slow_backpressure_test(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t SlowBaseAddr = axi_addr_t'(32'h8000_4000);
+    logic [RegBusDW-1:0] saved_t_burst_max;
+    logic [31:0] write_segment_starts;
+    logic [31:0] read_segment_starts;
+    logic [31:0] segment_start_snapshot;
+    logic reg_error;
+
+    $display("===========================");
+    $display("= Slow AXI backpressure   =");
+    $display("===========================");
+
+    reg_drv.send_read(32'h2 << 2, saved_t_burst_max, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+
+    reg_drv.send_write(32'h2 << 2, TbSlowBurstMax, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+
+    segment_start_snapshot = segment_start_count;
+    axi_write_slow(axi_drv, SlowBaseAddr, TbSlowNumBeats, TbSlowGapCycles);
+    write_segment_starts = segment_start_count - segment_start_snapshot;
+    if (write_segment_starts <= 1) begin
+      $error("[AXI-SLOW] Write observed %0d HyperBus segment start(s), expected at least one restart",
+             write_segment_starts);
+    end else begin
+      $display("[AXI-SLOW] Write observed %0d HyperBus segment starts (%0d restarts)",
+               write_segment_starts, write_segment_starts - 1);
+    end
+
+    segment_start_snapshot = segment_start_count;
+    axi_read_slow_check(axi_drv, SlowBaseAddr, TbSlowNumBeats, TbSlowGapCycles);
+    read_segment_starts = segment_start_count - segment_start_snapshot;
+    if (read_segment_starts <= 1) begin
+      $error("[AXI-SLOW] Read observed %0d HyperBus segment start(s), expected at least one restart",
+             read_segment_starts);
+    end else begin
+      $display("[AXI-SLOW] Read observed %0d HyperBus segment starts (%0d restarts)",
+               read_segment_starts, read_segment_starts - 1);
+    end
+
+    reg_drv.send_write(32'h2 << 2, saved_t_burst_max, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+  endtask
+
   initial begin : proc_sim_crtl
 
     automatic axi_scoreboard_mst_t mst_scoreboard = new( score_mst_intf_dv );
@@ -356,19 +500,30 @@ module axi_hyper_tb
     @(posedge rst_n);
     mst_scoreboard.monitor();
 
+    if (TbDutVariant != 0) begin
+      reg_master.send_write(32'h4 << 2, TbRxDelayLineTaps, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
+      reg_master.send_write(32'h5 << 2, TbTxDelayLineTaps, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
+    end
+
     #600350ns;
 
-    // switch memory address space to register space
-    reg_master.send_write(32'h7<<2, 1'b1, '1, s_reg_error);
-    if (s_reg_error != 1'b0) $error("unexpected error");
+    run_slow_backpressure_test(axi_ctrl_mst, reg_master);
 
-    // enable variable latency so we can test RWDS sampling
-    s27ks_cfg0.fixed_latency_enable = 1'b0;
-    axi_write_32(32'h8000_0000 + S27KS_CFG0_REG_OFFSET, (s27ks_cfg0 | s27ks_cfg0 << 16));
+    if (TbDutVariant == 0) begin
+      // switch memory address space to register space
+      reg_master.send_write(32'h7<<2, 1'b1, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
 
-    // switch back to memory address space
-    reg_master.send_write(32'h7<<2, 1'b0, '1, s_reg_error);
-    if (s_reg_error != 1'b0) $error("unexpected error");
+      // enable variable latency so we can test RWDS sampling
+      s27ks_cfg0.fixed_latency_enable = 1'b0;
+      axi_write_32(32'h8000_0000 + S27KS_CFG0_REG_OFFSET, (s27ks_cfg0 | s27ks_cfg0 << 16));
+
+      // switch back to memory address space
+      reg_master.send_write(32'h7<<2, 1'b0, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
+    end
 
     $display("===========================");
     $display("= Random AXI transactions =");
@@ -452,15 +607,47 @@ module axi_hyper_tb
 
     .NumChips        ( NumChips           ),
     .NumPhys         ( NumPhys            ),
+    .AnnotateSdf     ( TbAnnotateSdf      ),
     .IsClockODelayed ( IsClockODelayed    ),
+    .DutVariant      ( TbDutVariant       ),
+    .PhyCyclTime     ( TbPhyCyclTime      ),
     .axi_rule_t      ( rule_t             )
   ) i_dut_if (
     // clk and rst signal
     .clk_i      ( clk          ),
     .rst_ni     ( rst_n        ),
     .end_sim_i  ( end_of_sim   ),
+    .segment_start_count_o ( segment_start_count ),
     .axi_slv_if ( axi_dut_intf ),
     .reg_slv_if ( reg_bus_mst  )
   );
 
+endmodule
+
+module axi_hyper_tb_isochronous;
+  axi_hyper_tb #(
+    .TbDutVariant  ( 0   ),
+    .TbCyclTime    ( 5ns ),
+    .TbPhyCyclTime ( 6ns )
+  ) i_axi_hyper_tb ();
+endmodule
+
+module axi_hyper_tb_synchronous;
+  axi_hyper_tb #(
+    .TbDutVariant      ( 1    ),
+    .TbCyclTime        ( 10ns ),
+    .TbPhyCyclTime     ( 10ns ),
+    .TbRxDelayLineTaps ( 16   ),
+    .TbTxDelayLineTaps ( 31   )
+  ) i_axi_hyper_tb ();
+endmodule
+
+module axi_hyper_tb_asynchronous;
+  axi_hyper_tb #(
+    .TbDutVariant      ( 2   ),
+    .TbCyclTime        ( 5ns ),
+    .TbPhyCyclTime     ( 6ns ),
+    .TbRxDelayLineTaps ( 16  ),
+    .TbTxDelayLineTaps ( 19  )
+  ) i_axi_hyper_tb ();
 endmodule

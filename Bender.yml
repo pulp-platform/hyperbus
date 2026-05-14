@@ -41,6 +41,7 @@ sources:
       files:
         - src/hyperbus_delay.sv
 
+    - src/hyperbus_tx_clk_delay.sv
     - src/hyperbus_pkg.sv
     - src/hyperbus_clk_gen.sv
     - src/hyperbus_clock_diff_out.sv
@@ -52,15 +53,22 @@ sources:
     - src/hyperbus_phy.sv
     - src/hyperbus_phy_if.sv
     - src/hyperbus_axi.sv
+    - src/hyperbus_frontend.sv
+    - src/hyperbus_async_bridge.sv
+    - src/hyperbus_iso_bridge.sv
+    - src/hyperbus_backend.sv
+    - src/hyperbus_synchronous.sv
+    - src/hyperbus_asynchronous.sv
+    - src/hyperbus_isochronous.sv
 
     - target: hyper_test
       files:
         # Device models. TODO: extend
         - models/s27ks0641/s27ks0641.v
         # Testbench
+        - test/hyperbus_test_dut.sv
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb.sv
         - test/dut_if.sv
         - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
-    - src/hyperbus.sv

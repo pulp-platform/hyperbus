@@ -6,7 +6,6 @@
 // Philippe Sauter <phsauter@iis.ee.ethz.ch>
 
 module hyperbus_phy_if import hyperbus_pkg::*; #(
-    parameter bit          UsePhyClkDivider = 1,
     parameter int unsigned NumChips = 2,
     parameter int unsigned NumPhys = 2,
     parameter int unsigned StartupCycles = 60000, /*MHz*/ // Conservative maximum frequency estimate
@@ -15,14 +14,12 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     parameter type hyper_rx_t = logic
 )(
     input  logic                clk_phy_i,
-    input  logic                clk_phy_i_90,  // only used together with divided clock (clk_gen)
-`ifdef TARGET_XILINX
-    input  logic                clk_ref200_i,  // only used with Xilinx delay lines (reference to IDELAY cells)
-`endif
+    input  logic                clk_phy_i_90,
     input  logic                rst_phy_ni,
     input  logic                test_mode_i,
     // Config registers
     input  hyper_cfg_t          cfg_i,
+    output logic                busy_o,
     // Transactions
     input  logic                trans_valid_i,
     output logic                trans_ready_o,
@@ -56,30 +53,8 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
 
     logic clk_phy_0, clk_phy_90;
 
-    // Shift clock by 90 degrees
-    if(UsePhyClkDivider == '0) begin : clock_generator
-        assign clk_phy_0 = clk_phy_i;
-
-        `ifdef TARGET_XILINX
-            hyperbus_clk_delay i_delay_tx_clk_90 (
-                .rst_i         ( ~rst_phy_ni ),
-                .clk_ref200_i,
-                .clk_i         ( clk_phy_i            ),
-                .in_i          ( clk_phy_0            ),
-                .delay_i       ( cfg_i.t_tx_clk_delay ),
-                .out_o         ( clk_phy_90           )
-            );
-        `else
-            hyperbus_delay i_delay_tx_clk_90 (
-                .in_i          ( clk_phy_0            ),
-                .delay_i       ( cfg_i.t_tx_clk_delay ),
-                .out_o         ( clk_phy_90           )
-            );
-        `endif
-    end else begin
-        assign clk_phy_0  = clk_phy_i;
-        assign clk_phy_90 = clk_phy_i_90;
-    end
+    assign clk_phy_0  = clk_phy_i;
+    assign clk_phy_90 = clk_phy_i_90;
 
 
       phy_rx_t [NumPhys-1:0]       phy_fifo_rx;
@@ -124,6 +99,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
             end
         end
 
+        assign busy_o         = |phy_busy;
         assign rx_both_valid  = & (fifo_axi_valid | ~phy_active_q);
         assign rx_valid_o     = rx_both_valid;
         assign fifo_axi_ready = rx_ready_i && rx_both_valid;
@@ -231,7 +207,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
 
                  .cfg_i          ( cfg_i           ),
 
-            .busy_o         (                 ),
+            .busy_o         ( busy_o          ),
 
             .rx_data_o      ( rx_o.data       ),
             .rx_last_o      ( rx_o.last       ),

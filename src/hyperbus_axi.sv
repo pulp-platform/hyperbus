@@ -504,7 +504,8 @@ module hyperbus_axi #(
     assign trans_active_o = trans_active_q;
 
     assign trans_active_set     = trans_handshake;
-    assign trans_active_reset   = (rx_valid_i & rx_ready_o & rx_i.last) | (b_valid_i & b_ready_o);
+    assign trans_active_reset   = (ser_out_rsp.r_valid & ser_out_req.r_ready & ser_out_rsp.r.last) |
+                                  (b_valid_i & b_ready_o);
 
     // Allow W transfers iff currently engaged in write (AW already received)
     assign trans_wready_set     = trans_active_set & rr_out_req_write;
