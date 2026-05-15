@@ -51,7 +51,7 @@ module hyperbus_trx #(
     output logic                   hyper_rwds_oe_o,
     input  logic [7:0]             hyper_dq_i,
     output logic [7:0]             hyper_dq_o,
-    output logic                   hyper_dq_oe_o,
+    output logic [7:0]             hyper_dq_oe_o,
     output logic                   hyper_reset_no
 );
 
@@ -133,10 +133,10 @@ module hyperbus_trx #(
     always_ff @(posedge clk_phy_i or negedge rst_ni) begin : proc_oe
         if(~rst_ni) begin
             hyper_rwds_oe_o <= 1'b0;
-            hyper_dq_oe_o   <= 1'b0;
+            hyper_dq_oe_o   <= '0;
         end else begin
             hyper_rwds_oe_o <= tx_rwds_oe_i;
-            hyper_dq_oe_o   <= tx_data_oe_i;
+            hyper_dq_oe_o   <= {8{tx_data_oe_i}};
         end
     end
 
