@@ -22,7 +22,7 @@ module hyperbus_phy_if import hyperbus_pkg::*; #(
     input  logic                rst_phy_ni,
     input  logic                test_mode_i,
     // Config registers
-    input  hyper_cfg_t          cfg_i,
+    input  phy_cfg_t            cfg_i,
     // Transactions
     input  logic                trans_valid_i,
     output logic                trans_ready_o,

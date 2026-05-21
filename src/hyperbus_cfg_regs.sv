@@ -7,15 +7,10 @@
 module hyperbus_cfg_regs #(
     parameter int unsigned  NumChips        = -1,
     parameter int unsigned  NumPhys         = -1,
-    parameter int unsigned  RegAddrWidth    = -1,
     parameter int unsigned  RegDataWidth    = -1,
     parameter type          reg_req_t       = logic,
     parameter type          reg_rsp_t       = logic,
-    parameter type          rule_t          = logic,
-    parameter logic [RegDataWidth-1:0] RstChipBase  = -1,   // Base address for all chips
-    parameter logic [RegDataWidth-1:0] RstChipSpace = -1,   // 64 KiB: Current maximum HyperBus device size
-    parameter int unsigned  MinFreqMHz      = 100,
-    parameter hyperbus_pkg::hyper_cfg_t RstCfg  = hyperbus_pkg::gen_RstCfg(NumPhys,MinFreqMHz)
+    parameter type          rule_t          = logic
 ) (
     input logic     clk_i,
     input logic     rst_ni,
@@ -23,113 +18,168 @@ module hyperbus_cfg_regs #(
     input  reg_req_t reg_req_i,
     output reg_rsp_t reg_rsp_o,
 
-    output hyperbus_pkg::hyper_cfg_t    cfg_o,
+    output hyperbus_pkg::frontend_cfg_t frontend_cfg_o,
+    output hyperbus_pkg::phy_cfg_t      phy_cfg_o,
     output rule_t [NumChips-1:0]        chip_rules_o,
     input                               trans_active_i
 );
     `include "common_cells/registers.svh"
 
-    // Internal Parameters
-    localparam int unsigned NumBaseRegs     = 12;
-    localparam int unsigned NumRegs         = 2*NumChips + NumBaseRegs;
-    localparam int unsigned RegsBits        = cf_math_pkg::idx_width(NumRegs);
-    localparam int unsigned RegStrbWidth    = RegDataWidth/8;
+    localparam int unsigned NumChipsMax = 4;
+    localparam int unsigned NumRegs      = 2*NumChipsMax + 12;
+    localparam int unsigned RegsBits     = cf_math_pkg::idx_width(NumRegs);
+    localparam int unsigned RegStrbWidth = RegDataWidth/8;
 
-    // Data and index types
-    typedef logic [RegsBits-1:0]        reg_idx_t;
-    typedef logic [RegDataWidth-1:0]    reg_data_t;
+    typedef logic [RegsBits-1:0]     reg_idx_t;
+    typedef logic [RegDataWidth-1:0] reg_data_t;
+    typedef logic [6:0]              cfg_addr_t;
+    typedef logic [31:0]             cfg_data_t;
+    typedef logic [3:0]              cfg_strb_t;
 
-    // Local signals
-    hyperbus_pkg::hyper_cfg_t       cfg_d, cfg_q, cfg_rstval;
-    reg_data_t [NumChips-1:0][1:0]  crange_d, crange_q, crange_rstval;
-    reg_idx_t   sel_reg;
-    logic       sel_reg_mapped;
-    reg_data_t  wmask;
+    typedef struct packed {
+        cfg_addr_t addr;
+        logic      write;
+        cfg_data_t wdata;
+        cfg_strb_t wstrb;
+        logic      valid;
+    } cfg_reg_req_t;
 
-    assign sel_reg          = reg_req_i.addr[$clog2(RegStrbWidth) +: RegsBits];
-    assign sel_reg_mapped   = (sel_reg < NumRegs);
+    typedef struct packed {
+        cfg_data_t rdata;
+        logic      error;
+        logic      ready;
+    } cfg_reg_rsp_t;
 
-    assign reg_rsp_o.ready  = ~trans_active_i;  // Config writeable unless currently in transfer
-    assign reg_rsp_o.error  = ~sel_reg_mapped;
+    typedef struct packed {
+        cfg_addr_t  paddr;
+        logic [2:0] pprot;
+        logic       psel;
+        logic       penable;
+        logic       pwrite;
+        cfg_data_t  pwdata;
+        cfg_strb_t  pstrb;
+    } cfg_apb_req_t;
 
-    // Read from register
-    always_comb begin : proc_comb_read
-        reg_data_t [NumRegs-1:0] rfield;
-        reg_rsp_o.rdata = '0;
-        if (sel_reg_mapped) begin
-            rfield = {
-                crange_q,
-                reg_data_t'(cfg_q.csn_to_ck_cycles),
-                reg_data_t'(cfg_q.t_csh_cycles),
-                reg_data_t'(cfg_q.which_phy),
-                reg_data_t'(cfg_q.phys_in_use),
-                reg_data_t'(cfg_q.address_space),
-                reg_data_t'(cfg_q.address_mask_msb),
-                reg_data_t'(cfg_q.t_tx_clk_delay),
-                reg_data_t'(cfg_q.t_rx_clk_delay),
-                reg_data_t'(cfg_q.t_read_write_recovery),
-                reg_data_t'(cfg_q.t_burst_max),
-                reg_data_t'(cfg_q.en_latency_additional),
-                reg_data_t'(cfg_q.t_latency_access)
-            };
-            reg_rsp_o.rdata = rfield[sel_reg];
+    typedef struct packed {
+        logic      pready;
+        cfg_data_t prdata;
+        logic      pslverr;
+    } cfg_apb_rsp_t;
+
+    hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__out_t cfg_hwif_out;
+    rule_t [NumChipsMax-1:0] chip_rules_all;
+
+    reg_idx_t sel_reg;
+    logic sel_reg_mapped;
+    logic cfg_access_active_d, cfg_access_active_q;
+    logic cfg_access_open;
+
+    cfg_reg_req_t cfg_reg_req;
+    cfg_reg_rsp_t cfg_reg_rsp;
+    cfg_apb_req_t cfg_apb_req;
+    cfg_apb_rsp_t cfg_apb_rsp;
+
+    assign sel_reg        = reg_req_i.addr[$clog2(RegStrbWidth) +: RegsBits];
+    assign sel_reg_mapped = (sel_reg < NumRegs);
+    assign cfg_access_open = ~trans_active_i | cfg_access_active_q;
+
+    assign reg_rsp_o.ready = cfg_access_open &
+                             (~reg_req_i.valid | ~sel_reg_mapped | cfg_reg_rsp.ready);
+    assign reg_rsp_o.error = ~sel_reg_mapped | cfg_reg_rsp.error;
+    assign reg_rsp_o.rdata = sel_reg_mapped ? RegDataWidth'(cfg_reg_rsp.rdata) : '0;
+
+    assign cfg_reg_req.valid = reg_req_i.valid & sel_reg_mapped & cfg_access_open;
+    assign cfg_reg_req.addr  = {sel_reg, 2'b00};
+    assign cfg_reg_req.write = reg_req_i.write;
+    assign cfg_reg_req.wdata = 32'(reg_req_i.wdata);
+    assign cfg_reg_req.wstrb = cfg_strb_t'(reg_req_i.wstrb);
+
+    always_comb begin
+        cfg_access_active_d = cfg_access_active_q;
+        if (!cfg_access_active_q && cfg_reg_req.valid) begin
+            cfg_access_active_d = 1'b1;
+        end
+        if (cfg_access_active_q && cfg_reg_rsp.ready) begin
+            cfg_access_active_d = 1'b0;
         end
     end
 
-    // Generate write mask
-    for (genvar i = 0; unsigned'(i) < RegStrbWidth; ++i ) begin : gen_wmask
-        assign wmask[8*i +: 8] = {8{reg_req_i.wstrb[i]}};
-    end
+    `FFARN(cfg_access_active_q, cfg_access_active_d, 1'b0, clk_i, rst_ni);
 
-    // Write to register
-    always_comb begin : proc_comb_write
-        logic  chip_reg;
-        logic [$clog2(NumChips)-1:0] sel_chip;
-        cfg_d     = cfg_q;
-        crange_d  = crange_q;
-        if (reg_req_i.valid & reg_req_i.write & sel_reg_mapped) begin
-            case (sel_reg)
-                'h0: cfg_d.t_latency_access         = (~wmask & cfg_q.t_latency_access        ) | (wmask & reg_req_i.wdata);
-                'h1: cfg_d.en_latency_additional    = (~wmask & cfg_q.en_latency_additional   ) | (wmask & reg_req_i.wdata);
-                'h2: cfg_d.t_burst_max              = (~wmask & cfg_q.t_burst_max             ) | (wmask & reg_req_i.wdata);
-                'h3: cfg_d.t_read_write_recovery    = (~wmask & cfg_q.t_read_write_recovery   ) | (wmask & reg_req_i.wdata);
-                'h4: cfg_d.t_rx_clk_delay           = (~wmask & cfg_q.t_rx_clk_delay          ) | (wmask & reg_req_i.wdata);
-                'h5: cfg_d.t_tx_clk_delay           = (~wmask & cfg_q.t_tx_clk_delay          ) | (wmask & reg_req_i.wdata);
-                'h6: cfg_d.address_mask_msb         = (~wmask & cfg_q.address_mask_msb        ) | (wmask & reg_req_i.wdata);
-                'h7: cfg_d.address_space            = (~wmask & cfg_q.address_space           ) | (wmask & reg_req_i.wdata);
-                'h8: cfg_d.phys_in_use              = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.phys_in_use ) | (wmask & reg_req_i.wdata) );
-                'h9: cfg_d.which_phy                = (NumPhys==1) ? 0 : ( (~wmask & cfg_q.which_phy   ) | (wmask & reg_req_i.wdata) );
-                'ha: cfg_d.t_csh_cycles             = (~wmask & cfg_q.t_csh_cycles            ) | (wmask & reg_req_i.wdata);
-                'hb: cfg_d.csn_to_ck_cycles         = (~wmask & cfg_q.csn_to_ck_cycles        ) | (wmask & reg_req_i.wdata);
-                default: begin
-                    {sel_chip, chip_reg} = sel_reg - NumBaseRegs;
-                    crange_d[sel_chip][chip_reg] = (~wmask & crange_q[sel_chip][chip_reg]) |  (wmask & reg_req_i.wdata);
+    always_comb begin
+        chip_rules_all = '0;
+        for (int unsigned i = 0; i < NumChipsMax; i++) begin
+            chip_rules_all[i].idx = unsigned'(i);
+            unique case (i)
+                0: begin
+                    chip_rules_all[i].start_addr = cfg_hwif_out.chip0_base.value.value;
+                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip0_bound.value.value;
                 end
-            endcase // sel_reg
+                1: begin
+                    chip_rules_all[i].start_addr = cfg_hwif_out.chip1_base.value.value;
+                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip1_bound.value.value;
+                end
+                2: begin
+                    chip_rules_all[i].start_addr = cfg_hwif_out.chip2_base.value.value;
+                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip2_bound.value.value;
+                end
+                3: begin
+                    chip_rules_all[i].start_addr = cfg_hwif_out.chip3_base.value.value;
+                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip3_bound.value.value;
+                end
+                default:;
+            endcase
         end
     end
 
-    for (genvar i = 0; unsigned'(i) < NumChips; i++) begin : gen_crange_rstval
-            assign crange_rstval[i][0]  = RstChipBase + (RstChipSpace * i);
-            assign crange_rstval[i][1]  = RstChipBase + (RstChipSpace * (i+1));     // Address decoder: end noninclusive
-    end
+    reg_to_apb #(
+        .reg_req_t ( cfg_reg_req_t ),
+        .reg_rsp_t ( cfg_reg_rsp_t ),
+        .apb_req_t ( cfg_apb_req_t ),
+        .apb_rsp_t ( cfg_apb_rsp_t )
+    ) i_reg_to_apb (
+        .clk_i     ( clk_i       ),
+        .rst_ni    ( rst_ni      ),
+        .reg_req_i ( cfg_reg_req ),
+        .reg_rsp_o ( cfg_reg_rsp ),
+        .apb_req_o ( cfg_apb_req ),
+        .apb_rsp_i ( cfg_apb_rsp )
+    );
 
-    // Registers
-    `FFARN(cfg_q, cfg_d, RstCfg, clk_i, rst_ni);
-    `FFARN(crange_q, crange_d, crange_rstval, clk_i, rst_ni);
+    hyperbus_cfg_regblock i_cfg_regblock (
+        .clk           ( clk_i            ),
+        .arst_n        ( rst_ni           ),
+        .s_apb_psel    ( cfg_apb_req.psel     ),
+        .s_apb_penable ( cfg_apb_req.penable  ),
+        .s_apb_pwrite  ( cfg_apb_req.pwrite   ),
+        .s_apb_pprot   ( cfg_apb_req.pprot    ),
+        .s_apb_paddr   ( cfg_apb_req.paddr    ),
+        .s_apb_pwdata  ( cfg_apb_req.pwdata   ),
+        .s_apb_pstrb   ( cfg_apb_req.pstrb    ),
+        .s_apb_pready  ( cfg_apb_rsp.pready   ),
+        .s_apb_prdata  ( cfg_apb_rsp.prdata   ),
+        .s_apb_pslverr ( cfg_apb_rsp.pslverr  ),
+        .hwif_out      ( cfg_hwif_out     )
+    );
 
-    // Outputs
-    assign cfg_o  = cfg_q;
-    for (genvar i = 0; unsigned'(i) < NumChips; ++i) begin : gen_crange_out
-        assign chip_rules_o[i].idx         = unsigned'(i);   // No overlap: keep indices sequential
-        assign chip_rules_o[i].start_addr  = crange_q[i][0];
-        assign chip_rules_o[i].end_addr    = crange_q[i][1];
+    assign frontend_cfg_o = hyperbus_pkg::hwif_to_frontend_cfg(cfg_hwif_out, NumPhys == 1);
+    assign phy_cfg_o = hyperbus_pkg::hwif_to_phy_cfg(cfg_hwif_out, NumPhys == 1);
+
+    for (genvar i = 0; unsigned'(i) < NumChipsMax; i++) begin : gen_chip_rules
+        if (i < NumChips) begin : gen_active
+            assign chip_rules_o[i] = chip_rules_all[i];
+        end else begin : gen_inactive
+            logic unused_chip_rule;
+            assign unused_chip_rule = ^chip_rules_all[i];
+        end
     end
 
     // pragma translate_off
     `ifndef VERILATOR
-    initial assert (RegDataWidth >= 16 && $countones(RegDataWidth) == 1)
-        else $error("RegDataWidth must be a power of two bigger than 16.");
+    initial assert (RegDataWidth == 32)
+        else $error("Generated HyperBus config registers require 32-bit RegDataWidth.");
+    initial assert (NumChips <= NumChipsMax)
+        else $error("Generated HyperBus config registers support up to four chips.");
     `endif
     // pragma translate_on
 
