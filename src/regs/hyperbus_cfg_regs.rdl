@@ -1,101 +1,122 @@
 addrmap hyperbus_cfg_regs {
-    reg {
+    reg t_latency_access {
         desc = "Initial latency cycles before read or write data.";
         field { sw = rw; hw = r; reset = 4'h6; } value[3:0];
-    } t_latency_access @ 0x00;
+    };
 
-    reg {
+    reg en_latency_additional {
         desc = "Enable additional latency cycles when requested by RWDS.";
         field { sw = rw; hw = r; reset = 1'b0; } value;
-    } en_latency_additional @ 0x04;
+    };
 
-    reg {
+    reg t_burst_max {
         desc = "Maximum continuous burst length before the PHY restarts a transfer.";
         field { sw = rw; hw = r; reset = 16'd350; } value[15:0];
-    } t_burst_max @ 0x08;
+    };
 
-    reg {
+    reg t_read_write_recovery {
         desc = "Recovery cycles inserted between read and write phases.";
         field { sw = rw; hw = r; reset = 4'h6; } value[3:0];
-    } t_read_write_recovery @ 0x0c;
+    };
 
-    reg {
+    reg t_rx_clk_delay {
         desc = "RX sampling delay-line tap setting.";
         field { sw = rw; hw = r; reset = 8'h10; } value[7:0];
-    } t_rx_clk_delay @ 0x10;
+    };
 
-    reg {
+    reg t_tx_clk_delay {
         desc = "TX clock delay-line tap setting.";
         field { sw = rw; hw = r; reset = 8'h10; } value[7:0];
-    } t_tx_clk_delay @ 0x14;
+    };
 
-    reg {
+    reg address_mask_msb {
         desc = "Most-significant address bit used by frontend address packing.";
         field { sw = rw; hw = r; reset = 5'd25; } value[4:0];
-    } address_mask_msb @ 0x18;
+    };
 
-    reg {
+    reg address_space {
         desc = "Select HyperRAM or HyperFlash address-space interpretation.";
         field { sw = rw; hw = r; reset = 1'b0; } value;
-    } address_space @ 0x1c;
+    };
 
-    reg {
+    reg phys_in_use {
         desc = "Select whether one or both PHY lanes are active.";
         field { sw = rw; hw = r; reset = 1'b1; } value;
-    } phys_in_use @ 0x20;
+    };
 
-    reg {
+    reg which_phy {
         desc = "Select the PHY lane used when only one PHY is active.";
         field { sw = rw; hw = r; reset = 1'b1; } value;
-    } which_phy @ 0x24;
+    };
 
-    reg {
+    reg t_csh_cycles {
         desc = "Chip-select high time between transfers.";
         field { sw = rw; hw = r; reset = 4'h1; } value[3:0];
-    } t_csh_cycles @ 0x28;
+    };
 
-    reg {
+    reg csn_to_ck_cycles {
         desc = "Delay cycles from chip-select assertion to clock start.";
         field { sw = rw; hw = r; reset = 4'h0; } value[3:0];
-    } csn_to_ck_cycles @ 0x2c;
+    };
 
-    reg {
+    reg chip0_base {
         desc = "Inclusive base address for chip-select 0 decoding.";
         field { sw = rw; hw = r; reset = 32'h0000_0000; } value[31:0];
-    } chip0_base @ 0x30;
+    };
 
-    reg {
+    reg chip0_bound {
         desc = "Exclusive bound address for chip-select 0 decoding.";
         field { sw = rw; hw = r; reset = 32'h0001_0000; } value[31:0];
-    } chip0_bound @ 0x34;
+    };
 
-    reg {
+    reg chip1_base {
         desc = "Inclusive base address for chip-select 1 decoding.";
         field { sw = rw; hw = r; reset = 32'h0001_0000; } value[31:0];
-    } chip1_base @ 0x38;
+    };
 
-    reg {
+    reg chip1_bound {
         desc = "Exclusive bound address for chip-select 1 decoding.";
         field { sw = rw; hw = r; reset = 32'h0002_0000; } value[31:0];
-    } chip1_bound @ 0x3c;
+    };
 
-    reg {
+    reg chip2_base {
         desc = "Inclusive base address for chip-select 2 decoding.";
         field { sw = rw; hw = r; reset = 32'h0002_0000; } value[31:0];
-    } chip2_base @ 0x40;
+    };
 
-    reg {
+    reg chip2_bound {
         desc = "Exclusive bound address for chip-select 2 decoding.";
         field { sw = rw; hw = r; reset = 32'h0003_0000; } value[31:0];
-    } chip2_bound @ 0x44;
+    };
 
-    reg {
+    reg chip3_base {
         desc = "Inclusive base address for chip-select 3 decoding.";
         field { sw = rw; hw = r; reset = 32'h0003_0000; } value[31:0];
-    } chip3_base @ 0x48;
+    };
 
-    reg {
+    reg chip3_bound {
         desc = "Exclusive bound address for chip-select 3 decoding.";
         field { sw = rw; hw = r; reset = 32'h0004_0000; } value[31:0];
-    } chip3_bound @ 0x4c;
+    };
+
+    t_latency_access t_latency_access @ 0x00;
+    en_latency_additional en_latency_additional @ 0x04;
+    t_burst_max t_burst_max @ 0x08;
+    t_read_write_recovery t_read_write_recovery @ 0x0c;
+    t_rx_clk_delay t_rx_clk_delay @ 0x10;
+    t_tx_clk_delay t_tx_clk_delay @ 0x14;
+    address_mask_msb address_mask_msb @ 0x18;
+    address_space address_space @ 0x1c;
+    phys_in_use phys_in_use @ 0x20;
+    which_phy which_phy @ 0x24;
+    t_csh_cycles t_csh_cycles @ 0x28;
+    csn_to_ck_cycles csn_to_ck_cycles @ 0x2c;
+    chip0_base chip0_base @ 0x30;
+    chip0_bound chip0_bound @ 0x34;
+    chip1_base chip1_base @ 0x38;
+    chip1_bound chip1_bound @ 0x3c;
+    chip2_base chip2_base @ 0x40;
+    chip2_bound chip2_bound @ 0x44;
+    chip3_base chip3_base @ 0x48;
+    chip3_bound chip3_bound @ 0x4c;
 };
