@@ -41,7 +41,7 @@
       default_reset_value: 0
       default_static_value: 1'b0
   template: |
-    localparam tc_pad_pkg::tc_pad_config_t gf22_invecas_tc_pad_config = '{
+    localparam tc_pad_pkg::tc_pad_config_t tc_pad_config = '{
         1'b1,   //av_bidir_cell
         1'b0,   //av_in_cell
         1'b0,   //av_out_cell
@@ -61,7 +61,7 @@
   template: |
     tc_pad_pwr_mng #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .ret_en_i ( io_pad_retcin     ),
       .int_io   ( `io_pad_internals )
@@ -72,7 +72,7 @@
   template: |
     tc_pad_pwr_mng #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .ret_en_i ( io_pad_retcin     ),
       .int_io   ( `io_pad_internals )
@@ -87,7 +87,7 @@
   template: |
     tc_pad_vdd_core #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -97,7 +97,7 @@
   template: |
     tc_pad_vdd_core #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -107,7 +107,7 @@
   template: |
     tc_pad_vss_core #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -117,7 +117,7 @@
   template: |
     tc_pad_vss_core #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -127,7 +127,7 @@
   template: |
     tc_pad_vdd_io #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -137,7 +137,7 @@
   template: |
     tc_pad_vdd_io #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -147,7 +147,7 @@
   template: |
     tc_pad_vss_io #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -157,7 +157,7 @@
   template: |
     tc_pad_vss_io #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .int_io ( `io_pad_internals )
     );
@@ -169,7 +169,7 @@
 - name: PAD_CORNER
   description: "corner pad"
   template: |
-    tc_pad_corner #( .tc_pad_config ( gf22_invecas_tc_pad_config ) ) ${instance_name} ( .int_io ( `io_pad_internals ) );
+    tc_pad_corner #( .tc_pad_config ( tc_pad_config ) ) ${instance_name} ( .int_io ( `io_pad_internals ) );
 
 #############################
 # DIGITAL INPUT/OUTPUT PADS
@@ -258,7 +258,7 @@
   template: |
     tc_pad_bidir #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .pad_io           ( ${conn["pad"]}            ),
       .pad2chip_o       ( ${conn["pad2chip"]}       ),
@@ -281,7 +281,7 @@
   template: |
     tc_pad_bidir #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .pad_io           ( ${conn["pad"]}            ),
       .pad2chip_o       ( ${conn["pad2chip"]}       ),
@@ -353,7 +353,7 @@
   template: |
     tc_pad_bidir #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .pad_io           ( ${conn["pad"]}        ),
       .pad2chip_o       ( ${conn["pad2chip"]}   ),
@@ -376,7 +376,7 @@
   template: |
     tc_pad_bidir #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .pad_io           ( ${conn["pad"]}        ),
       .pad2chip_o       ( ${conn["pad2chip"]}   ),
@@ -431,7 +431,7 @@
   template: |
     tc_pad_bidir #(
       .tc_pad_orientation ( tc_pad_pkg::H              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .pad_io           ( ${conn["pad"]}            ),
       .pad2chip_o       (                           ),
@@ -454,7 +454,7 @@
   template: |
     tc_pad_bidir #(
       .tc_pad_orientation ( tc_pad_pkg::V              ),
-      .tc_pad_config      ( gf22_invecas_tc_pad_config )
+      .tc_pad_config      ( tc_pad_config )
     ) ${instance_name} (
       .pad_io           ( ${conn["pad"]}            ),
       .pad2chip_o       (                           ),

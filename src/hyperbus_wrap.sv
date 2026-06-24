@@ -1,4 +1,4 @@
-// Copyright 2023 ETH Zurich and University of Bologna.
+// Copyright 2026 Chips-IT, ETH Zurich and University of Bologna.
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 //
@@ -250,10 +250,10 @@ hyperbus           #(
   .hyper_pad_cfg_o
 );
 
-pad_domain_topr_static_connection_signals_pad2soc_t pad2soc; //output
-pad_domain_topr_static_connection_signals_soc2pad_t soc2pad; //input
+pad_domain_tc_static_connection_signals_pad2soc_t pad2soc; //output
+pad_domain_tc_static_connection_signals_soc2pad_t soc2pad; //input
 
-hyperbus_padframe_topr_pads i_hyperbus_padframe_topr_pads(
+hyperbus_padframe_tc_pads i_hyperbus_padframe_tc_pads(
   .static_connection_signals_pad2soc(pad2soc),
   .static_connection_signals_soc2pad(soc2pad),
   .pad_config_tc_pad_internal_signals_0,

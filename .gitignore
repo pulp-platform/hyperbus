@@ -14,5 +14,5 @@ padframe/include/
 padframe/ips_list.yml
 padframe/src/*
 !padframe/src/pkg_hyperbus_padframe.sv
-!padframe/src/hyperbus_padframe_topr_pads.sv
+!padframe/src/hyperbus_padframe_tc_pads.sv
 padframe/src_files.yml

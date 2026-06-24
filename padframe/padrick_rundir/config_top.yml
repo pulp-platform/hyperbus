@@ -13,10 +13,10 @@
 name: hyperbus_padframe
 manifest_version: 3
 pad_domains:
-  - name: topr
-    pad_types: !include behav_pad_types.yml
-    pad_list: !include topr_pad_list.yml
-    # port_groups: !include topr_port_groups.yml
+  - name: tc
+    pad_types: !include tc_pad_types.yml
+    pad_list: !include tc_pad_list.yml
+    # port_groups: !include tc_port_groups.yml
 
 
     
