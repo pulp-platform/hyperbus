@@ -6,3 +6,13 @@ transcript
 modelsim.ini
 vsim.wlf
 models/s27ks0641
+padframe/padrick_rundir/templates/*
+!padframe/padrick_rundir/templates/rtl_templates/pads.sv.mako
+!padframe/padrick_rundir/templates/rtl_templates/pkg_padframe.sv.mako
+padframe/Bender.yml
+padframe/include/
+padframe/ips_list.yml
+padframe/src/*
+!padframe/src/pkg_hyperbus_padframe.sv
+!padframe/src/hyperbus_padframe_tc_pads.sv
+padframe/src_files.yml

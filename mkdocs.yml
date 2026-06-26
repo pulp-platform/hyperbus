@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+
+site_name: HyperBus Controller
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.expand
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.footer
+
+# markdown_extensions:
+  #- markdown_grid_tables
+  #- toc:
+  #  toc_depth: 3
+  #- pymdownx.tabbed:
+  #  alternate_style: true
+  # - pymdownx.superfences:
+  #     custom_fences:
+  #       - name: mermaid
+  #         class: mermaid
+  #         format: !!python/name:pymdownx.superfences.fence_code_format
+
+repo_url: https://github.com/FondazioneChipsIT/hyperbus
+repo_name: FondazioneChipsIT/hyperbus
+
+nav:
+  - Home: 
+    - index.md
+    - Getting Started: gs.md
+  - Specification: spec.md
+  - Verification: ver.md
+  - User Manual: um.md
+  - Checklist: cl.md
+  - Release Notes: rn.md
+  - About: about.md
+    
+
