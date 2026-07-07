@@ -13,7 +13,7 @@ module hyperbus_lint_wrap #(
     // HyperBus parameters
     parameter int unsigned  NumChips        = 2,
     parameter int unsigned  NumPhys         = 2,
-    parameter int unsigned  IsClockODelayed = 0,
+    parameter bit           UsePhyClkDivider = 1,
     // AXI parameters
     parameter int unsigned  AxiIdWidth      = 6,
     parameter int unsigned  AxiAddrWidth    = 48,
@@ -133,7 +133,7 @@ module hyperbus_lint_wrap #(
     hyperbus #(
         .NumChips        ( NumChips        ),
         .NumPhys         ( NumPhys         ),
-        .IsClockODelayed ( IsClockODelayed ),
+        .UsePhyClkDivider ( UsePhyClkDivider ),
         .AxiAddrWidth    ( AxiAddrWidth    ),
         .AxiDataWidth    ( AxiDataWidth    ),
         .AxiIdWidth      ( AxiIdWidth      ),

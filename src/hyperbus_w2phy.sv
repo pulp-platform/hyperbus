@@ -114,16 +114,19 @@ module hyperbus_w2phy #(
             data_buffer_d.strb = data_i.strb;
             data_buffer_d.last = data_i.last;
             if(first_tx_q) begin
-               for (int i=0; i<byte_idx_q; i++)
-                 data_buffer_d.strb[i]='0;
+               // Constant loop bound + runtime guard: portable to synthesis
+               // tools (e.g. Yosys) that require static for-loop bounds.
+               for (int i=0; i<NumAxiBytes; i++)
+                 if (i < byte_idx_q) data_buffer_d.strb[i]='0;
             end
          end else begin
             data_buffer_d.strb[byte_idx_q +: (2*NumPhys)] = data_i.strb[byte_idx_q +: (2*NumPhys)];
             data_buffer_d.data[byte_idx_q*8 +: (8*NumPhys)] = data_i.data[byte_idx_q*8 +: (8*NumPhys)];
             data_buffer_d.last = data_i.last;
             if(first_tx_q) begin
-               for (int j=0; j<byte_idx_q; j++)
-                 data_buffer_d.strb[j]='0;
+               // Constant loop bound + runtime guard (see note above).
+               for (int j=0; j<NumAxiBytes; j++)
+                 if (j < byte_idx_q) data_buffer_d.strb[j]='0;
             end
          end
       end
