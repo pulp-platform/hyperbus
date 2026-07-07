@@ -42,6 +42,41 @@ This proves the PHY front-end is synthesizable on sky130 — the audit's #1
 blocker (no synthesizable delay line, unmapped tech cells) is closed for this
 scope.
 
+## Hardened macro (OpenLane / LibreLane)
+
+A full RTL-to-GDS harden of `hyperbus_phy_sky130` is provided via
+[`../../openlane/hyperbus_phy_sky130/config.json`](../../openlane/hyperbus_phy_sky130/config.json)
+(LibreLane, native/nix — no Docker):
+
+```bash
+librelane --pdk-root ~/.volare openlane/hyperbus_phy_sky130/config.json
+```
+
+Result at `CLOCK_PERIOD = 40 ns` (25 MHz), sky130_fd_sc_hd, 90×90 µm die:
+
+| Metric | Value |
+|---|---|
+| Instances (incl. fill/tap/CTS) | 1184 |
+| Std-cell area | 5349 µm² (34 % util) |
+| Route wirelength | 2187 µm |
+| Detailed-route + Magic DRC | **0** |
+| LVS | **clean** |
+| Setup / Hold WNS | **+0.098 ns / +0.423 ns (met)** |
+
+GDS/DEF/ODB/LEF/SPEF land in `runs/<tag>/final/` (git-ignored). Timing
+closes comfortably at 25 MHz, matching the sky130 speed reality below.
+
+### Inspect it in the OpenROAD GUI
+
+```bash
+librelane --pdk-root ~/.volare --flow openinopenroad --last-run \
+  openlane/hyperbus_phy_sky130/config.json
+```
+
+(There is also a stand-alone `syn/sky130/inspect.tcl` that places the raw
+yosys netlist for `openroad -gui`, but the hardened ODB above is the real
+placed-and-routed view.)
+
 ## Honest limitations (read before trusting this for silicon)
 
 1. **This is the tech-dependent PHY front-end, not the whole controller.**

@@ -1,0 +1,24 @@
+{
+  "DESIGN_NAME": "hyperbus_phy_sky130",
+
+  "VERILOG_FILES": [
+    "dir::../../target/sky130/tech_cells_sky130.sv",
+    "dir::../../target/sky130/configurable_delay.sky130.sv",
+    "dir::../../src/hyperbus_clk_gen.sv",
+    "dir::../../src/hyperbus_ddr_out.sv",
+    "dir::../../src/hyperbus_clock_diff_out.sv",
+    "dir::../../src/hyperbus_delay.sv",
+    "dir::../../target/sky130/hyperbus_phy_sky130.sv"
+  ],
+  "VERILOG_DEFINES": ["SKY130_NATIVE_CELLS"],
+
+  "CLOCK_PORT": "clk_phy_i",
+  "CLOCK_PERIOD": 40,
+
+  "FP_SIZING": "absolute",
+  "DIE_AREA": "0 0 90 90",
+  "FP_CORE_UTIL": 35,
+  "PL_TARGET_DENSITY_PCT": 45,
+
+  "RT_MAX_LAYER": "met4"
+}

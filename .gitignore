@@ -7,4 +7,5 @@ modelsim.ini
 vsim.wlf
 models/s27ks0641
 syn/sky130/out/
+openlane/*/runs/
 openram/
