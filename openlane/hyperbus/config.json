@@ -12,8 +12,9 @@
 
   "RUN_LINTER": false,
   "//_lint": "PULP RTL trips Verilator lint (empty output pins, width-expand);",
-  "//_lint2": "disabled so the bring-up harden proceeds. NOTE: sv2v output shows a",
-  "//_lint3": "38-vs-52-bit CDC-FIFO width warning -> verify functionally before trust.",
+  "//_lint2": "disabled so the bring-up harden proceeds. The earlier 38-vs-52-bit",
+  "//_lint3": "transaction-CDC truncation (an sv2v type-param mis-sizing) is now",
+  "//_lint4": "fixed in gen_full_rtl.sh; re-run it before re-hardening.",
 
   "//": "Full PULP hyperbus controller (AXI4 + RegBus + dual PHY). RTL is the",
   "//_2": "sv2v-lowered bender tree + sky130 delay body; regenerate with",

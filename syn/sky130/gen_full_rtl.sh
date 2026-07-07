@@ -55,6 +55,14 @@ sv2v --top=hyperbus_lint_wrap \
 # defaults to those concrete values. A real instantiation still overrides them;
 # only the otherwise-garbage unbound cases change.
 FV="$OUT/hyperbus_full.v"
+# sv2v mis-sizes the width-parameter it extracts from `parameter type T` for the
+# HyperBurstWidth field as [0:0] (1 bit), so passing HyperBurstWidth=15 truncates
+# to 1 and the transaction CDC data ports become 38 bits instead of 52 -> 14 MSBs
+# (write flag + burst[14:2]) silently dropped across the AXI<->PHY CDC. Widen the
+# extracted width param to 32 bits so the value survives.
+sed -i '' \
+  -e 's/parameter \[0:0\] \([A-Za-z0-9_]*HyperBurstWidth\)/parameter [31:0] \1/g' \
+  "$FV"
 sed -i '' \
   -e 's/\(parameter \[31:0\] AxiDataWidth\) = -1;/\1 = 128;/' \
   -e 's/\(parameter \[31:0\] AxiAddrWidth\) = -1;/\1 = 48;/' \
