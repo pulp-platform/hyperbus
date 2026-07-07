@@ -4,7 +4,9 @@
   "VERILOG_FILES": ["dir::build/hyperbus_full.v"],
 
   "CLOCK_PORT": ["clk_phy_i", "clk_sys_i"],
-  "CLOCK_PERIOD": 40,
+  "//_fmax": "25 ns = 40 MHz: tightest period a pre-PnR STA sweep (worst corner",
+  "//_fmax2": "ss_100C) still closes at (WNS +0.29 ns @ 25 ns; negative below).",
+  "CLOCK_PERIOD": 25,
 
   "FP_CORE_UTIL": 35,
   "PL_TARGET_DENSITY_PCT": 45,
