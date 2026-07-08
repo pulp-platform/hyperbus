@@ -129,6 +129,27 @@ generated/gated PHY clocks and high-fanout nets — **no custom SDC**, so this i
 a **bring-up harden, not signoff**. The delay line is coarse (see above) and no
 I/O ring is included.
 
+### Area scaling: 128b/2-PHY vs 32b/1-PHY
+
+A smaller variant (`AxiDataWidth=32`, `NumPhys=1` — `openlane/hyperbus_small/`,
+generated with `AXIW=32 NPHYS=1 OUT_NAME=hyperbus_full_small.v zsh
+syn/sky130/gen_full_rtl.sh`) also hardens clean at 40 MHz:
+
+| Metric | Full 128b/2-PHY | Small 32b/1-PHY |
+|---|---|---|
+| Logic std cells / flip-flops | 29,624 / 8,186 | 13,676 / 3,781 |
+| Std-cell area | 1.26 mm² | 0.57 mm² |
+| Die | 1.14×1.14 mm | 0.77×0.77 mm |
+| External HyperBus pins | 28 | 14 |
+| Bandwidth / HyperRAM chips | 80 MB/s / 4 | 40 MB/s / 2 |
+| DRC / LVS / timing @ 25 ns | clean, +4.37 ns | clean, +4.62 ns |
+
+Only **~2.2× smaller**, not 10×: the FIFO/datapath (~80% of logic) scales with
+width (145b→38b elements) and PHY count, but a fixed ~20% "AXI-protocol floor"
+(48-bit address paths, ID/burst/atomics/DW-converter control, config regs, CDC
+control) does not. Reaching single-controller size needs dropping full AXI4
+and cutting FIFO depths, not just narrowing the data bus.
+
 ### External interface & pin table
 
 Hardened configuration: `NumPhys = 2`, `NumChips = 2`, `AxiDataWidth = 128`,
