@@ -129,13 +129,66 @@ generated/gated PHY clocks and high-fanout nets — **no custom SDC**, so this i
 a **bring-up harden, not signoff**. The delay line is coarse (see above) and no
 I/O ring is included.
 
+### External interface & pin table
+
+Hardened configuration: `NumPhys = 2`, `NumChips = 2`, `AxiDataWidth = 128`,
+`UsePhyClkDivider = 1`.
+
+The RAM-facing bidirectional signals are exposed as `_o`/`_i`/`_oe_o` triplets;
+on silicon each triplet is **one bidirectional pad** (the `_oe` is internal
+tristate control, not a pin). External (HyperBus, RAM-facing) pins:
+
+| Signal | RTL width | Phys pins | Dir | On READ | On WRITE |
+|---|---|---|---|---|---|
+| `hyper_ck_o` + `hyper_ck_no` | [2]+[2] | 4 | out | differential clock CK/CK# | same |
+| `hyper_cs_no` | [2]×[2] | 4 | out | chip-select (1 per chip) | same |
+| `hyper_dq_{o,i,oe}` | [2]×8 | 16 | bidir | data **in** | CA + write data **out** |
+| `hyper_rwds_{o,i,oe}` | [2] | 2 | bidir | read strobe **in** | byte-mask **out** |
+| `hyper_reset_no` | [2] | 2 | out | device reset | same |
+| **Total external** | | **28** | | | |
+
+`CK/CK#`, `CS#`, `RESET#` are always controller outputs. `DQ[7:0]` and `RWDS`
+are bidirectional and flip direction with the transaction; every transfer
+starts with the controller driving a 48-bit Command-Address on `DQ`.
+
+**Internal (SoC-facing, not board pins):** the AXI4 subordinate port
+(128-bit `w`/`r` data), the RegBus config port (`rbus_req_*`/`rbus_rsp_*`), and
+`clk_phy_i`, `clk_sys_i`, `rst_phy_ni`, `rst_sys_ni`, `test_mode_i`.
+
+### Bandwidth & memory capacity
+
+With `UsePhyClkDivider = 1`, `hyper_ck = clk_phy / 2 = 20 MHz`; DDR doubles it to
+**40 MT/s per DQ**:
+
+| Mode | Width | Aggregate |
+|---|---|---|
+| Per PHY | 8-bit | 320 Mb/s ≈ **40 MB/s** |
+| Dual-PHY interleaved | 16-bit | 640 Mb/s ≈ **80 MB/s** |
+
+(At the layout's ~48 MHz headroom, ~96 MB/s. Rated HyperBus at 166–200 MHz CK is
+~5–6.4 Gb/s — this open sky130 bring-up is ~10× below rated, as expected without
+a fast I/O PHY.)
+
+**HyperRAM chips:** `NumPhys × NumChips = 4` devices max (2 chip-selects per
+bus). In dual-PHY interleaved mode, the chips at a matching CS pair into a
+16-bit-wide logical memory (2 logical memories over the 4 devices); in
+independent mode they are 4 separate 8-bit devices.
+
+### Inspect the hardened layout
+
+```bash
+librelane --pdk-root ~/.volare --flow openinopenroad --last-run openlane/hyperbus/config.json  # OpenROAD GUI
+librelane --pdk-root ~/.volare --flow openinklayout  --last-run openlane/hyperbus/config.json  # KLayout on final GDS
+```
+
 ## Honest limitations (read before trusting this for silicon)
 
-1. **This is the tech-dependent PHY front-end, not the whole controller.**
-   The full `hyperbus` needs pulp-platform `common_cells`, `axi`,
-   `register_interface` (CDC FIFOs, arbiters, AXI). Those are not vendored
-   here, so the complete controller is out of scope for this minimal pass —
-   synthesize it with Bender + the dependencies, then OpenLane.
+1. **Two hardens exist: minimal PHY front-end and full controller.**
+   `hyperbus_phy_sky130` (this dir) is just the tech-dependent PHY front-end.
+   The full `hyperbus` (AXI4 + RegBus + dual PHY, pulp-platform `common_cells`/
+   `axi`/`register_interface`) is hardened separately via `gen_full_rtl.sh` +
+   `openlane/hyperbus/` — see "Full controller harden" above. Its RTL is
+   sv2v-lowered and depends on Bender-resolved sources, not vendored in-tree.
 
 2. **Synthesis only — no P&R, no STA, no timing sign-off.** There is still no
    SDC. The generated/divided/gated/muxed clocks (see AUDIT.md §6.3) each need
