@@ -42,6 +42,14 @@ bender update
 make run #(will download proprietary models from Infineon !!)
 ```
 
+## ASIC (SkyWater 130 nm)
+
+Open-source sky130 synthesis and RTL-to-GDS hardening (Yosys + LibreLane/OpenROAD)
+are provided under [`target/sky130/`](./target/sky130/README.md) — including a
+synthesizable delay line and tech-cell mapping, a minimal PHY front-end and the
+full controller hardened to GDS (DRC/LVS clean, ~40 MHz), plus the external pin
+table and bandwidth. See also the repository audit in [`AUDIT.md`](./AUDIT.md).
+
 ## ToDos
 
 - [ ] Support byte-aligned accesses for non-byte-size transfer
