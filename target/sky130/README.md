@@ -77,6 +77,58 @@ librelane --pdk-root ~/.volare --flow openinopenroad --last-run \
 yosys netlist for `openroad -gui`, but the hardened ODB above is the real
 placed-and-routed view.)
 
+## Full controller harden (AXI + dual PHY)
+
+Beyond the minimal PHY front-end, the **complete PULP `hyperbus` controller**
+(AXI4-128 + RegBus + dual PHY + CDC FIFOs) also hardens on sky130.
+
+Flow (`../../syn/sky130/gen_full_rtl.sh` → `../../openlane/hyperbus/config.json`):
+
+```bash
+# needs bender + sv2v on PATH (prebuilt binaries)
+bash -c 'export PATH=/path/to/bender-sv2v:$PATH; \
+  zsh syn/sky130/gen_full_rtl.sh && \
+  librelane --pdk-root ~/.volare openlane/hyperbus/config.json'
+```
+
+`gen_full_rtl.sh` = **bender** (resolve the 4 PULP deps from `Bender.lock`) →
+**sv2v** (SystemVerilog → Verilog, `--top hyperbus_lint_wrap` to prune to the
+used hierarchy) → one flat `hyperbus_full.v`. It bakes in the fixes needed for
+the open frontend: strip sim-only SVA, select the sky130 delay/ICG cells, pin
+the `-1` "must-override" parameter defaults, and **widen an sv2v-mis-sized
+type-param that otherwise truncated the transaction CDC to 38 bits**.
+
+### Result at 40 MHz (CLOCK_PERIOD = 25 ns), sky130_fd_sc_hd
+
+| Metric | Value |
+|---|---|
+| Instances | 261,287 |
+| Std-cell area | ~1.26 mm² (die 1.14×1.14 mm) |
+| Route wirelength | 2.43 m |
+| Detailed-route / Magic / KLayout DRC | **0 / 0 / 0** |
+| LVS | **clean** |
+| Setup / Hold violations | **0 / 0** (WNS +4.37 ns / +1.26 ns) |
+| Max-slew / cap / fanout violations | 16556 / 123 / 22 |
+
+Post-route WNS +4.37 ns at 25 ns → critical path ≈ 20.6 ns, i.e. the layout has
+**headroom to ~48 MHz**. A pre-PnR STA sweep (worst corner ss_100C) set the
+target: 40 MHz is the tightest that closes; abc keeps shrinking the path below
+that but slack goes negative.
+
+| Target | WNS (ss) | fmax |
+|---|---|---|
+| 35 ns | +6.24 | 34.8 MHz |
+| 30 ns | +3.29 | 37.4 MHz |
+| **25 ns** | **+0.29** | **40.5 MHz** (chosen) |
+| 20 ns | −2.71 | fails |
+
+**Caveats for the full controller harden:** the RTL is the sv2v-lowered tree
+(open-flow only; a commercial SV synth needs none of the workarounds); the
+~16.5k max-slew + 123 max-cap violations come from the unconstrained
+generated/gated PHY clocks and high-fanout nets — **no custom SDC**, so this is
+a **bring-up harden, not signoff**. The delay line is coarse (see above) and no
+I/O ring is included.
+
 ## Honest limitations (read before trusting this for silicon)
 
 1. **This is the tech-dependent PHY front-end, not the whole controller.**
