@@ -1,0 +1,18 @@
+{
+  "DESIGN_NAME": "hyperbus_lint_wrap",
+
+  "VERILOG_FILES": ["dir::../hyperbus/build/hyperbus_full_small.v"],
+
+  "CLOCK_PORT": ["clk_phy_i", "clk_sys_i"],
+  "CLOCK_PERIOD": 25,
+
+  "FP_CORE_UTIL": 35,
+  "PL_TARGET_DENSITY_PCT": 45,
+  "RT_MAX_LAYER": "met4",
+
+  "RUN_LINTER": false,
+
+  "//": "Small variant: AxiDataWidth=32, NumPhys=1 (vs the 128b/dual-PHY main",
+  "//_2": "build). Same 25 ns target for an apples-to-apples area comparison.",
+  "//_3": "Regenerate RTL with: AXIW=32 NPHYS=1 OUT_NAME=hyperbus_full_small.v zsh syn/sky130/gen_full_rtl.sh"
+}
