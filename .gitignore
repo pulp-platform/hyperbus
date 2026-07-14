@@ -17,3 +17,5 @@ padframe/src/*
 !padframe/src/pkg_hyperbus_padframe.sv
 !padframe/src/hyperbus_padframe_tc_pads.sv
 padframe/src_files.yml
+padframe/padrick_rundir/generated/
+padframe/padrick_rundir/.pad_tech

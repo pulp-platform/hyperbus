@@ -1,0 +1,15 @@
+# Copyright 2026 ETH Zurich and University of Bologna.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+# Per-technology pad configuration rendered into tc_pad_types.yml.
+# Field semantics: see tc_pad_pkg.sv in tech_cells_generic.
+
+av_bidir_cell: 1  # bidirectional io cell availability
+av_in_cell:    0  # input cell availability
+av_out_cell:   0  # output cell availability
+in_en_latch:   1  # input enable is latched when retention is enabled
+pu_pd_both_en: 1  # both pull-up and pull-down can be enabled at the same time
+rt_en_ah:      0  # retention enable internal signal active high
+ds_w:          2  # drive strength level signal width (>= 1)
+n_int:         3  # number of internal signals (in addition to retention LSB)

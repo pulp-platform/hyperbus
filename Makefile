@@ -40,6 +40,37 @@ sim_clean:
 	rm -rf scripts/compile.tcl
 	rm -rf work
 
+# --------------------
+# PADFRAME GENERATION
+# --------------------
+
+MAKO_RENDER ?= mako-render
+PADRICK_DIR := padframe/padrick_rundir
+PADRICK     ?= ./padrick
+
+# Per-technology pad configuration, see $(PADRICK_DIR)/configs/
+PAD_TECH ?= generic
+PAD_CFG   = $(PADRICK_DIR)/configs/$(PAD_TECH).yml
+
+# Re-render when a different PAD_TECH is selected
+.PHONY: FORCE
+$(PADRICK_DIR)/.pad_tech: FORCE
+	@echo $(PAD_TECH) | cmp -s - $@ || echo $(PAD_TECH) > $@
+
+$(PADRICK_DIR)/tc_pad_types.yml: $(PADRICK_DIR)/tc_pad_types.yml.mako $(PAD_CFG) $(PADRICK_DIR)/.pad_tech
+	cd $(PADRICK_DIR) && $(MAKO_RENDER) --var cfg_file=configs/$(PAD_TECH).yml $(notdir $<) > $(notdir $@)
+
+$(PADRICK_DIR)/tc_pad_list.yml: $(PADRICK_DIR)/tc_pad_list.yml.mako
+	cd $(PADRICK_DIR) && $(MAKO_RENDER) $(notdir $<) > $(notdir $@)
+
+.PHONY: padframe
+padframe: $(PADRICK_DIR)/tc_pad_types.yml $(PADRICK_DIR)/tc_pad_list.yml
+	rm -rf $(PADRICK_DIR)/generated
+	cd $(PADRICK_DIR) && $(PADRICK) generate -s templates/padrick_generator_settings.yml rtl -o generated config_top.yml
+	cp $(PADRICK_DIR)/generated/src/pkg_hyperbus_padframe.sv padframe/src/
+	cp $(PADRICK_DIR)/generated/src/hyperbus_padframe_tc_pads.sv padframe/src/
+	$(MAKO_RENDER) --var cfg_file=$(PAD_CFG) src/hyperbus_wrap.sv.mako > src/hyperbus_wrap.sv
+
 # Nonfree components. As observed from July 15th, 2025, Infineon requires SSO
 # authentication to get the model. For internal usage, we support fetching the
 # model from a cached location, or automatically downloading it, through the

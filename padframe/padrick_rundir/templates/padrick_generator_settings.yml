@@ -1,0 +1,12 @@
+manifest_version: 3
+rtl_templates:
+  toplevel_sv_package:
+    name: SV package
+    target_file_name: pkg_{padframe.name}.sv
+    template: templates/rtl_templates/pkg_padframe.sv.mako
+    skip_generation: false
+  pad_inst_module:
+    name: Pad instantiation module {pad_domain.name}
+    target_file_name: '{padframe.name}_{pad_domain.name}_pads.sv'
+    template: templates/rtl_templates/pads.sv.mako
+    skip_generation: false

@@ -3,8 +3,20 @@
 ## SPDX-License-Identifier: SHL-0.51
 ##
 ## Andrea Di Ruzza
+##
+## The pad configuration is read from the yaml file given as `cfg_file`, e.g.:
+##   mako-render --var cfg_file=padframe/padrick_rundir/configs/<tech>.yml src/hyperbus_wrap.sv.mako > src/hyperbus_wrap.sv
+<%!
+import yaml
+%>\
 <%
-  int_sig = range(4)
+  cfg_file = context.get('cfg_file')
+  if not cfg_file:
+      raise SystemExit("missing pad config: pass --var cfg_file=padframe/padrick_rundir/configs/<tech>.yml")
+  with open(cfg_file) as f:
+      cfg = yaml.safe_load(f)
+  int_sig = range(cfg['n_int'] + 1)
+  ds_w = cfg['ds_w']
   phys = ["phy0", "phy1"]
   pins = ["cs_no", "ck_o", "ck_no", "rwds_o", "rwds_i", "rwds_oe_o", "dq_i", "dq_o", "dq_oe_o", "reset_no", "pad_cfg_o"]
   pads = ["cs_n", "ck", "ck_n", "rwds", "dq", "reset_n"]
@@ -270,7 +282,7 @@ assign soc2pad.hyper_${phy}_schmitt_en_o = hyper_pad_cfg_o[${phy.removeprefix("p
 assign soc2pad.hyper_${phy}_pu_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][6];
 assign soc2pad.hyper_${phy}_pd_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][5];
 assign soc2pad.hyper_${phy}_slew_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][3];
-assign soc2pad.hyper_${phy}_drive_strength_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][1:0];
+assign soc2pad.hyper_${phy}_drive_strength_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][${ds_w - 1}:0];
 % endfor
 
 endmodule: hyperbus_wrap
