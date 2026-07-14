@@ -9,6 +9,7 @@ models/s27ks0641
 padframe/padrick_rundir/templates/*
 !padframe/padrick_rundir/templates/rtl_templates/pads.sv.mako
 !padframe/padrick_rundir/templates/rtl_templates/pkg_padframe.sv.mako
+!padframe/padrick_rundir/templates/padrick_generator_settings.yml
 padframe/Bender.yml
 padframe/include/
 padframe/ips_list.yml
