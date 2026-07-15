@@ -111,6 +111,11 @@ models/s27ks0641:
 	cp model_tmp/exe_folder/S27ks0641/model/s27ks0641.v $@
 	cp model_tmp/exe_folder/S27ks0641/model/s27ks0641_verilog.sdf models/s27ks0641/s27ks0641.sdf
 	rm -rf model_tmp
+	# Add a zero-delay specify path to the model's output buffers: the SDF
+	# DEVICE delays then annotate the specify path, and optimizing simulators
+	# (e.g. Questa vopt) treat the buffers as timing cells instead of inlining
+	# them, which would make SDF annotation fail
+	sed -i 's|    buf   ( OUT, IN);|    buf   ( OUT, IN);\n    specify\n        (IN => OUT) = (0);\n    endspecify|' $@/s27ks0641.v
 
 scripts/compile.tcl: Bender.yml models/s27ks0641
 	$(call generate_vsim, $@, -t rtl -t test -t hyper_test,..)
