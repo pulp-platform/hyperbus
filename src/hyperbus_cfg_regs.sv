@@ -4,6 +4,8 @@
 //
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
+`include "common_cells/assertions.svh"
+
 module hyperbus_cfg_regs #(
     parameter int unsigned  NumChips        = -1,
     parameter int unsigned  NumPhys         = -1,
@@ -12,8 +14,8 @@ module hyperbus_cfg_regs #(
     parameter type          reg_rsp_t       = logic,
     parameter type          rule_t          = logic
 ) (
-    input logic     clk_i,
-    input logic     rst_ni,
+    input  logic     clk_i,
+    input  logic     rst_ni,
 
     input  reg_req_t reg_req_i,
     output reg_rsp_t reg_rsp_o,
@@ -30,8 +32,11 @@ module hyperbus_cfg_regs #(
     localparam int unsigned RegsBits     = cf_math_pkg::idx_width(NumRegs);
     localparam int unsigned RegStrbWidth = RegDataWidth/8;
 
+    `ASSERT_INIT(NumChipsValid, NumChips >= 1 && NumChips <= NumChipsMax)
+    `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
+    `ASSERT_INIT(RegDataWidthValid, RegDataWidth == 32)
+
     typedef logic [RegsBits-1:0]     reg_idx_t;
-    typedef logic [RegDataWidth-1:0] reg_data_t;
     typedef logic [6:0]              cfg_addr_t;
     typedef logic [31:0]             cfg_data_t;
     typedef logic [3:0]              cfg_strb_t;
@@ -94,7 +99,7 @@ module hyperbus_cfg_regs #(
     assign cfg_reg_req.wdata = 32'(reg_req_i.wdata);
     assign cfg_reg_req.wstrb = cfg_strb_t'(reg_req_i.wstrb);
 
-    always_comb begin
+    always_comb begin : proc_cfg_access
         cfg_access_active_d = cfg_access_active_q;
         if (!cfg_access_active_q && cfg_reg_req.valid) begin
             cfg_access_active_d = 1'b1;
@@ -106,7 +111,7 @@ module hyperbus_cfg_regs #(
 
     `FFARN(cfg_access_active_q, cfg_access_active_d, 1'b0, clk_i, rst_ni);
 
-    always_comb begin
+    always_comb begin : proc_chip_rules
         chip_rules_all = '0;
         for (int unsigned i = 0; i < NumChipsMax; i++) begin
             chip_rules_all[i].idx = unsigned'(i);
@@ -194,8 +199,36 @@ module hyperbus_cfg_regs #(
         .hwif_out      ( cfg_hwif_out     )
     );
 
-    assign frontend_cfg_o = hyperbus_pkg::hwif_to_frontend_cfg(cfg_hwif_out, NumPhys == 1);
-    assign phy_cfg_o = hyperbus_pkg::hwif_to_phy_cfg(cfg_hwif_out, NumPhys == 1);
+    always_comb begin : proc_cfg_output
+        frontend_cfg_o = '0;
+        phy_cfg_o      = '0;
+
+        frontend_cfg_o.address_mask_msb = cfg_hwif_out.address_mask_msb.value.value;
+        frontend_cfg_o.address_space    = cfg_hwif_out.address_space.value.value;
+        frontend_cfg_o.phys_in_use      = (NumPhys == 2) &&
+            cfg_hwif_out.phys_in_use.value.value;
+        frontend_cfg_o.which_phy        = (NumPhys == 2) &&
+            cfg_hwif_out.which_phy.value.value;
+
+        phy_cfg_o.chip.t_latency_access      = cfg_hwif_out.t_latency_access.value.value;
+        phy_cfg_o.chip.en_latency_additional = cfg_hwif_out.en_latency_additional.value.value;
+        phy_cfg_o.chip.t_burst_max           = cfg_hwif_out.t_burst_max.value.value;
+        phy_cfg_o.chip.t_read_write_recovery = cfg_hwif_out.t_read_write_recovery.value.value;
+        phy_cfg_o.chip.t_rx_clk_delay        = {
+            cfg_hwif_out.t_rx_clk_delay.coarse.value,
+            cfg_hwif_out.t_rx_clk_delay.fine.value
+        };
+        phy_cfg_o.chip.t_csh_cycles          = cfg_hwif_out.t_csh_cycles.value.value;
+        phy_cfg_o.chip.csn_to_ck_cycles      = cfg_hwif_out.csn_to_ck_cycles.value.value;
+        phy_cfg_o.t_tx_clk_delay             = {
+            cfg_hwif_out.t_tx_clk_delay.coarse.value,
+            cfg_hwif_out.t_tx_clk_delay.fine.value
+        };
+        phy_cfg_o.phys_in_use                = (NumPhys == 2) &&
+            cfg_hwif_out.phys_in_use.value.value;
+        phy_cfg_o.which_phy                  = (NumPhys == 2) &&
+            cfg_hwif_out.which_phy.value.value;
+    end
 
     for (genvar i = 0; unsigned'(i) < NumChipsMax; i++) begin : gen_chip_rules
         if (i < NumChips) begin : gen_active
@@ -205,14 +238,5 @@ module hyperbus_cfg_regs #(
             assign unused_chip_rule = ^chip_rules_all[i];
         end
     end
-
-    // pragma translate_off
-    `ifndef VERILATOR
-    initial assert (RegDataWidth == 32)
-        else $error("Generated HyperBus config registers require 32-bit RegDataWidth.");
-    initial assert (NumChips <= NumChipsMax)
-        else $error("Generated HyperBus config registers support up to eight chips.");
-    `endif
-    // pragma translate_on
 
 endmodule : hyperbus_cfg_regs

@@ -33,46 +33,6 @@ package hyperbus_pkg;
         logic            which_phy;
     } phy_cfg_t;
 
-    function automatic frontend_cfg_t hwif_to_frontend_cfg(
-        input hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__out_t hwif,
-        input logic num_phys_one
-    );
-        frontend_cfg_t cfg;
-
-        cfg.address_mask_msb = hwif.address_mask_msb.value.value;
-        cfg.address_space    = hwif.address_space.value.value;
-        cfg.phys_in_use      = num_phys_one ? 1'b0 : hwif.phys_in_use.value.value;
-        cfg.which_phy        = num_phys_one ? 1'b0 : hwif.which_phy.value.value;
-
-        return cfg;
-    endfunction
-
-    function automatic phy_cfg_t hwif_to_phy_cfg(
-        input hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__out_t hwif,
-        input logic num_phys_one
-    );
-        phy_cfg_t cfg;
-
-        cfg.chip.t_latency_access      = hwif.t_latency_access.value.value;
-        cfg.chip.en_latency_additional = hwif.en_latency_additional.value.value;
-        cfg.chip.t_burst_max           = hwif.t_burst_max.value.value;
-        cfg.chip.t_read_write_recovery = hwif.t_read_write_recovery.value.value;
-        cfg.chip.t_rx_clk_delay        = {
-            hwif.t_rx_clk_delay.coarse.value,
-            hwif.t_rx_clk_delay.fine.value
-        };
-        cfg.chip.t_csh_cycles          = hwif.t_csh_cycles.value.value;
-        cfg.chip.csn_to_ck_cycles      = hwif.csn_to_ck_cycles.value.value;
-        cfg.t_tx_clk_delay             = {
-            hwif.t_tx_clk_delay.coarse.value,
-            hwif.t_tx_clk_delay.fine.value
-        };
-        cfg.phys_in_use                = num_phys_one ? 1'b0 : hwif.phys_in_use.value.value;
-        cfg.which_phy                  = num_phys_one ? 1'b0 : hwif.which_phy.value.value;
-
-        return cfg;
-    endfunction
-
     typedef struct packed {
         logic           write;     // transaction is a write
         hyper_blen_t    burst;
