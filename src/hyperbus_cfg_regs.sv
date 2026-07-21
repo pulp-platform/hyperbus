@@ -25,8 +25,8 @@ module hyperbus_cfg_regs #(
 );
     `include "common_cells/registers.svh"
 
-    localparam int unsigned NumChipsMax = 4;
-    localparam int unsigned NumRegs      = 2*NumChipsMax + 12;
+    localparam int unsigned NumChipsMax = 8;
+    localparam int unsigned NumRegs      = 30;
     localparam int unsigned RegsBits     = cf_math_pkg::idx_width(NumRegs);
     localparam int unsigned RegStrbWidth = RegDataWidth/8;
 
@@ -112,20 +112,52 @@ module hyperbus_cfg_regs #(
             chip_rules_all[i].idx = unsigned'(i);
             unique case (i)
                 0: begin
-                    chip_rules_all[i].start_addr = cfg_hwif_out.chip0_base.value.value;
-                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip0_bound.value.value;
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip0_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip0_bound.value.value, 22'b0};
                 end
                 1: begin
-                    chip_rules_all[i].start_addr = cfg_hwif_out.chip1_base.value.value;
-                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip1_bound.value.value;
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip1_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip1_bound.value.value, 22'b0};
                 end
                 2: begin
-                    chip_rules_all[i].start_addr = cfg_hwif_out.chip2_base.value.value;
-                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip2_bound.value.value;
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip2_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip2_bound.value.value, 22'b0};
                 end
                 3: begin
-                    chip_rules_all[i].start_addr = cfg_hwif_out.chip3_base.value.value;
-                    chip_rules_all[i].end_addr   = cfg_hwif_out.chip3_bound.value.value;
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip3_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip3_bound.value.value, 22'b0};
+                end
+                4: begin
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip4_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip4_bound.value.value, 22'b0};
+                end
+                5: begin
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip5_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip5_bound.value.value, 22'b0};
+                end
+                6: begin
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip6_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip6_bound.value.value, 22'b0};
+                end
+                7: begin
+                    chip_rules_all[i].start_addr = {
+                        cfg_hwif_out.chip7_base.value.value, 22'b0};
+                    chip_rules_all[i].end_addr = {
+                        cfg_hwif_out.chip7_bound.value.value, 22'b0};
                 end
                 default:;
             endcase
@@ -179,7 +211,7 @@ module hyperbus_cfg_regs #(
     initial assert (RegDataWidth == 32)
         else $error("Generated HyperBus config registers require 32-bit RegDataWidth.");
     initial assert (NumChips <= NumChipsMax)
-        else $error("Generated HyperBus config registers support up to four chips.");
+        else $error("Generated HyperBus config registers support up to eight chips.");
     `endif
     // pragma translate_on
 

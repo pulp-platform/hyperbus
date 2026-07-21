@@ -1,4 +1,6 @@
 addrmap hyperbus_cfg_regs {
+    desc = "HyperBus controller configuration. Chip address ranges must be 4 MiB aligned, ordered by chip-select index, and non-overlapping.";
+
     reg t_latency_access {
         desc = "Initial latency cycles before read or write data.";
         field { sw = rw; hw = r; reset = 4'h6; } value[3:0];
@@ -20,13 +22,35 @@ addrmap hyperbus_cfg_regs {
     };
 
     reg t_rx_clk_delay {
-        desc = "RX sampling delay-line tap setting.";
-        field { sw = rw; hw = r; reset = 8'h10; } value[7:0];
+        desc = "RX sampling delay with fine taps in bits 4:0 and coarse taps in bits 7:5.";
+        field {
+            desc = "Fine delay-line tap setting, nominally about 78 ps per tap.";
+            sw = rw;
+            hw = r;
+            reset = 5'h10;
+        } fine[4:0];
+        field {
+            desc = "Coarse delay-line tap setting with an implementation-defined step size.";
+            sw = rw;
+            hw = r;
+            reset = 3'h0;
+        } coarse[7:5];
     };
 
     reg t_tx_clk_delay {
-        desc = "TX clock delay-line tap setting.";
-        field { sw = rw; hw = r; reset = 8'h10; } value[7:0];
+        desc = "TX clock delay with fine taps in bits 4:0 and coarse taps in bits 7:5.";
+        field {
+            desc = "Fine delay-line tap setting, nominally about 78 ps per tap.";
+            sw = rw;
+            hw = r;
+            reset = 5'h10;
+        } fine[4:0];
+        field {
+            desc = "Coarse delay-line tap setting with an implementation-defined step size.";
+            sw = rw;
+            hw = r;
+            reset = 3'h0;
+        } coarse[7:5];
     };
 
     reg address_mask_msb {
@@ -60,43 +84,83 @@ addrmap hyperbus_cfg_regs {
     };
 
     reg chip0_base {
-        desc = "Inclusive base address for chip-select 0 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0000_0000; } value[31:0];
+        desc = "Inclusive 4 MiB-aligned address for chip-select 0 decoding.";
+        field { sw = rw; hw = r; reset = 10'd0; } value[31:22];
     };
 
     reg chip0_bound {
-        desc = "Exclusive bound address for chip-select 0 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0001_0000; } value[31:0];
+        desc = "Exclusive 4 MiB-aligned address for chip-select 0 decoding.";
+        field { sw = rw; hw = r; reset = 10'd1; } value[31:22];
     };
 
     reg chip1_base {
-        desc = "Inclusive base address for chip-select 1 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0001_0000; } value[31:0];
+        desc = "Inclusive 4 MiB-aligned address for chip-select 1 decoding.";
+        field { sw = rw; hw = r; reset = 10'd1; } value[31:22];
     };
 
     reg chip1_bound {
-        desc = "Exclusive bound address for chip-select 1 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0002_0000; } value[31:0];
+        desc = "Exclusive 4 MiB-aligned address for chip-select 1 decoding.";
+        field { sw = rw; hw = r; reset = 10'd2; } value[31:22];
     };
 
     reg chip2_base {
-        desc = "Inclusive base address for chip-select 2 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0002_0000; } value[31:0];
+        desc = "Inclusive 4 MiB-aligned address for chip-select 2 decoding.";
+        field { sw = rw; hw = r; reset = 10'd2; } value[31:22];
     };
 
     reg chip2_bound {
-        desc = "Exclusive bound address for chip-select 2 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0003_0000; } value[31:0];
+        desc = "Exclusive 4 MiB-aligned address for chip-select 2 decoding.";
+        field { sw = rw; hw = r; reset = 10'd3; } value[31:22];
     };
 
     reg chip3_base {
-        desc = "Inclusive base address for chip-select 3 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0003_0000; } value[31:0];
+        desc = "Inclusive 4 MiB-aligned address for chip-select 3 decoding.";
+        field { sw = rw; hw = r; reset = 10'd3; } value[31:22];
     };
 
     reg chip3_bound {
-        desc = "Exclusive bound address for chip-select 3 decoding.";
-        field { sw = rw; hw = r; reset = 32'h0004_0000; } value[31:0];
+        desc = "Exclusive 4 MiB-aligned address for chip-select 3 decoding.";
+        field { sw = rw; hw = r; reset = 10'd4; } value[31:22];
+    };
+
+    reg chip4_base {
+        desc = "Inclusive 4 MiB-aligned address for chip-select 4 decoding.";
+        field { sw = rw; hw = r; reset = 10'd4; } value[31:22];
+    };
+
+    reg chip4_bound {
+        desc = "Exclusive 4 MiB-aligned address for chip-select 4 decoding.";
+        field { sw = rw; hw = r; reset = 10'd5; } value[31:22];
+    };
+
+    reg chip5_base {
+        desc = "Inclusive 4 MiB-aligned address for chip-select 5 decoding.";
+        field { sw = rw; hw = r; reset = 10'd5; } value[31:22];
+    };
+
+    reg chip5_bound {
+        desc = "Exclusive 4 MiB-aligned address for chip-select 5 decoding.";
+        field { sw = rw; hw = r; reset = 10'd6; } value[31:22];
+    };
+
+    reg chip6_base {
+        desc = "Inclusive 4 MiB-aligned address for chip-select 6 decoding.";
+        field { sw = rw; hw = r; reset = 10'd6; } value[31:22];
+    };
+
+    reg chip6_bound {
+        desc = "Exclusive 4 MiB-aligned address for chip-select 6 decoding.";
+        field { sw = rw; hw = r; reset = 10'd7; } value[31:22];
+    };
+
+    reg chip7_base {
+        desc = "Inclusive 4 MiB-aligned address for chip-select 7 decoding.";
+        field { sw = rw; hw = r; reset = 10'd7; } value[31:22];
+    };
+
+    reg chip7_bound {
+        desc = "Exclusive 4 MiB-aligned address for chip-select 7 decoding.";
+        field { sw = rw; hw = r; reset = 10'd8; } value[31:22];
     };
 
     t_latency_access t_latency_access @ 0x00;
@@ -119,4 +183,12 @@ addrmap hyperbus_cfg_regs {
     chip2_bound chip2_bound @ 0x44;
     chip3_base chip3_base @ 0x48;
     chip3_bound chip3_bound @ 0x4c;
+    chip4_base chip4_base @ 0x58;
+    chip4_bound chip4_bound @ 0x5c;
+    chip5_base chip5_base @ 0x60;
+    chip5_bound chip5_bound @ 0x64;
+    chip6_base chip6_base @ 0x68;
+    chip6_bound chip6_bound @ 0x6c;
+    chip7_base chip7_base @ 0x70;
+    chip7_bound chip7_bound @ 0x74;
 };
