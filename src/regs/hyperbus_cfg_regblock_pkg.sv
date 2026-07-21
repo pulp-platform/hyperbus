@@ -5,7 +5,7 @@ package hyperbus_cfg_regblock_pkg;
 
     localparam HYPERBUS_CFG_REGBLOCK_DATA_WIDTH = 32;
     localparam HYPERBUS_CFG_REGBLOCK_MIN_ADDR_WIDTH = 7;
-    localparam HYPERBUS_CFG_REGBLOCK_SIZE = 'h50;
+    localparam HYPERBUS_CFG_REGBLOCK_SIZE = 'h78;
 
     typedef struct {
         logic [3:0] value;
@@ -40,19 +40,29 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__t_read_write_recovery__out_t;
 
     typedef struct {
-        logic [7:0] value;
-    } hyperbus_cfg_regs__t_rx_clk_delay__value__out_t;
+        logic [4:0] value;
+    } hyperbus_cfg_regs__t_rx_clk_delay__fine__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__t_rx_clk_delay__value__out_t value;
+        logic [2:0] value;
+    } hyperbus_cfg_regs__t_rx_clk_delay__coarse__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__t_rx_clk_delay__fine__out_t fine;
+        hyperbus_cfg_regs__t_rx_clk_delay__coarse__out_t coarse;
     } hyperbus_cfg_regs__t_rx_clk_delay__out_t;
 
     typedef struct {
-        logic [7:0] value;
-    } hyperbus_cfg_regs__t_tx_clk_delay__value__out_t;
+        logic [4:0] value;
+    } hyperbus_cfg_regs__t_tx_clk_delay__fine__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__t_tx_clk_delay__value__out_t value;
+        logic [2:0] value;
+    } hyperbus_cfg_regs__t_tx_clk_delay__coarse__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__t_tx_clk_delay__fine__out_t fine;
+        hyperbus_cfg_regs__t_tx_clk_delay__coarse__out_t coarse;
     } hyperbus_cfg_regs__t_tx_clk_delay__out_t;
 
     typedef struct {
@@ -104,7 +114,7 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__csn_to_ck_cycles__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip0_base__value__out_t;
 
     typedef struct {
@@ -112,7 +122,7 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip0_base__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip0_bound__value__out_t;
 
     typedef struct {
@@ -120,7 +130,7 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip0_bound__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip1_base__value__out_t;
 
     typedef struct {
@@ -128,7 +138,7 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip1_base__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip1_bound__value__out_t;
 
     typedef struct {
@@ -136,7 +146,7 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip1_bound__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip2_base__value__out_t;
 
     typedef struct {
@@ -144,7 +154,7 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip2_base__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip2_bound__value__out_t;
 
     typedef struct {
@@ -152,7 +162,7 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip2_bound__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip3_base__value__out_t;
 
     typedef struct {
@@ -160,12 +170,76 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip3_base__out_t;
 
     typedef struct {
-        logic [31:0] value;
+        logic [9:0] value;
     } hyperbus_cfg_regs__chip3_bound__value__out_t;
 
     typedef struct {
         hyperbus_cfg_regs__chip3_bound__value__out_t value;
     } hyperbus_cfg_regs__chip3_bound__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip4_base__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip4_base__value__out_t value;
+    } hyperbus_cfg_regs__chip4_base__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip4_bound__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip4_bound__value__out_t value;
+    } hyperbus_cfg_regs__chip4_bound__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip5_base__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip5_base__value__out_t value;
+    } hyperbus_cfg_regs__chip5_base__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip5_bound__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip5_bound__value__out_t value;
+    } hyperbus_cfg_regs__chip5_bound__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip6_base__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip6_base__value__out_t value;
+    } hyperbus_cfg_regs__chip6_base__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip6_bound__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip6_bound__value__out_t value;
+    } hyperbus_cfg_regs__chip6_bound__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip7_base__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip7_base__value__out_t value;
+    } hyperbus_cfg_regs__chip7_base__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__chip7_bound__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip7_bound__value__out_t value;
+    } hyperbus_cfg_regs__chip7_bound__out_t;
 
     typedef struct {
         hyperbus_cfg_regs__t_latency_access__out_t t_latency_access;
@@ -188,5 +262,13 @@ package hyperbus_cfg_regblock_pkg;
         hyperbus_cfg_regs__chip2_bound__out_t chip2_bound;
         hyperbus_cfg_regs__chip3_base__out_t chip3_base;
         hyperbus_cfg_regs__chip3_bound__out_t chip3_bound;
+        hyperbus_cfg_regs__chip4_base__out_t chip4_base;
+        hyperbus_cfg_regs__chip4_bound__out_t chip4_bound;
+        hyperbus_cfg_regs__chip5_base__out_t chip5_base;
+        hyperbus_cfg_regs__chip5_bound__out_t chip5_bound;
+        hyperbus_cfg_regs__chip6_base__out_t chip6_base;
+        hyperbus_cfg_regs__chip6_bound__out_t chip6_bound;
+        hyperbus_cfg_regs__chip7_base__out_t chip7_base;
+        hyperbus_cfg_regs__chip7_bound__out_t chip7_bound;
     } hyperbus_cfg_regs__out_t;
 endpackage

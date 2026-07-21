@@ -106,6 +106,14 @@ module hyperbus_cfg_regblock (
         logic chip2_bound;
         logic chip3_base;
         logic chip3_bound;
+        logic chip4_base;
+        logic chip4_bound;
+        logic chip5_base;
+        logic chip5_bound;
+        logic chip6_base;
+        logic chip6_bound;
+        logic chip7_base;
+        logic chip7_bound;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_err;
@@ -140,6 +148,14 @@ module hyperbus_cfg_regblock (
         decoded_reg_strb.chip2_bound = cpuif_req_masked & (cpuif_addr == 7'h44);
         decoded_reg_strb.chip3_base = cpuif_req_masked & (cpuif_addr == 7'h48);
         decoded_reg_strb.chip3_bound = cpuif_req_masked & (cpuif_addr == 7'h4c);
+        decoded_reg_strb.chip4_base = cpuif_req_masked & (cpuif_addr == 7'h58);
+        decoded_reg_strb.chip4_bound = cpuif_req_masked & (cpuif_addr == 7'h5c);
+        decoded_reg_strb.chip5_base = cpuif_req_masked & (cpuif_addr == 7'h60);
+        decoded_reg_strb.chip5_bound = cpuif_req_masked & (cpuif_addr == 7'h64);
+        decoded_reg_strb.chip6_base = cpuif_req_masked & (cpuif_addr == 7'h68);
+        decoded_reg_strb.chip6_bound = cpuif_req_masked & (cpuif_addr == 7'h6c);
+        decoded_reg_strb.chip7_base = cpuif_req_masked & (cpuif_addr == 7'h70);
+        decoded_reg_strb.chip7_bound = cpuif_req_masked & (cpuif_addr == 7'h74);
         decoded_err = '0;
     end
 
@@ -180,15 +196,23 @@ module hyperbus_cfg_regblock (
         } t_read_write_recovery;
         struct {
             struct {
-                logic [7:0] next;
+                logic [4:0] next;
                 logic load_next;
-            } value;
+            } fine;
+            struct {
+                logic [2:0] next;
+                logic load_next;
+            } coarse;
         } t_rx_clk_delay;
         struct {
             struct {
-                logic [7:0] next;
+                logic [4:0] next;
                 logic load_next;
-            } value;
+            } fine;
+            struct {
+                logic [2:0] next;
+                logic load_next;
+            } coarse;
         } t_tx_clk_delay;
         struct {
             struct {
@@ -228,52 +252,100 @@ module hyperbus_cfg_regblock (
         } csn_to_ck_cycles;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip0_base;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip0_bound;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip1_base;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip1_bound;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip2_base;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip2_bound;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip3_base;
         struct {
             struct {
-                logic [31:0] next;
+                logic [9:0] next;
                 logic load_next;
             } value;
         } chip3_bound;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip4_base;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip4_bound;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip5_base;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip5_bound;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip6_base;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip6_bound;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip7_base;
+        struct {
+            struct {
+                logic [9:0] next;
+                logic load_next;
+            } value;
+        } chip7_bound;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -300,13 +372,19 @@ module hyperbus_cfg_regblock (
         } t_read_write_recovery;
         struct {
             struct {
-                logic [7:0] value;
-            } value;
+                logic [4:0] value;
+            } fine;
+            struct {
+                logic [2:0] value;
+            } coarse;
         } t_rx_clk_delay;
         struct {
             struct {
-                logic [7:0] value;
-            } value;
+                logic [4:0] value;
+            } fine;
+            struct {
+                logic [2:0] value;
+            } coarse;
         } t_tx_clk_delay;
         struct {
             struct {
@@ -340,44 +418,84 @@ module hyperbus_cfg_regblock (
         } csn_to_ck_cycles;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip0_base;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip0_bound;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip1_base;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip1_bound;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip2_base;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip2_bound;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip3_base;
         struct {
             struct {
-                logic [31:0] value;
+                logic [9:0] value;
             } value;
         } chip3_bound;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip4_base;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip4_bound;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip5_base;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip5_bound;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip6_base;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip6_bound;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip7_base;
+        struct {
+            struct {
+                logic [9:0] value;
+            } value;
+        } chip7_bound;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -473,52 +591,98 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.t_read_write_recovery.value.value = field_storage.t_read_write_recovery.value.value;
-    // Field: hyperbus_cfg_regs.t_rx_clk_delay.value
+    // Field: hyperbus_cfg_regs.t_rx_clk_delay.fine
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [4:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.t_rx_clk_delay.value.value;
+        next_c = field_storage.t_rx_clk_delay.fine.value;
         load_next_c = '0;
         if(decoded_reg_strb.t_rx_clk_delay && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.t_rx_clk_delay.value.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.t_rx_clk_delay.fine.value & ~decoded_wr_biten[4:0]) | (decoded_wr_data[4:0] & decoded_wr_biten[4:0]);
             load_next_c = '1;
         end
-        field_combo.t_rx_clk_delay.value.next = next_c;
-        field_combo.t_rx_clk_delay.value.load_next = load_next_c;
+        field_combo.t_rx_clk_delay.fine.next = next_c;
+        field_combo.t_rx_clk_delay.fine.load_next = load_next_c;
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.t_rx_clk_delay.value.value <= 8'h10;
+            field_storage.t_rx_clk_delay.fine.value <= 5'h10;
         end else begin
-            if(field_combo.t_rx_clk_delay.value.load_next) begin
-                field_storage.t_rx_clk_delay.value.value <= field_combo.t_rx_clk_delay.value.next;
+            if(field_combo.t_rx_clk_delay.fine.load_next) begin
+                field_storage.t_rx_clk_delay.fine.value <= field_combo.t_rx_clk_delay.fine.next;
             end
         end
     end
-    assign hwif_out.t_rx_clk_delay.value.value = field_storage.t_rx_clk_delay.value.value;
-    // Field: hyperbus_cfg_regs.t_tx_clk_delay.value
+    assign hwif_out.t_rx_clk_delay.fine.value = field_storage.t_rx_clk_delay.fine.value;
+    // Field: hyperbus_cfg_regs.t_rx_clk_delay.coarse
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [2:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.t_tx_clk_delay.value.value;
+        next_c = field_storage.t_rx_clk_delay.coarse.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.t_rx_clk_delay && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.t_rx_clk_delay.coarse.value & ~decoded_wr_biten[7:5]) | (decoded_wr_data[7:5] & decoded_wr_biten[7:5]);
+            load_next_c = '1;
+        end
+        field_combo.t_rx_clk_delay.coarse.next = next_c;
+        field_combo.t_rx_clk_delay.coarse.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.t_rx_clk_delay.coarse.value <= 3'h0;
+        end else begin
+            if(field_combo.t_rx_clk_delay.coarse.load_next) begin
+                field_storage.t_rx_clk_delay.coarse.value <= field_combo.t_rx_clk_delay.coarse.next;
+            end
+        end
+    end
+    assign hwif_out.t_rx_clk_delay.coarse.value = field_storage.t_rx_clk_delay.coarse.value;
+    // Field: hyperbus_cfg_regs.t_tx_clk_delay.fine
+    always_comb begin
+        automatic logic [4:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.t_tx_clk_delay.fine.value;
         load_next_c = '0;
         if(decoded_reg_strb.t_tx_clk_delay && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.t_tx_clk_delay.value.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.t_tx_clk_delay.fine.value & ~decoded_wr_biten[4:0]) | (decoded_wr_data[4:0] & decoded_wr_biten[4:0]);
             load_next_c = '1;
         end
-        field_combo.t_tx_clk_delay.value.next = next_c;
-        field_combo.t_tx_clk_delay.value.load_next = load_next_c;
+        field_combo.t_tx_clk_delay.fine.next = next_c;
+        field_combo.t_tx_clk_delay.fine.load_next = load_next_c;
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.t_tx_clk_delay.value.value <= 8'h10;
+            field_storage.t_tx_clk_delay.fine.value <= 5'h10;
         end else begin
-            if(field_combo.t_tx_clk_delay.value.load_next) begin
-                field_storage.t_tx_clk_delay.value.value <= field_combo.t_tx_clk_delay.value.next;
+            if(field_combo.t_tx_clk_delay.fine.load_next) begin
+                field_storage.t_tx_clk_delay.fine.value <= field_combo.t_tx_clk_delay.fine.next;
             end
         end
     end
-    assign hwif_out.t_tx_clk_delay.value.value = field_storage.t_tx_clk_delay.value.value;
+    assign hwif_out.t_tx_clk_delay.fine.value = field_storage.t_tx_clk_delay.fine.value;
+    // Field: hyperbus_cfg_regs.t_tx_clk_delay.coarse
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.t_tx_clk_delay.coarse.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.t_tx_clk_delay && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.t_tx_clk_delay.coarse.value & ~decoded_wr_biten[7:5]) | (decoded_wr_data[7:5] & decoded_wr_biten[7:5]);
+            load_next_c = '1;
+        end
+        field_combo.t_tx_clk_delay.coarse.next = next_c;
+        field_combo.t_tx_clk_delay.coarse.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.t_tx_clk_delay.coarse.value <= 3'h0;
+        end else begin
+            if(field_combo.t_tx_clk_delay.coarse.load_next) begin
+                field_storage.t_tx_clk_delay.coarse.value <= field_combo.t_tx_clk_delay.coarse.next;
+            end
+        end
+    end
+    assign hwif_out.t_tx_clk_delay.coarse.value = field_storage.t_tx_clk_delay.coarse.value;
     // Field: hyperbus_cfg_regs.address_mask_msb.value
     always_comb begin
         automatic logic [4:0] next_c;
@@ -659,12 +823,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.csn_to_ck_cycles.value.value = field_storage.csn_to_ck_cycles.value.value;
     // Field: hyperbus_cfg_regs.chip0_base.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip0_base.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip0_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip0_base.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip0_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip0_base.value.next = next_c;
@@ -672,7 +836,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip0_base.value.value <= 32'h0;
+            field_storage.chip0_base.value.value <= 10'h0;
         end else begin
             if(field_combo.chip0_base.value.load_next) begin
                 field_storage.chip0_base.value.value <= field_combo.chip0_base.value.next;
@@ -682,12 +846,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip0_base.value.value = field_storage.chip0_base.value.value;
     // Field: hyperbus_cfg_regs.chip0_bound.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip0_bound.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip0_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip0_bound.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip0_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip0_bound.value.next = next_c;
@@ -695,7 +859,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip0_bound.value.value <= 32'h10000;
+            field_storage.chip0_bound.value.value <= 10'h1;
         end else begin
             if(field_combo.chip0_bound.value.load_next) begin
                 field_storage.chip0_bound.value.value <= field_combo.chip0_bound.value.next;
@@ -705,12 +869,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip0_bound.value.value = field_storage.chip0_bound.value.value;
     // Field: hyperbus_cfg_regs.chip1_base.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip1_base.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip1_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip1_base.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip1_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip1_base.value.next = next_c;
@@ -718,7 +882,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip1_base.value.value <= 32'h10000;
+            field_storage.chip1_base.value.value <= 10'h1;
         end else begin
             if(field_combo.chip1_base.value.load_next) begin
                 field_storage.chip1_base.value.value <= field_combo.chip1_base.value.next;
@@ -728,12 +892,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip1_base.value.value = field_storage.chip1_base.value.value;
     // Field: hyperbus_cfg_regs.chip1_bound.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip1_bound.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip1_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip1_bound.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip1_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip1_bound.value.next = next_c;
@@ -741,7 +905,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip1_bound.value.value <= 32'h20000;
+            field_storage.chip1_bound.value.value <= 10'h2;
         end else begin
             if(field_combo.chip1_bound.value.load_next) begin
                 field_storage.chip1_bound.value.value <= field_combo.chip1_bound.value.next;
@@ -751,12 +915,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip1_bound.value.value = field_storage.chip1_bound.value.value;
     // Field: hyperbus_cfg_regs.chip2_base.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip2_base.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip2_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip2_base.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip2_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip2_base.value.next = next_c;
@@ -764,7 +928,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip2_base.value.value <= 32'h20000;
+            field_storage.chip2_base.value.value <= 10'h2;
         end else begin
             if(field_combo.chip2_base.value.load_next) begin
                 field_storage.chip2_base.value.value <= field_combo.chip2_base.value.next;
@@ -774,12 +938,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip2_base.value.value = field_storage.chip2_base.value.value;
     // Field: hyperbus_cfg_regs.chip2_bound.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip2_bound.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip2_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip2_bound.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip2_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip2_bound.value.next = next_c;
@@ -787,7 +951,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip2_bound.value.value <= 32'h30000;
+            field_storage.chip2_bound.value.value <= 10'h3;
         end else begin
             if(field_combo.chip2_bound.value.load_next) begin
                 field_storage.chip2_bound.value.value <= field_combo.chip2_bound.value.next;
@@ -797,12 +961,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip2_bound.value.value = field_storage.chip2_bound.value.value;
     // Field: hyperbus_cfg_regs.chip3_base.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip3_base.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip3_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip3_base.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip3_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip3_base.value.next = next_c;
@@ -810,7 +974,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip3_base.value.value <= 32'h30000;
+            field_storage.chip3_base.value.value <= 10'h3;
         end else begin
             if(field_combo.chip3_base.value.load_next) begin
                 field_storage.chip3_base.value.value <= field_combo.chip3_base.value.next;
@@ -820,12 +984,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip3_base.value.value = field_storage.chip3_base.value.value;
     // Field: hyperbus_cfg_regs.chip3_bound.value
     always_comb begin
-        automatic logic [31:0] next_c;
+        automatic logic [9:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip3_bound.value.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip3_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip3_bound.value.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            next_c = (field_storage.chip3_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
             load_next_c = '1;
         end
         field_combo.chip3_bound.value.next = next_c;
@@ -833,7 +997,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip3_bound.value.value <= 32'h40000;
+            field_storage.chip3_bound.value.value <= 10'h4;
         end else begin
             if(field_combo.chip3_bound.value.load_next) begin
                 field_storage.chip3_bound.value.value <= field_combo.chip3_bound.value.next;
@@ -841,6 +1005,190 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.chip3_bound.value.value = field_storage.chip3_bound.value.value;
+    // Field: hyperbus_cfg_regs.chip4_base.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip4_base.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip4_base && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip4_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip4_base.value.next = next_c;
+        field_combo.chip4_base.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip4_base.value.value <= 10'h4;
+        end else begin
+            if(field_combo.chip4_base.value.load_next) begin
+                field_storage.chip4_base.value.value <= field_combo.chip4_base.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip4_base.value.value = field_storage.chip4_base.value.value;
+    // Field: hyperbus_cfg_regs.chip4_bound.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip4_bound.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip4_bound && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip4_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip4_bound.value.next = next_c;
+        field_combo.chip4_bound.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip4_bound.value.value <= 10'h5;
+        end else begin
+            if(field_combo.chip4_bound.value.load_next) begin
+                field_storage.chip4_bound.value.value <= field_combo.chip4_bound.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip4_bound.value.value = field_storage.chip4_bound.value.value;
+    // Field: hyperbus_cfg_regs.chip5_base.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip5_base.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip5_base && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip5_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip5_base.value.next = next_c;
+        field_combo.chip5_base.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip5_base.value.value <= 10'h5;
+        end else begin
+            if(field_combo.chip5_base.value.load_next) begin
+                field_storage.chip5_base.value.value <= field_combo.chip5_base.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip5_base.value.value = field_storage.chip5_base.value.value;
+    // Field: hyperbus_cfg_regs.chip5_bound.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip5_bound.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip5_bound && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip5_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip5_bound.value.next = next_c;
+        field_combo.chip5_bound.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip5_bound.value.value <= 10'h6;
+        end else begin
+            if(field_combo.chip5_bound.value.load_next) begin
+                field_storage.chip5_bound.value.value <= field_combo.chip5_bound.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip5_bound.value.value = field_storage.chip5_bound.value.value;
+    // Field: hyperbus_cfg_regs.chip6_base.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip6_base.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip6_base && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip6_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip6_base.value.next = next_c;
+        field_combo.chip6_base.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip6_base.value.value <= 10'h6;
+        end else begin
+            if(field_combo.chip6_base.value.load_next) begin
+                field_storage.chip6_base.value.value <= field_combo.chip6_base.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip6_base.value.value = field_storage.chip6_base.value.value;
+    // Field: hyperbus_cfg_regs.chip6_bound.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip6_bound.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip6_bound && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip6_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip6_bound.value.next = next_c;
+        field_combo.chip6_bound.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip6_bound.value.value <= 10'h7;
+        end else begin
+            if(field_combo.chip6_bound.value.load_next) begin
+                field_storage.chip6_bound.value.value <= field_combo.chip6_bound.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip6_bound.value.value = field_storage.chip6_bound.value.value;
+    // Field: hyperbus_cfg_regs.chip7_base.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip7_base.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip7_base && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip7_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip7_base.value.next = next_c;
+        field_combo.chip7_base.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip7_base.value.value <= 10'h7;
+        end else begin
+            if(field_combo.chip7_base.value.load_next) begin
+                field_storage.chip7_base.value.value <= field_combo.chip7_base.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip7_base.value.value = field_storage.chip7_base.value.value;
+    // Field: hyperbus_cfg_regs.chip7_bound.value
+    always_comb begin
+        automatic logic [9:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip7_bound.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip7_bound && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip7_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
+            load_next_c = '1;
+        end
+        field_combo.chip7_bound.value.next = next_c;
+        field_combo.chip7_bound.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip7_bound.value.value <= 10'h8;
+        end else begin
+            if(field_combo.chip7_bound.value.load_next) begin
+                field_storage.chip7_bound.value.value <= field_combo.chip7_bound.value.next;
+            end
+        end
+    end
+    assign hwif_out.chip7_bound.value.value = field_storage.chip7_bound.value.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -875,10 +1223,12 @@ module hyperbus_cfg_regblock (
             readback_data_var[3:0] = field_storage.t_read_write_recovery.value.value;
         end
         if(rd_mux_addr == 7'h10) begin
-            readback_data_var[7:0] = field_storage.t_rx_clk_delay.value.value;
+            readback_data_var[4:0] = field_storage.t_rx_clk_delay.fine.value;
+            readback_data_var[7:5] = field_storage.t_rx_clk_delay.coarse.value;
         end
         if(rd_mux_addr == 7'h14) begin
-            readback_data_var[7:0] = field_storage.t_tx_clk_delay.value.value;
+            readback_data_var[4:0] = field_storage.t_tx_clk_delay.fine.value;
+            readback_data_var[7:5] = field_storage.t_tx_clk_delay.coarse.value;
         end
         if(rd_mux_addr == 7'h18) begin
             readback_data_var[4:0] = field_storage.address_mask_msb.value.value;
@@ -899,28 +1249,52 @@ module hyperbus_cfg_regblock (
             readback_data_var[3:0] = field_storage.csn_to_ck_cycles.value.value;
         end
         if(rd_mux_addr == 7'h30) begin
-            readback_data_var[31:0] = field_storage.chip0_base.value.value;
+            readback_data_var[31:22] = field_storage.chip0_base.value.value;
         end
         if(rd_mux_addr == 7'h34) begin
-            readback_data_var[31:0] = field_storage.chip0_bound.value.value;
+            readback_data_var[31:22] = field_storage.chip0_bound.value.value;
         end
         if(rd_mux_addr == 7'h38) begin
-            readback_data_var[31:0] = field_storage.chip1_base.value.value;
+            readback_data_var[31:22] = field_storage.chip1_base.value.value;
         end
         if(rd_mux_addr == 7'h3c) begin
-            readback_data_var[31:0] = field_storage.chip1_bound.value.value;
+            readback_data_var[31:22] = field_storage.chip1_bound.value.value;
         end
         if(rd_mux_addr == 7'h40) begin
-            readback_data_var[31:0] = field_storage.chip2_base.value.value;
+            readback_data_var[31:22] = field_storage.chip2_base.value.value;
         end
         if(rd_mux_addr == 7'h44) begin
-            readback_data_var[31:0] = field_storage.chip2_bound.value.value;
+            readback_data_var[31:22] = field_storage.chip2_bound.value.value;
         end
         if(rd_mux_addr == 7'h48) begin
-            readback_data_var[31:0] = field_storage.chip3_base.value.value;
+            readback_data_var[31:22] = field_storage.chip3_base.value.value;
         end
         if(rd_mux_addr == 7'h4c) begin
-            readback_data_var[31:0] = field_storage.chip3_bound.value.value;
+            readback_data_var[31:22] = field_storage.chip3_bound.value.value;
+        end
+        if(rd_mux_addr == 7'h58) begin
+            readback_data_var[31:22] = field_storage.chip4_base.value.value;
+        end
+        if(rd_mux_addr == 7'h5c) begin
+            readback_data_var[31:22] = field_storage.chip4_bound.value.value;
+        end
+        if(rd_mux_addr == 7'h60) begin
+            readback_data_var[31:22] = field_storage.chip5_base.value.value;
+        end
+        if(rd_mux_addr == 7'h64) begin
+            readback_data_var[31:22] = field_storage.chip5_bound.value.value;
+        end
+        if(rd_mux_addr == 7'h68) begin
+            readback_data_var[31:22] = field_storage.chip6_base.value.value;
+        end
+        if(rd_mux_addr == 7'h6c) begin
+            readback_data_var[31:22] = field_storage.chip6_bound.value.value;
+        end
+        if(rd_mux_addr == 7'h70) begin
+            readback_data_var[31:22] = field_storage.chip7_base.value.value;
+        end
+        if(rd_mux_addr == 7'h74) begin
+            readback_data_var[31:22] = field_storage.chip7_bound.value.value;
         end
         readback_data = readback_data_var;
         readback_done = decoded_req & ~decoded_req_is_wr;

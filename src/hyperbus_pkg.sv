@@ -57,10 +57,16 @@ package hyperbus_pkg;
         cfg.chip.en_latency_additional = hwif.en_latency_additional.value.value;
         cfg.chip.t_burst_max           = hwif.t_burst_max.value.value;
         cfg.chip.t_read_write_recovery = hwif.t_read_write_recovery.value.value;
-        cfg.chip.t_rx_clk_delay        = hwif.t_rx_clk_delay.value.value;
+        cfg.chip.t_rx_clk_delay        = {
+            hwif.t_rx_clk_delay.coarse.value,
+            hwif.t_rx_clk_delay.fine.value
+        };
         cfg.chip.t_csh_cycles          = hwif.t_csh_cycles.value.value;
         cfg.chip.csn_to_ck_cycles      = hwif.csn_to_ck_cycles.value.value;
-        cfg.t_tx_clk_delay             = hwif.t_tx_clk_delay.value.value;
+        cfg.t_tx_clk_delay             = {
+            hwif.t_tx_clk_delay.coarse.value,
+            hwif.t_tx_clk_delay.fine.value
+        };
         cfg.phys_in_use                = num_phys_one ? 1'b0 : hwif.phys_in_use.value.value;
         cfg.which_phy                  = num_phys_one ? 1'b0 : hwif.which_phy.value.value;
 

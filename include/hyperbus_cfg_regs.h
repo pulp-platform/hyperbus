@@ -35,16 +35,24 @@ extern "C" {
 #define HYPERBUS_CFG_REGS__T_READ_WRITE_RECOVERY__VALUE_reset 0x6
 
 // reg - hyperbus_cfg_regs::t_rx_clk_delay
-#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__VALUE_bm 0xff
-#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__VALUE_bw 8
-#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__VALUE_reset 0x10
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__FINE_bm 0x1f
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__FINE_bp 0
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__FINE_bw 5
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__FINE_reset 0x10
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__COARSE_bm 0xe0
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__COARSE_bp 5
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__COARSE_bw 3
+#define HYPERBUS_CFG_REGS__T_RX_CLK_DELAY__COARSE_reset 0x0
 
 // reg - hyperbus_cfg_regs::t_tx_clk_delay
-#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__VALUE_bm 0xff
-#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__VALUE_bw 8
-#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__VALUE_reset 0x10
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__FINE_bm 0x1f
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__FINE_bp 0
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__FINE_bw 5
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__FINE_reset 0x10
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__COARSE_bm 0xe0
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__COARSE_bp 5
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__COARSE_bw 3
+#define HYPERBUS_CFG_REGS__T_TX_CLK_DELAY__COARSE_reset 0x0
 
 // reg - hyperbus_cfg_regs::address_mask_msb
 #define HYPERBUS_CFG_REGS__ADDRESS_MASK_MSB__VALUE_bm 0x1f
@@ -83,52 +91,100 @@ extern "C" {
 #define HYPERBUS_CFG_REGS__CSN_TO_CK_CYCLES__VALUE_reset 0x0
 
 // reg - hyperbus_cfg_regs::chip0_base
-#define HYPERBUS_CFG_REGS__CHIP0_BASE__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP0_BASE__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP0_BASE__VALUE_bw 32
+#define HYPERBUS_CFG_REGS__CHIP0_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP0_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP0_BASE__VALUE_bw 10
 #define HYPERBUS_CFG_REGS__CHIP0_BASE__VALUE_reset 0x0
 
 // reg - hyperbus_cfg_regs::chip0_bound
-#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_bw 32
-#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_reset 0x10000
+#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP0_BOUND__VALUE_reset 0x1
 
 // reg - hyperbus_cfg_regs::chip1_base
-#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_bw 32
-#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_reset 0x10000
+#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP1_BASE__VALUE_reset 0x1
 
 // reg - hyperbus_cfg_regs::chip1_bound
-#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_bw 32
-#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_reset 0x20000
+#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP1_BOUND__VALUE_reset 0x2
 
 // reg - hyperbus_cfg_regs::chip2_base
-#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_bw 32
-#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_reset 0x20000
+#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP2_BASE__VALUE_reset 0x2
 
 // reg - hyperbus_cfg_regs::chip2_bound
-#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_bw 32
-#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_reset 0x30000
+#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP2_BOUND__VALUE_reset 0x3
 
 // reg - hyperbus_cfg_regs::chip3_base
-#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_bw 32
-#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_reset 0x30000
+#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP3_BASE__VALUE_reset 0x3
 
 // reg - hyperbus_cfg_regs::chip3_bound
-#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_bm 0xffffffff
-#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_bp 0
-#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_bw 32
-#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_reset 0x40000
+#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP3_BOUND__VALUE_reset 0x4
+
+// reg - hyperbus_cfg_regs::chip4_base
+#define HYPERBUS_CFG_REGS__CHIP4_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP4_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP4_BASE__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP4_BASE__VALUE_reset 0x4
+
+// reg - hyperbus_cfg_regs::chip4_bound
+#define HYPERBUS_CFG_REGS__CHIP4_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP4_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP4_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP4_BOUND__VALUE_reset 0x5
+
+// reg - hyperbus_cfg_regs::chip5_base
+#define HYPERBUS_CFG_REGS__CHIP5_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP5_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP5_BASE__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP5_BASE__VALUE_reset 0x5
+
+// reg - hyperbus_cfg_regs::chip5_bound
+#define HYPERBUS_CFG_REGS__CHIP5_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP5_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP5_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP5_BOUND__VALUE_reset 0x6
+
+// reg - hyperbus_cfg_regs::chip6_base
+#define HYPERBUS_CFG_REGS__CHIP6_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP6_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP6_BASE__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP6_BASE__VALUE_reset 0x6
+
+// reg - hyperbus_cfg_regs::chip6_bound
+#define HYPERBUS_CFG_REGS__CHIP6_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP6_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP6_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP6_BOUND__VALUE_reset 0x7
+
+// reg - hyperbus_cfg_regs::chip7_base
+#define HYPERBUS_CFG_REGS__CHIP7_BASE__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP7_BASE__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP7_BASE__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP7_BASE__VALUE_reset 0x7
+
+// reg - hyperbus_cfg_regs::chip7_bound
+#define HYPERBUS_CFG_REGS__CHIP7_BOUND__VALUE_bm 0xffc00000
+#define HYPERBUS_CFG_REGS__CHIP7_BOUND__VALUE_bp 22
+#define HYPERBUS_CFG_REGS__CHIP7_BOUND__VALUE_bw 10
+#define HYPERBUS_CFG_REGS__CHIP7_BOUND__VALUE_reset 0x8
 
 // addrmap - hyperbus_cfg_regs
 typedef struct __attribute__ ((__packed__)) {
@@ -152,10 +208,19 @@ typedef struct __attribute__ ((__packed__)) {
     uint32_t chip2_bound;
     uint32_t chip3_base;
     uint32_t chip3_bound;
+    uint8_t RESERVED_50_57[0x8];
+    uint32_t chip4_base;
+    uint32_t chip4_bound;
+    uint32_t chip5_base;
+    uint32_t chip5_bound;
+    uint32_t chip6_base;
+    uint32_t chip6_bound;
+    uint32_t chip7_base;
+    uint32_t chip7_bound;
 } hyperbus_cfg_regs_t;
 
 
-static_assert(sizeof(hyperbus_cfg_regs_t) == 0x50, "Packing error");
+static_assert(sizeof(hyperbus_cfg_regs_t) == 0x78, "Packing error");
 
 #ifdef __cplusplus
 }
