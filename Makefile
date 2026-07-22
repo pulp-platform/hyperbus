@@ -46,7 +46,7 @@ sim_clean:
 # variable `CACHED_MODEL`, default to `true`. However, open-source users must
 # manually download the models with their credentials.
 HYPER_NONFREE_REMOTE ?= git@iis-git.ee.ethz.ch:pulp-restricted/hyperbus-nonfree.git
-HYPER_NONFREE_COMMIT ?= fba6af4
+HYPER_NONFREE_COMMIT ?= 7ccecccd
 
 .PHONY: hyper-nonfree-init
 hyper-nonfree-init:
