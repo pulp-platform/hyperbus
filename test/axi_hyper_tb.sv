@@ -333,6 +333,25 @@ module axi_hyper_tb
     axi_check_subword(axi_drv, BaseAddr + 32'h5, 64'h0000_0000_0000_00c3, 0);
   endtask
 
+  task automatic check_consecutive_reads(input axi_ctrl_master_t axi_drv);
+    localparam axi_addr_t BaseAddr = axi_addr_t'(32'h8000_0200);
+    localparam int unsigned NumTestWords = 8;
+    logic [TbAxiDataWidthFull-1:0] expected;
+
+    for (int unsigned word = 0; word < NumTestWords; word++) begin
+      expected = 64'h0123_4567_89ab_cdef ^ (word * 64'h1111_1111_1111_1111);
+      axi_write_subword(axi_drv, BaseAddr + word * 8, expected, 3);
+    end
+
+    // Keep reads consecutive so no write response can reset the RWDS capture path.
+    for (int unsigned pass = 0; pass < 2; pass++) begin
+      for (int unsigned word = 0; word < NumTestWords; word++) begin
+        expected = 64'h0123_4567_89ab_cdef ^ (word * 64'h1111_1111_1111_1111);
+        axi_check_subword(axi_drv, BaseAddr + word * 8, expected, 3);
+      end
+    end
+  endtask
+
   initial begin : proc_sim_crtl
 
     automatic axi_scoreboard_mst_t mst_scoreboard = new( score_mst_intf_dv );
@@ -369,6 +388,8 @@ module axi_hyper_tb
     // switch back to memory address space
     reg_master.send_write(32'h7<<2, 1'b0, '1, s_reg_error);
     if (s_reg_error != 1'b0) $error("unexpected error");
+
+    check_consecutive_reads(axi_ctrl_mst);
 
     $display("===========================");
     $display("= Random AXI transactions =");
