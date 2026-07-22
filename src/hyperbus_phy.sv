@@ -7,6 +7,8 @@
 // Thomas Benz <tbenz@iis.ee.ethz.ch>
 // Paul Scheffler <paulsc@iis.ee.ethz.ch>
 
+`include "common_cells/assertions.svh"
+
 module hyperbus_phy import hyperbus_pkg::*; #(
     parameter int unsigned NumChips         = 2,
     parameter int unsigned NumPhys          = -1,
@@ -202,8 +204,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // Suspend clock one cycle for every stall caused by upstream.
     // This ensures that a sufficiently large RX FIFO will not overflow.
     assign ctl_rclk_ena     = ~(rx_valid_o & ~rx_ready_i);
-    // Disable incoming RWDS clock enable once all words received
-    assign trx_rx_clk_reset = b_pending_clear;
+    // Disable incoming RWDS capture once all launched read words have drained.
+    assign trx_rx_clk_reset = (state_q != Read) & (r_outstand_q == '0);
 
     // Counter for outstanding R responses
     assign r_outstand_dec   = rx_valid_o & rx_ready_i;
@@ -446,5 +448,11 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             add_latency_q <= add_latency_d;
         end
     end
+
+    `ASSERT(RxCaptureResetOnlyWhenDrained, trx_rx_clk_reset |->
+        (state_q != Read && r_outstand_q == '0))
+    `ASSERT(RxCaptureActiveDuringRead, state_q == Read |-> !trx_rx_clk_reset)
+    `ASSERT(RxCaptureResetAfterDrain,
+        (r_outstand_dec && r_outstand_q == 1 && state_q != Read) |=> trx_rx_clk_reset)
 
 endmodule
