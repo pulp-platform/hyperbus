@@ -44,11 +44,8 @@ module hyperbus_axi #(
     output logic                    trans_valid_o,
     input  logic                    trans_ready_i,
 
-    input  rule_t [NumChips-1:0]    chip_rules_i,
-    input  logic                    phys_in_use_i,
-    input  logic                    which_phy_i,
-    input  logic [4:0]              addr_mask_msb_i,
-    input  logic                    addr_space_i,
+    input  hyperbus_pkg::frontend_cfg_t frontend_cfg_i,
+    input  rule_t [NumChips-1:0]        chip_rules_i,
     output logic                    trans_active_o
 );
 
@@ -163,7 +160,7 @@ module hyperbus_axi #(
 
     logic [1:0]      phys_in_use;
 
-    assign phys_in_use = (NumPhys==2) ? (phys_in_use_i + 1) : 1;
+    assign phys_in_use = (NumPhys==2) ? (frontend_cfg_i.phys_in_use + 1) : 1;
 
     // ============================
     //    Serialize requests
@@ -305,12 +302,12 @@ module hyperbus_axi #(
     // AX channel: forward, converting unmasked byte to masked word addresses
     assign trans_o.write            = rr_out_req_write;
     assign trans_o.burst_type       = 1'b1;             // Wrapping bursts not (yet) supported
-    assign trans_o.address_space    = addr_space_i;
+    assign trans_o.address_space    = frontend_cfg_i.address_space;
     assign trans_o.address          = (NumPhys == 2) ?
-                                      (phys_in_use_i ?
-                                       ((rr_out_req_ax.addr & ((32'b1 << addr_mask_msb_i) - 1)) >> 2) :
-                                       (((rr_out_req_ax.addr & ((32'b1 << addr_mask_msb_i) - 1)) >> 2) << 1)) :
-                                      ((rr_out_req_ax.addr & ((32'b1 << addr_mask_msb_i) - 1)) >> 1);
+                                      (frontend_cfg_i.phys_in_use ?
+                                       ((rr_out_req_ax.addr & ((32'b1 << frontend_cfg_i.address_mask_msb) - 1)) >> 2) :
+                                       (((rr_out_req_ax.addr & ((32'b1 << frontend_cfg_i.address_mask_msb) - 1)) >> 2) << 1)) :
+                                      ((rr_out_req_ax.addr & ((32'b1 << frontend_cfg_i.address_mask_msb) - 1)) >> 1);
 
     // Convert burst length from decremented, unaligned beats to non-decremented, aligned 16-bit words
     always_comb begin
@@ -365,11 +362,11 @@ module hyperbus_axi #(
        s_rx_error = rx_i.error;
        s_rx_data_lower_d = s_rx_data_lower_q;
        merge_r_d = merge_r_q;
-       if( (NumPhys==2) & (~phys_in_use_i) ) begin
+       if( (NumPhys==2) & (~frontend_cfg_i.phys_in_use) ) begin
           if(rx_valid_i & s_rx_ready) begin
              merge_r_d = merge_r_q + 1;
           end
-          if(~which_phy_i)
+          if(~frontend_cfg_i.which_phy)
             s_rx_data = { rx_i.data[PhyDataWidth/2-1:0] , s_rx_data_lower_q };
           else
             s_rx_data = { rx_i.data[PhyDataWidth-1:PhyDataWidth/2] , s_rx_data_lower_q };
@@ -378,7 +375,7 @@ module hyperbus_axi #(
           s_rx_last = rx_i.last & merge_r_q;
           s_rx_error = rx_i.error;
           if(~merge_r_q) begin
-             if(~which_phy_i)
+             if(~frontend_cfg_i.which_phy)
                s_rx_data_lower_d = rx_i.data[PhyDataWidth/2-1:0];
              else
                s_rx_data_lower_d = rx_i.data[PhyDataWidth-1:PhyDataWidth/2];
@@ -469,7 +466,7 @@ module hyperbus_axi #(
        tx_valid_o = s_tx_valid;
        s_tx_ready = tx_ready_i;
        split_w_d = split_w_q;
-       if( (NumPhys==2) & (~phys_in_use_i) ) begin
+       if( (NumPhys==2) & (~frontend_cfg_i.phys_in_use) ) begin
           if(s_tx_valid & tx_ready_i) begin
              split_w_d = split_w_q+1;
           end
