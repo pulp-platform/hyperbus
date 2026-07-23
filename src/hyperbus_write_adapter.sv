@@ -36,10 +36,10 @@ module hyperbus_write_adapter #(
     localparam int unsigned WordCntWidth       =
         (PhyBeatsPerHost == 1) ? 1 : $clog2(PhyBeatsPerHost);
 
-    typedef enum logic [2:0] {
+    typedef enum logic [1:0] {
         Idle,
-        Sample,
-        CntReady
+        CollectHost,
+        EmitPhy
     } write_adapter_state_e;
 
     typedef struct packed {
@@ -48,33 +48,77 @@ module hyperbus_write_adapter #(
         logic                       last;
     } write_buffer_t;
 
+    //////////////////////
+    // Persistent state //
+    //////////////////////
+
     write_adapter_state_e          state_d, state_q;
     write_buffer_t                 data_buffer_d, data_buffer_q;
-    logic                          upsize;
-    logic                          enough_data;
     logic                          first_tx_d, first_tx_q;
     logic [NumPhys*2-1:0]          mask_strobe_d, mask_strobe_q;
-    logic [WordCntWidth-1:0]       word_cnt;
     logic [AddrWidth-1:0]          byte_idx_d, byte_idx_q;
     logic [3:0]                    size_d, size_q;
     logic [AddrWidth-1:0]          cnt_data_phy_d, cnt_data_phy_q;
+
+    //////////////////////
+    // Address tracking //
+    //////////////////////
+
+    logic                          upsize;
+    logic                          enough_data;
+    logic [WordCntWidth-1:0]       word_cnt;
+    logic [AddrWidth-1:0]          cnt_data_phy_next;
     logic                          keep_sending;
     logic [16*NumPhys-1:0]         converted_data;
     logic [2*NumPhys-1:0]          converted_strb;
     logic                          converted_last;
     logic                          converted_valid;
     logic                          converted_ready;
+    logic                          host_accepted;
+    logic                          converted_accepted;
 
     assign upsize       = ((size_q == 1) && (NumPhys == 2)) || (size_q == 0);
     assign enough_data  = !upsize;
-    assign keep_sending = (size_d > ($clog2(NumPhys) + 1)) &&
-                          (cnt_data_phy_d != byte_idx_q);
+    assign cnt_data_phy_next = cnt_data_phy_q + NumPhys * 2;
+    // Determine whether another PHY word follows without depending on downstream readiness.
+    assign keep_sending = (size_q > ($clog2(NumPhys) + 1)) &&
+                          (cnt_data_phy_next != byte_idx_q);
     assign word_cnt     = cnt_data_phy_q >> ($clog2(NumPhys) + 1);
 
     assign converted_data = data_buffer_q.data[(16*NumPhys)*word_cnt +: (16*NumPhys)];
     assign converted_strb = data_buffer_q.strb[(2*NumPhys)*word_cnt +: (2*NumPhys)] &
                             mask_strobe_q;
     assign converted_last = data_buffer_q.last && (!keep_sending || upsize);
+    assign host_accepted      = host_valid_i && host_ready_o;
+    assign converted_accepted = converted_valid && converted_ready;
+
+    ////////////////////////
+    // Control conditions //
+    ////////////////////////
+
+    logic collect_complete;
+    logic collect_partial_last;
+    logic phy_last_accepted;
+    logic wide_host_word_emitted;
+    logic wide_host_word_can_emit;
+    logic wide_host_word_needs_collect;
+    logic wide_host_word_without_data;
+    logic narrow_group_emitted;
+    assign collect_complete = host_accepted &&
+        (enough_data || (byte_idx_d[NumPhys-1:0] == '0) || data_i.last);
+    assign collect_partial_last = host_accepted && !enough_data &&
+        (byte_idx_d[NumPhys-1:0] != '0) && data_i.last;
+
+    assign phy_last_accepted = converted_accepted && converted_last;
+    assign wide_host_word_emitted = converted_accepted && !converted_last &&
+                                    (size_d >= NumPhys) && (cnt_data_phy_d == byte_idx_q);
+    assign wide_host_word_can_emit = wide_host_word_emitted && host_valid_i && enough_data;
+    assign wide_host_word_needs_collect = wide_host_word_emitted &&
+                                          host_valid_i && !enough_data;
+    assign wide_host_word_without_data = wide_host_word_emitted && !host_valid_i;
+    assign narrow_group_emitted = converted_accepted && !converted_last &&
+                                  (size_d < NumPhys) &&
+                                  (cnt_data_phy_d[NumPhys-1:0] == '0);
 
     always_comb begin : proc_counters
         byte_idx_d      = byte_idx_q;
@@ -88,22 +132,25 @@ module hyperbus_write_adapter #(
             cnt_data_phy_d = (start_addr_i >> NumPhys) << NumPhys;
             first_tx_d     = 1'b1;
         end
-        if (host_valid_i && host_ready_o) begin
+        if (host_accepted) begin
             byte_idx_d = ((byte_idx_q >> size_d) << size_d) + (1 << size_d);
             first_tx_d = 1'b0;
         end
-        if (converted_valid && converted_ready) begin
+        if (converted_accepted) begin
             cnt_data_phy_d = cnt_data_phy_q + NumPhys * 2;
         end
     end
 
+    ///////////////////
+    // Beat assembly //
+    ///////////////////
+
     always_comb begin : proc_sample
         data_buffer_d = data_buffer_q;
 
-        if (state_d == Idle) begin
+        if (state_q == Idle) begin
             data_buffer_d.last = 1'b0;
-            data_buffer_d.data = '0;
-        end else if (host_ready_o && host_valid_i) begin
+        end else if (host_accepted) begin
             if (!upsize) begin
                 // A full host beat remains buffered until all PHY words are emitted.
                 data_buffer_d.data = data_i.data;
@@ -129,54 +176,61 @@ module hyperbus_write_adapter #(
         end
     end
 
+    // Mask bytes beyond a short final host beat.
+    always_comb begin : proc_mask_strobe
+        mask_strobe_d = mask_strobe_q;
+
+        if (state_q == Idle) begin
+            mask_strobe_d = '1;
+        end
+        if (collect_partial_last) begin
+            for (int unsigned i = 0; i < NumPhys * 2; i++) begin
+                mask_strobe_d[i] = i < byte_idx_d[NumPhys-1:0];
+            end
+        end
+    end
+
+    ///////////////////////////
+    // Adapter state machine //
+    ///////////////////////////
+
     always_comb begin : proc_fsm
-        state_d        = state_q;
-        mask_strobe_d  = mask_strobe_q;
-        host_ready_o   = 1'b0;
+        state_d         = state_q;
+        host_ready_o    = 1'b0;
         converted_valid = 1'b0;
 
         unique case (state_q)
+            // Wait for a command to initialize address tracking.
             Idle: begin
-                mask_strobe_d = '1;
                 if (start_i) begin
-                    state_d = Sample;
+                    state_d = CollectHost;
                 end
             end
-            Sample: begin
+            // Gather enough host bytes to form the next physical word.
+            CollectHost: begin
                 host_ready_o = 1'b1;
-                if (host_valid_i && enough_data) begin
-                    state_d = CntReady;
-                end else if (host_valid_i) begin
-                    if (byte_idx_d[NumPhys-1:0] != '0) begin
-                        if (data_i.last) begin
-                            state_d = CntReady;
-                            for (int unsigned i = 0; i < NumPhys * 2; i++) begin
-                                mask_strobe_d[i] = i < byte_idx_d[NumPhys-1:0];
-                            end
-                        end
-                    end else begin
-                        state_d = CntReady;
-                    end
+                if (collect_complete) begin
+                    state_d = EmitPhy;
                 end
             end
-            CntReady: begin
+            // Emit physical words and return for more host data when needed.
+            EmitPhy: begin
                 converted_valid = 1'b1;
-                if (converted_ready) begin
-                    if (converted_last) begin
-                        state_d = start_i ? Sample : Idle;
-                    end else if (size_d >= NumPhys) begin
-                        if (cnt_data_phy_d != byte_idx_q) begin
-                            state_d = CntReady;
-                        end else if (host_valid_i) begin
-                            host_ready_o = 1'b1;
-                            state_d = enough_data ? CntReady : Sample;
-                        end else begin
-                            state_d = Sample;
-                        end
-                    end else if (cnt_data_phy_d[NumPhys-1:0] == '0) begin
-                        host_ready_o = !upsize;
-                        state_d = Sample;
-                    end
+                if (phy_last_accepted && start_i) begin
+                    state_d = CollectHost;
+                end else if (phy_last_accepted) begin
+                    state_d = Idle;
+                end else if (wide_host_word_can_emit) begin
+                    host_ready_o = 1'b1;
+                    state_d = EmitPhy;
+                end else if (wide_host_word_needs_collect) begin
+                    host_ready_o = 1'b1;
+                    state_d = CollectHost;
+                end else if (wide_host_word_without_data) begin
+                    state_d = CollectHost;
+                end else if (narrow_group_emitted) begin
+                    host_ready_o = !upsize;
+                    state_d = CollectHost;
                 end
             end
             default: begin
@@ -184,6 +238,10 @@ module hyperbus_write_adapter #(
             end
         endcase
     end
+
+    //////////////////////////
+    // Physical-width adapter //
+    //////////////////////////
 
     if (NumPhys == 2) begin : gen_dual_phy
         logic split_d, split_q;
@@ -224,6 +282,10 @@ module hyperbus_write_adapter #(
             converted_ready = phy_ready_i;
         end
     end
+
+    /////////////////////
+    // State registers //
+    /////////////////////
 
     `FFARN(state_q, state_d, Idle, clk_i, rst_ni)
     `FFARN(data_buffer_q, data_buffer_d, '0, clk_i, rst_ni)

@@ -55,7 +55,7 @@ sources:
     - src/regs/hyperbus_cfg_regblock.sv
     - src/hyperbus_cfg_regs.sv
     - src/backend/hyperbus_phy.sv
-    - src/hyperbus_axi.sv
+    - src/hyperbus_axi_frontend.sv
     - src/hyperbus_atomic_handler.sv
     - src/hyperbus_midend.sv
     - src/hyperbus_cfg_frontend.sv

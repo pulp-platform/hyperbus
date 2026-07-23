@@ -7,7 +7,6 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_cfg_regs #(
-    parameter int unsigned  NumChips        = -1,
     parameter int unsigned  NumPhys         = -1,
     parameter int unsigned  RegDataWidth    = -1,
     parameter type          reg_req_t       = logic,
@@ -22,15 +21,13 @@ module hyperbus_cfg_regs #(
 
     output hyperbus_pkg::frontend_cfg_t frontend_cfg_o,
     output hyperbus_pkg::phy_cfg_t      phy_cfg_o,
-    output addr_rule_t [NumChips-1:0]   chip_rules_o,
+    output addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules_o,
     input                               decode_error_i
 );
-    localparam int unsigned NumChipsMax = 8;
     localparam int unsigned NumRegs      = 31;
     localparam int unsigned RegsBits     = cf_math_pkg::idx_width(NumRegs);
     localparam int unsigned RegStrbWidth = RegDataWidth/8;
 
-    `ASSERT_INIT(NumChipsValid, NumChips >= 1 && NumChips <= NumChipsMax)
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
     `ASSERT_INIT(RegDataWidthValid, RegDataWidth == 32)
 
@@ -71,7 +68,7 @@ module hyperbus_cfg_regs #(
 
     hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__in_t  cfg_hwif_in;
     hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__out_t cfg_hwif_out;
-    addr_rule_t [NumChipsMax-1:0] chip_rules_all;
+    addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules_all;
 
     reg_idx_t sel_reg;
     logic sel_reg_mapped;
@@ -80,6 +77,10 @@ module hyperbus_cfg_regs #(
     cfg_reg_rsp_t cfg_reg_rsp;
     cfg_apb_req_t cfg_apb_req;
     cfg_apb_rsp_t cfg_apb_rsp;
+
+    /////////////////////////////
+    // Register bus adaptation //
+    /////////////////////////////
 
     assign cfg_hwif_in.status.decode_error.hwset = decode_error_i;
 
@@ -96,63 +97,43 @@ module hyperbus_cfg_regs #(
     assign cfg_reg_req.wdata = 32'(reg_req_i.wdata);
     assign cfg_reg_req.wstrb = cfg_strb_t'(reg_req_i.wstrb);
 
+    ////////////////////////
+    // Chip address rules //
+    ////////////////////////
+
+    logic [hyperbus_pkg::HyperNumChips-1:0][9:0] chip_base;
+    logic [hyperbus_pkg::HyperNumChips-1:0][9:0] chip_bound;
+
+    assign chip_base[0] = cfg_hwif_out.chip0_base.value.value;
+    assign chip_base[1] = cfg_hwif_out.chip1_base.value.value;
+    assign chip_base[2] = cfg_hwif_out.chip2_base.value.value;
+    assign chip_base[3] = cfg_hwif_out.chip3_base.value.value;
+    assign chip_base[4] = cfg_hwif_out.chip4_base.value.value;
+    assign chip_base[5] = cfg_hwif_out.chip5_base.value.value;
+    assign chip_base[6] = cfg_hwif_out.chip6_base.value.value;
+    assign chip_base[7] = cfg_hwif_out.chip7_base.value.value;
+
+    assign chip_bound[0] = cfg_hwif_out.chip0_bound.value.value;
+    assign chip_bound[1] = cfg_hwif_out.chip1_bound.value.value;
+    assign chip_bound[2] = cfg_hwif_out.chip2_bound.value.value;
+    assign chip_bound[3] = cfg_hwif_out.chip3_bound.value.value;
+    assign chip_bound[4] = cfg_hwif_out.chip4_bound.value.value;
+    assign chip_bound[5] = cfg_hwif_out.chip5_bound.value.value;
+    assign chip_bound[6] = cfg_hwif_out.chip6_bound.value.value;
+    assign chip_bound[7] = cfg_hwif_out.chip7_bound.value.value;
+
     always_comb begin : proc_chip_rules
         chip_rules_all = '0;
-        for (int unsigned i = 0; i < NumChipsMax; i++) begin
-            chip_rules_all[i].idx = unsigned'(i);
-            unique case (i)
-                0: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip0_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip0_bound.value.value, 22'b0};
-                end
-                1: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip1_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip1_bound.value.value, 22'b0};
-                end
-                2: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip2_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip2_bound.value.value, 22'b0};
-                end
-                3: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip3_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip3_bound.value.value, 22'b0};
-                end
-                4: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip4_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip4_bound.value.value, 22'b0};
-                end
-                5: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip5_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip5_bound.value.value, 22'b0};
-                end
-                6: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip6_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip6_bound.value.value, 22'b0};
-                end
-                7: begin
-                    chip_rules_all[i].start_addr = {
-                        cfg_hwif_out.chip7_base.value.value, 22'b0};
-                    chip_rules_all[i].end_addr = {
-                        cfg_hwif_out.chip7_bound.value.value, 22'b0};
-                end
-                default:;
-            endcase
+        for (int unsigned i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
+            chip_rules_all[i].idx        = unsigned'(i);
+            chip_rules_all[i].start_addr = {chip_base[i], 22'b0};
+            chip_rules_all[i].end_addr   = {chip_bound[i], 22'b0};
         end
     end
+
+    ////////////////////////
+    // Generated APB bank //
+    ////////////////////////
 
     reg_to_apb #(
         .reg_req_t ( cfg_reg_req_t ),
@@ -169,8 +150,8 @@ module hyperbus_cfg_regs #(
     );
 
     hyperbus_cfg_regblock i_cfg_regblock (
-        .clk           ( clk_i            ),
-        .arst_n        ( rst_ni           ),
+        .clk           ( clk_i                ),
+        .arst_n        ( rst_ni               ),
         .s_apb_psel    ( cfg_apb_req.psel     ),
         .s_apb_penable ( cfg_apb_req.penable  ),
         .s_apb_pwrite  ( cfg_apb_req.pwrite   ),
@@ -181,9 +162,13 @@ module hyperbus_cfg_regs #(
         .s_apb_pready  ( cfg_apb_rsp.pready   ),
         .s_apb_prdata  ( cfg_apb_rsp.prdata   ),
         .s_apb_pslverr ( cfg_apb_rsp.pslverr  ),
-        .hwif_in       ( cfg_hwif_in      ),
-        .hwif_out      ( cfg_hwif_out     )
+        .hwif_in       ( cfg_hwif_in          ),
+        .hwif_out      ( cfg_hwif_out         )
     );
+
+    ///////////////////////////
+    // Typed configuration //
+    ///////////////////////////
 
     always_comb begin : proc_cfg_output
         frontend_cfg_o = '0;
@@ -211,13 +196,6 @@ module hyperbus_cfg_regs #(
         phy_cfg_o.dual_phy                   = (NumPhys == 2) && cfg_hwif_out.dual_phy.value.value;
     end
 
-    for (genvar i = 0; unsigned'(i) < NumChipsMax; i++) begin : gen_chip_rules
-        if (i < NumChips) begin : gen_active
-            assign chip_rules_o[i] = chip_rules_all[i];
-        end else begin : gen_inactive
-            logic unused_chip_rule;
-            assign unused_chip_rule = ^chip_rules_all[i];
-        end
-    end
+    assign chip_rules_o = chip_rules_all;
 
 endmodule : hyperbus_cfg_regs

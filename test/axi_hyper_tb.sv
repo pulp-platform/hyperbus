@@ -7,7 +7,7 @@
 module axi_hyper_tb
   import axi_pkg::*;
 #(
-  parameter int unsigned NumChips = 2,
+  parameter int unsigned NumConnectedChips = 2,
   parameter int unsigned NumPhys = 2,
   parameter int unsigned IsClockODelayed = 0,
   parameter int unsigned NB_CH = 1,
@@ -759,7 +759,7 @@ module axi_hyper_tb
     logic [31:0] segment_start_snapshot;
     logic reg_error;
 
-    if (NumChips < 2) begin
+    if (NumConnectedChips < 2) begin
       return;
     end
 
@@ -818,7 +818,7 @@ module axi_hyper_tb
     axi_ctrl_master_t::r_beat_t r;
     logic reg_error;
 
-    if (NumChips < 2) begin
+    if (NumConnectedChips < 2) begin
       return;
     end
 
@@ -948,7 +948,7 @@ module axi_hyper_tb
     logic [31:0] segment_start_snapshot;
     logic reg_error;
 
-    if (NumChips < 2) begin
+    if (NumConnectedChips < 2) begin
       return;
     end
 
@@ -1035,7 +1035,7 @@ module axi_hyper_tb
     mst_scoreboard.monitor();
 
     // Map each chip to a distinct 16 MiB host-address window.
-    if (NumChips > 1) begin
+    if (NumConnectedChips > 1) begin
       reg_master.send_write(32'h3c, 32'h8200_0000, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
       reg_master.send_write(32'h38, 32'h8100_0000, '1, s_reg_error);
@@ -1172,7 +1172,7 @@ module axi_hyper_tb
     .RegAw           ( RegBusAW           ),
     .RegDw           ( RegBusDW           ),
 
-    .NumChips        ( NumChips           ),
+    .NumConnectedChips ( NumConnectedChips ),
     .NumPhys         ( NumPhys            ),
     .AnnotateSdf     ( TbAnnotateSdf      ),
     .IsClockODelayed ( IsClockODelayed    ),

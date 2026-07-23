@@ -36,6 +36,10 @@ module hyperbus_async_bridge #(
     input  logic                     cfg_apply_ready_i
 );
 
+    ////////////////////////////
+    // Configuration crossing //
+    ////////////////////////////
+
     logic cfg_apply_accepted;
     logic cfg_apply_pending_d, cfg_apply_pending_q;
 
@@ -81,6 +85,10 @@ module hyperbus_async_bridge #(
         .dst_ready_i          ( cfg_apply_ready_i            )
     );
 
+    //////////////////////
+    // Command crossing //
+    //////////////////////
+
     cdc_2phase_clearable #(
         .T           ( hyper_cmd_t  ),
         .SYNC_STAGES ( CdcSyncStages )
@@ -100,6 +108,10 @@ module hyperbus_async_bridge #(
         .dst_valid_o          ( backend_req_o.cmd_valid   ),
         .dst_ready_i          ( backend_rsp_i.cmd_ready   )
     );
+
+    /////////////////////////////
+    // Write-response crossing //
+    /////////////////////////////
 
     cdc_2phase_clearable #(
         .T           ( hyper_wrsp_t  ),
@@ -121,6 +133,10 @@ module hyperbus_async_bridge #(
         .dst_ready_i          ( frontend_req_i.wrsp_ready  )
     );
 
+    ///////////////////////
+    // TX data crossing //
+    ///////////////////////
+
     cdc_fifo_gray_clearable #(
         .T           ( hyper_tx_t      ),
         .LOG_DEPTH   ( TxFifoLogDepth  ),
@@ -141,6 +157,10 @@ module hyperbus_async_bridge #(
         .dst_valid_o          ( backend_req_o.tx_valid  ),
         .dst_ready_i          ( backend_rsp_i.tx_ready  )
     );
+
+    ///////////////////////
+    // RX data crossing //
+    ///////////////////////
 
     cdc_fifo_gray_clearable #(
         .T           ( hyper_rx_t      ),
