@@ -41,6 +41,8 @@ module axi_hyper_tb
   parameter int unsigned TbSlowGapCycles = 64,
   /// Temporary t_burst_max used to force HyperBus segment restarts in the slow stress phase.
   parameter int unsigned TbSlowBurstMax = 16,
+  /// Maximum system-clock cycles before a stalled regression is terminated.
+  parameter longint unsigned TbTimeoutCycles = 5_000_000,
   /// Annotate the HyperRAM timing SDF. Disable for fast RTL regressions.
   parameter bit          TbAnnotateSdf = 1'b1
 );
@@ -77,6 +79,22 @@ module axi_hyper_tb
 
   logic                  end_of_sim;
   logic [31:0]           segment_start_count;
+  logic [63:0]           cycle_count;
+
+  sim_timeout #(
+    .Cycles ( TbTimeoutCycles )
+  ) i_sim_timeout (
+    .clk_i  ( clk   ),
+    .rst_ni ( rst_n )
+  );
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      cycle_count <= '0;
+    end else begin
+      cycle_count <= cycle_count + 1'b1;
+    end
+  end
 
 
   ///////////////////////
@@ -252,10 +270,6 @@ module axi_hyper_tb
   // Address Ranges //
   ////////////////////
   localparam axi_addr_t MemRegionStart  = axi_addr_t'(32'h8000_0000);
-  localparam logic [31:0] CfgFrontendAddr = 32'h0000_0100;
-  localparam logic [31:0] CfgChip0AddressAddr = 32'h0000_0408;
-  localparam logic [31:0] CfgChip0Memory = 32'h0001_1900;
-  localparam logic [31:0] CfgChip0Register = 32'h0001_1901;
   localparam axi_addr_t MemRegionLength = axi_addr_t'(TbDramDataWidth * TbDramLenWidth);
 
   logic s_error;
@@ -384,6 +398,44 @@ module axi_hyper_tb
     end
   endtask
 
+  task automatic check_unaligned_word_access(input axi_ctrl_master_t axi_drv);
+    localparam axi_addr_t BaseAddr = axi_addr_t'(32'h8000_0180);
+    localparam logic [63:0] InitialData = 64'h8877_6655_4433_2211;
+    localparam logic [23:0] UpdatedData = 24'hc3_b2_a1;
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::w_beat_t w = new();
+    axi_ctrl_master_t::b_beat_t b;
+    axi_ctrl_master_t::r_beat_t r;
+
+    axi_write_subword(axi_drv, BaseAddr, InitialData, 3);
+
+    ax.ax_addr  = BaseAddr + 1;
+    ax.ax_id    = '0;
+    ax.ax_len   = '0;
+    ax.ax_size  = 2;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_aw(ax);
+
+    w.w_data = 64'(UpdatedData) << 8;
+    w.w_strb = 8'b0000_1110;
+    w.w_last = 1'b1;
+    axi_drv.send_w(w);
+    axi_drv.recv_b(b);
+    if (b.b_resp != axi_pkg::RESP_OKAY) begin
+      $error("[AXI-UNALIGNED] Write returned response %0d", b.b_resp);
+    end
+
+    axi_check_subword(axi_drv, BaseAddr, 64'h8877_6655_c3b2_a111, 3);
+
+    axi_drv.send_ar(ax);
+    axi_drv.recv_r(r);
+    if ((r.r_resp != axi_pkg::RESP_OKAY) || !r.r_last ||
+        (r.r_data[31:8] != UpdatedData)) begin
+      $error("[AXI-UNALIGNED] Read returned data=0x%016x last=%0b resp=%0d",
+             r.r_data, r.r_last, r.r_resp);
+    end
+  endtask
+
   task automatic axi_write_slow(
     input axi_ctrl_master_t axi_drv,
     input axi_addr_t addr,
@@ -453,6 +505,114 @@ module axi_hyper_tb
     end
   endtask
 
+  task automatic run_performance_smoke(input axi_ctrl_master_t axi_drv);
+    localparam int unsigned NumCases = 5;
+    localparam axi_addr_t PerfBaseAddr = axi_addr_t'(32'h8000_8000);
+    int unsigned burst_beats [NumCases] = '{1, 4, 16, 64, 256};
+    int unsigned write_baseline [NumCases];
+    int unsigned read_baseline [NumCases];
+    int unsigned segment_limit [NumCases];
+    logic [63:0] write_cycles [NumCases];
+    logic [63:0] read_cycles [NumCases];
+    logic [63:0] cycle_snapshot;
+    logic [31:0] segment_snapshot;
+    logic [31:0] write_segments;
+    logic [31:0] read_segments;
+    axi_addr_t burst_addr;
+    int unsigned write_cycle_limit;
+    int unsigned read_cycle_limit;
+    real backend_cycles_per_system_cycle;
+    real write_bits_per_phy_cycle;
+    real read_bits_per_phy_cycle;
+
+    backend_cycles_per_system_cycle = 1.0;
+    if (TbDutVariant == 0) begin
+      backend_cycles_per_system_cycle = 0.5;
+    end else if (TbDutVariant == 2) begin
+      backend_cycles_per_system_cycle = real'(TbCyclTime) / real'(TbPhyCyclTime);
+    end
+
+    // Default-configuration baselines in system-clock cycles for each supported top.
+    write_baseline = '{44, 55, 103, 295, 1103};
+    read_baseline = '{59, 71, 119, 311, 1119};
+    segment_limit = '{1, 1, 1, 1, 2};
+    if (TbDutVariant == 1) begin
+      write_baseline = '{22, 28, 52, 148, 552};
+      read_baseline = '{29, 35, 59, 155, 559};
+    end else if (TbDutVariant == 2) begin
+      write_baseline = '{36, 42, 71, 186, 671};
+      read_baseline = '{43, 49, 78, 193, 678};
+    end
+    if (NumPhys == 1) begin
+      write_baseline = '{24, 36, 84, 276, 1084};
+      read_baseline = '{30, 42, 90, 282, 1090};
+      segment_limit = '{1, 1, 1, 1, 3};
+    end
+
+    $display("===========================");
+    $display("= AXI performance smoke   =");
+    $display("===========================");
+
+    for (int unsigned test_idx = 0; test_idx < NumCases; test_idx++) begin
+      burst_addr = PerfBaseAddr + axi_addr_t'(test_idx * 32'h1000);
+
+      cycle_snapshot = cycle_count;
+      segment_snapshot = segment_start_count;
+      axi_write_slow(axi_drv, burst_addr, burst_beats[test_idx], 0);
+      write_cycles[test_idx] = cycle_count - cycle_snapshot;
+      write_segments = segment_start_count - segment_snapshot;
+
+      cycle_snapshot = cycle_count;
+      segment_snapshot = segment_start_count;
+      axi_read_slow_check(axi_drv, burst_addr, burst_beats[test_idx], 0);
+      read_cycles[test_idx] = cycle_count - cycle_snapshot;
+      read_segments = segment_start_count - segment_snapshot;
+
+      $display("[PERF] variant=%0d phys=%0d beats=%0d write_cycles=%0d read_cycles=%0d write_segments=%0d read_segments=%0d",
+               TbDutVariant, NumPhys, burst_beats[test_idx], write_cycles[test_idx],
+               read_cycles[test_idx], write_segments, read_segments);
+
+      if (burst_beats[test_idx] == 256) begin
+        write_bits_per_phy_cycle = real'(burst_beats[test_idx] * TbAxiDataWidthFull) /
+            real'(NumPhys * write_cycles[test_idx]) / backend_cycles_per_system_cycle;
+        read_bits_per_phy_cycle = real'(burst_beats[test_idx] * TbAxiDataWidthFull) /
+            real'(NumPhys * read_cycles[test_idx]) / backend_cycles_per_system_cycle;
+        $display("[PERF-MAX] variant=%0d write_bits_per_phy_cycle=%0.3f read_bits_per_phy_cycle=%0.3f",
+                 TbDutVariant, write_bits_per_phy_cycle, read_bits_per_phy_cycle);
+      end
+
+      write_cycle_limit = write_baseline[test_idx] + write_baseline[test_idx] / 5 + 2;
+      read_cycle_limit = read_baseline[test_idx] + read_baseline[test_idx] / 5 + 2;
+      if (write_cycles[test_idx] > write_cycle_limit) begin
+        $error("[PERF] %0d-beat write took %0d cycles, limit is %0d",
+               burst_beats[test_idx], write_cycles[test_idx], write_cycle_limit);
+      end
+      if (read_cycles[test_idx] > read_cycle_limit) begin
+        $error("[PERF] %0d-beat read took %0d cycles, limit is %0d",
+               burst_beats[test_idx], read_cycles[test_idx], read_cycle_limit);
+      end
+      if ((write_segments != segment_limit[test_idx]) ||
+          (read_segments != segment_limit[test_idx])) begin
+        $error("[PERF] %0d-beat burst used unexpected segments: write=%0d read=%0d limit=%0d",
+               burst_beats[test_idx], write_segments, read_segments,
+               segment_limit[test_idx]);
+      end
+    end
+
+    for (int unsigned test_idx = 1; test_idx < NumCases; test_idx++) begin
+      if ((write_cycles[test_idx] * burst_beats[test_idx-1]) >
+          (write_cycles[test_idx-1] * burst_beats[test_idx])) begin
+        $error("[PERF] Write cycles per beat did not improve from %0d to %0d beats",
+               burst_beats[test_idx-1], burst_beats[test_idx]);
+      end
+      if ((read_cycles[test_idx] * burst_beats[test_idx-1]) >
+          (read_cycles[test_idx-1] * burst_beats[test_idx])) begin
+        $error("[PERF] Read cycles per beat did not improve from %0d to %0d beats",
+               burst_beats[test_idx-1], burst_beats[test_idx]);
+      end
+    end
+  endtask
+
   task automatic run_slow_backpressure_test(
     input axi_ctrl_master_t axi_drv,
     input reg_bus_master_t reg_drv
@@ -500,6 +660,354 @@ module axi_hyper_tb
     if (reg_error != 1'b0) $error("unexpected error");
   endtask
 
+  task automatic check_config_barrier(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t BarrierAddr = axi_addr_t'(32'h8000_6000);
+    logic reg_error;
+    time write_done_time;
+    time flush_done_time;
+
+    write_done_time = 0;
+    flush_done_time = 0;
+    $display("===========================");
+    $display("= Config flush barrier    =");
+    $display("===========================");
+
+    fork
+      begin
+        axi_write_slow(axi_drv, BarrierAddr, 16, 16);
+        write_done_time = $time;
+      end
+      begin
+        repeat (32) @(posedge clk);
+        reg_drv.send_write(32'h50, '0, '1, reg_error);
+        flush_done_time = $time;
+        if (reg_error != 1'b0) begin
+          $error("[CFG-BARRIER] Flush register write returned an error");
+        end
+      end
+    join
+
+    if ((write_done_time == 0) || (flush_done_time < write_done_time)) begin
+      $error("[CFG-BARRIER] Flush completed at %0t before AXI write completed at %0t",
+             flush_done_time, write_done_time);
+    end
+  endtask
+
+  task automatic check_decode_errors(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t InvalidAddr = axi_addr_t'(32'h9000_0000);
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::w_beat_t w = new();
+    axi_ctrl_master_t::b_beat_t b;
+    axi_ctrl_master_t::r_beat_t r;
+    logic [31:0] status;
+    logic reg_error;
+
+    $display("===========================");
+    $display("= Decode error handling   =");
+    $display("===========================");
+
+    ax.ax_addr  = InvalidAddr;
+    ax.ax_id    = '0;
+    ax.ax_len   = 1;
+    ax.ax_size  = 3;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_ar(ax);
+    for (int unsigned beat = 0; beat < 2; beat++) begin
+      axi_drv.recv_r(r);
+      if ((r.r_resp != axi_pkg::RESP_DECERR) || (r.r_data != '0) ||
+          (r.r_last != (beat == 1))) begin
+        $error("[DECODE] Invalid read beat %0d returned data=0x%016x last=%0b resp=%0d",
+               beat, r.r_data, r.r_last, r.r_resp);
+      end
+    end
+
+    ax.ax_len = 0;
+    axi_drv.send_aw(ax);
+    w.w_data = '0;
+    w.w_strb = '1;
+    w.w_last = 1'b1;
+    axi_drv.send_w(w);
+    axi_drv.recv_b(b);
+    if (b.b_resp != axi_pkg::RESP_DECERR) begin
+      $error("[DECODE] Invalid write returned response %0d", b.b_resp);
+    end
+
+    reg_drv.send_read(32'h54, status, reg_error);
+    if ((reg_error != 1'b0) || !status[0]) begin
+      $error("[DECODE] Sticky decode-error status was not set");
+    end
+    reg_drv.send_write(32'h54, 32'h1, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+    reg_drv.send_read(32'h54, status, reg_error);
+    if ((reg_error != 1'b0) || status[0]) begin
+      $error("[DECODE] Sticky decode-error status did not clear");
+    end
+  endtask
+
+  task automatic check_cross_chip_burst(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t Boundary = axi_addr_t'(32'h8040_0000);
+    localparam axi_addr_t BurstAddr = Boundary - 16;
+    logic [31:0] segment_start_snapshot;
+    logic reg_error;
+
+    if (NumChips < 2) begin
+      return;
+    end
+
+    $display("===========================");
+    $display("= Cross-chip burst        =");
+    $display("===========================");
+
+    reg_drv.send_write(32'h34, Boundary, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+    reg_drv.send_write(32'h38, Boundary, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+
+    segment_start_snapshot = segment_start_count;
+    axi_write_slow(axi_drv, BurstAddr, 4, 0);
+    axi_read_slow_check(axi_drv, BurstAddr, 4, 0);
+    if ((segment_start_count - segment_start_snapshot) < 4) begin
+      $error("[CROSS-CHIP] Observed %0d segment starts, expected at least four",
+             segment_start_count - segment_start_snapshot);
+    end
+
+    reg_drv.send_write(32'h38, 32'h8100_0000, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+    reg_drv.send_write(32'h34, 32'h8100_0000, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+  endtask
+
+  task automatic check_large_rule_distance(input axi_ctrl_master_t axi_drv);
+    localparam axi_addr_t ReadAddr = axi_addr_t'(32'h802f_0002);
+    localparam int unsigned NumBeats = 121;
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::r_beat_t r;
+
+    ax.ax_addr  = ReadAddr;
+    ax.ax_id    = '0;
+    ax.ax_len   = NumBeats - 1;
+    ax.ax_size  = 2;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_ar(ax);
+    for (int unsigned beat = 0; beat < NumBeats; beat++) begin
+      axi_drv.recv_r(r);
+      if ((r.r_resp != axi_pkg::RESP_OKAY) || (r.r_last != (beat == NumBeats - 1))) begin
+        $error("[AXI-RANGE] Beat %0d returned last=%0b resp=%0d",
+               beat, r.r_last, r.r_resp);
+      end
+    end
+  endtask
+
+  task automatic check_range_edges(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t ValidAddr = axi_addr_t'(32'h8100_0100);
+    localparam axi_addr_t OverflowAddr = axi_addr_t'(32'hffff_fff8);
+    localparam logic [63:0] TestData = 64'h0123_4567_89ab_cdef;
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::r_beat_t r;
+    logic reg_error;
+
+    if (NumChips < 2) begin
+      return;
+    end
+
+    $display("===========================");
+    $display("= Address range edges     =");
+    $display("===========================");
+
+    // A zero bound extends the final rule through the end of the address space.
+    reg_drv.send_write(32'h3c, '0, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+    axi_write_subword(axi_drv, ValidAddr, TestData, 3);
+    axi_check_subword(axi_drv, ValidAddr, TestData, 3);
+
+    // The end address is exclusive; a burst extending beyond it must be rejected.
+    ax.ax_addr  = OverflowAddr;
+    ax.ax_id    = '0;
+    ax.ax_len   = 1;
+    ax.ax_size  = 3;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_ar(ax);
+    for (int unsigned beat = 0; beat < 2; beat++) begin
+      axi_drv.recv_r(r);
+      if ((r.r_resp != axi_pkg::RESP_DECERR) ||
+          (r.r_last != (beat == 1))) begin
+        $error("[AXI-RANGE] Overflow beat %0d returned last=%0b resp=%0d",
+               beat, r.r_last, r.r_resp);
+      end
+    end
+
+    reg_drv.send_write(32'h3c, 32'h8200_0000, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+  endtask
+
+  task automatic check_atomic_add(input axi_ctrl_master_t axi_drv);
+    localparam axi_addr_t AtomicAddr = axi_addr_t'(32'h8000_0200);
+    localparam logic [31:0] InitialValue = 32'h1234_5678;
+    localparam logic [31:0] Addend = 32'h0102_0304;
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::w_beat_t w = new();
+    axi_ctrl_master_t::b_beat_t b;
+    axi_ctrl_master_t::r_beat_t r;
+
+    $display("===========================");
+    $display("= Atomic add              =");
+    $display("===========================");
+
+    axi_write_subword(axi_drv, AtomicAddr, InitialValue, 2);
+
+    ax.ax_addr  = AtomicAddr;
+    ax.ax_id    = '0;
+    ax.ax_len   = '0;
+    ax.ax_size  = 2;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    ax.ax_atop  = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END,
+                   axi_pkg::ATOP_ADD};
+    axi_drv.send_aw(ax);
+
+    w.w_data = subword_data(Addend, AtomicAddr);
+    w.w_strb = subword_strb(AtomicAddr, 2);
+    w.w_last = 1'b1;
+    axi_drv.send_w(w);
+
+    fork
+      axi_drv.recv_b(b);
+      axi_drv.recv_r(r);
+    join
+
+    if ((b.b_resp != axi_pkg::RESP_OKAY) || (r.r_resp != axi_pkg::RESP_OKAY) ||
+        (r.r_data[31:0] != InitialValue) || !r.r_last) begin
+      $error("[ATOMIC] Add returned old=0x%08x rresp=%0d bresp=%0d last=%0b",
+             r.r_data[31:0], r.r_resp, b.b_resp, r.r_last);
+    end
+    axi_check_subword(axi_drv, AtomicAddr, InitialValue + Addend, 2);
+
+    // Big-endian arithmetic is rejected explicitly and must still drain W.
+    ax.ax_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_BIG_END,
+                  axi_pkg::ATOP_ADD};
+    axi_drv.send_aw(ax);
+    axi_drv.send_w(w);
+    fork
+      axi_drv.recv_b(b);
+      axi_drv.recv_r(r);
+    join
+    if ((b.b_resp != axi_pkg::RESP_SLVERR) || (r.r_resp != axi_pkg::RESP_SLVERR)) begin
+      $error("[ATOMIC] Unsupported operation returned rresp=%0d bresp=%0d",
+             r.r_resp, b.b_resp);
+    end
+    axi_check_subword(axi_drv, AtomicAddr, InitialValue + Addend, 2);
+
+    // A malformed multi-beat atomic must drain all W beats before returning an error.
+    ax.ax_len  = 1;
+    ax.ax_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END,
+                  axi_pkg::ATOP_ADD};
+    axi_drv.send_aw(ax);
+    w.w_data = subword_data(32'hdead_beef, AtomicAddr);
+    w.w_strb = subword_strb(AtomicAddr, 2);
+    w.w_last = 1'b0;
+    axi_drv.send_w(w);
+    w.w_data = subword_data(32'hfeed_cafe, AtomicAddr);
+    w.w_last = 1'b1;
+    axi_drv.send_w(w);
+    fork
+      axi_drv.recv_b(b);
+      axi_drv.recv_r(r);
+    join
+    if ((b.b_resp != axi_pkg::RESP_SLVERR) || (r.r_resp != axi_pkg::RESP_SLVERR)) begin
+      $error("[ATOMIC] Multi-beat operation returned rresp=%0d bresp=%0d",
+             r.r_resp, b.b_resp);
+    end
+    axi_write_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
+    axi_check_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
+  endtask
+
+  task automatic check_atomic_range_errors(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t InvalidAddr = axi_addr_t'(32'h9000_0000);
+    localparam axi_addr_t ZeroEndAddr = axi_addr_t'(32'h8100_0400);
+    localparam int unsigned AtomicSize = NumPhys + 1;
+    localparam logic [31:0] ZeroEndInitial = 32'h1020_3040;
+    localparam logic [31:0] ZeroEndAddend = 32'h0101_0101;
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::w_beat_t w = new();
+    axi_ctrl_master_t::b_beat_t b;
+    axi_ctrl_master_t::r_beat_t r;
+    logic [31:0] segment_start_snapshot;
+    logic reg_error;
+
+    if (NumChips < 2) begin
+      return;
+    end
+
+    $display("===========================");
+    $display("= Atomic range errors     =");
+    $display("===========================");
+
+    ax.ax_addr  = InvalidAddr;
+    ax.ax_id    = '0;
+    ax.ax_len   = '0;
+    ax.ax_size  = AtomicSize;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    ax.ax_atop  = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END,
+                   axi_pkg::ATOP_ADD};
+    w.w_data = subword_data(64'hfedc_ba98_7654_3210, InvalidAddr);
+    w.w_strb = subword_strb(InvalidAddr, AtomicSize);
+    w.w_last = 1'b1;
+
+    // Unmapped atomic loads still owe both the AXI R and B responses.
+    segment_start_snapshot = segment_start_count;
+    axi_drv.send_aw(ax);
+    axi_drv.send_w(w);
+    fork
+      axi_drv.recv_b(b);
+      axi_drv.recv_r(r);
+    join
+    if ((b.b_resp != axi_pkg::RESP_SLVERR) || (r.r_resp != axi_pkg::RESP_SLVERR) ||
+        !r.r_last) begin
+      $error("[ATOMIC-RANGE] Unmapped operation returned rlast=%0b rresp=%0d bresp=%0d",
+             r.r_last, r.r_resp, b.b_resp);
+    end
+    if (segment_start_count != segment_start_snapshot) begin
+      $error("[ATOMIC-RANGE] Rejected unmapped operation issued a HyperBus command");
+    end
+
+    // A zero-ended final rule must contain ordinary atomic accesses.
+    reg_drv.send_write(32'h3c, '0, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+    axi_write_subword(axi_drv, ZeroEndAddr, ZeroEndInitial, 2);
+    ax.ax_addr = ZeroEndAddr;
+    ax.ax_size = 2;
+    w.w_data = subword_data(ZeroEndAddend, ZeroEndAddr);
+    w.w_strb = subword_strb(ZeroEndAddr, 2);
+    axi_drv.send_aw(ax);
+    axi_drv.send_w(w);
+    fork
+      axi_drv.recv_b(b);
+      axi_drv.recv_r(r);
+    join
+    if ((b.b_resp != axi_pkg::RESP_OKAY) || (r.r_resp != axi_pkg::RESP_OKAY) ||
+        (r.r_data[31:0] != ZeroEndInitial) || !r.r_last) begin
+      $error("[ATOMIC-RANGE] Zero-ended rule returned old=0x%08x rresp=%0d bresp=%0d",
+             r.r_data[31:0], r.r_resp, b.b_resp);
+    end
+    axi_check_subword(axi_drv, ZeroEndAddr, ZeroEndInitial + ZeroEndAddend, 2);
+    reg_drv.send_write(32'h3c, 32'h8200_0000, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+  endtask
+
   initial begin : proc_sim_crtl
 
     automatic axi_scoreboard_mst_t mst_scoreboard = new( score_mst_intf_dv );
@@ -523,6 +1031,18 @@ module axi_hyper_tb
     @(posedge rst_n);
     mst_scoreboard.monitor();
 
+    // Map each chip to a distinct 16 MiB host-address window.
+    if (NumChips > 1) begin
+      reg_master.send_write(32'h3c, 32'h8200_0000, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
+      reg_master.send_write(32'h38, 32'h8100_0000, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
+    end
+    reg_master.send_write(32'h34, 32'h8100_0000, '1, s_reg_error);
+    if (s_reg_error != 1'b0) $error("unexpected error");
+    reg_master.send_write(32'h30, 32'h8000_0000, '1, s_reg_error);
+    if (s_reg_error != 1'b0) $error("unexpected error");
+
     if (TbDutVariant != 0) begin
       reg_master.send_write(32'h4 << 2, TbRxDelayLineTaps, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
@@ -532,11 +1052,23 @@ module axi_hyper_tb
 
     #600350ns;
 
+    run_performance_smoke(axi_ctrl_mst);
     run_slow_backpressure_test(axi_ctrl_mst, reg_master);
+    check_config_barrier(axi_ctrl_mst, reg_master);
+    check_decode_errors(axi_ctrl_mst, reg_master);
+    check_cross_chip_burst(axi_ctrl_mst, reg_master);
+    check_large_rule_distance(axi_ctrl_mst);
+    check_range_edges(axi_ctrl_mst, reg_master);
+    check_atomic_add(axi_ctrl_mst);
+    check_atomic_range_errors(axi_ctrl_mst, reg_master);
+
+    if (NumPhys == 1) begin
+      check_unaligned_word_access(axi_ctrl_mst);
+    end
 
     if (TbDutVariant == 0) begin
       // switch memory address space to register space
-      reg_master.send_write(CfgChip0AddressAddr, CfgChip0Register, '1, s_reg_error);
+      reg_master.send_write(32'h7<<2, 1'b1, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
 
       // enable variable latency so we can test RWDS sampling
@@ -544,7 +1076,7 @@ module axi_hyper_tb
       axi_write_32(32'h8000_0000 + S27KS_CFG0_REG_OFFSET, (s27ks_cfg0 | s27ks_cfg0 << 16));
 
       // switch back to memory address space
-      reg_master.send_write(CfgChip0AddressAddr, CfgChip0Memory, '1, s_reg_error);
+      reg_master.send_write(32'h7<<2, 1'b0, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
     end
 
@@ -570,7 +1102,7 @@ module axi_hyper_tb
        $display("= Use only phy 0          =");
        $display("===========================");
 
-       reg_master.send_write(CfgFrontendAddr, 32'h0, '1, s_reg_error);
+       reg_master.send_write(32'h20,1'b0,'1,s_reg_error);
        if (s_reg_error != 1'b0) $error("unexpected error");
 
        axi_rand_mst.reset();
@@ -650,5 +1182,18 @@ module axi_hyper_tb_asynchronous;
     .TbPhyCyclTime     ( 6ns ),
     .TbRxDelayLineTaps ( 16  ),
     .TbTxDelayLineTaps ( 19  )
+  ) i_axi_hyper_tb ();
+endmodule
+
+module axi_hyper_tb_synchronous_one_phy;
+  axi_hyper_tb #(
+    .NumPhys          ( 1    ),
+    .TbNumWrites      ( 0    ),
+    .TbNumReads       ( 0    ),
+    .TbDutVariant     ( 1    ),
+    .TbCyclTime       ( 10ns ),
+    .TbPhyCyclTime    ( 10ns ),
+    .TbRxDelayLineTaps( 16   ),
+    .TbTxDelayLineTaps( 31   )
   ) i_axi_hyper_tb ();
 endmodule

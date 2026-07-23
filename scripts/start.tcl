@@ -15,7 +15,8 @@ proc run_test {top_name wlf_name} {
     file delete -force $transcript_name
     transcript file $transcript_name
 
-    vsim $top_name -wlf $wlf_name -t 1ps -voptargs=+acc -classdebug
+    # Questa 10.7 rejects enum assignments in common_cells clearable CDC models.
+    vsim $top_name -wlf $wlf_name -t 1ps -voptargs=+acc -classdebug -suppress 8386
 
     onfinish stop
     set StdArithNoWarnings 1
@@ -36,9 +37,10 @@ proc run_test {top_name wlf_name} {
     }
 }
 
-run_test axi_hyper_tb_isochronous   sim_run_isochronous.wlf
-run_test axi_hyper_tb_synchronous   sim_run_synchronous.wlf
-run_test axi_hyper_tb_asynchronous  sim_run_asynchronous.wlf
-run_test hyperbus_cfg_regs_tb       sim_run_cfg_regs.wlf
+run_test axi_hyper_tb_isochronous          sim_run_isochronous.wlf
+run_test axi_hyper_tb_synchronous          sim_run_synchronous.wlf
+run_test axi_hyper_tb_asynchronous         sim_run_asynchronous.wlf
+run_test axi_hyper_tb_synchronous_one_phy  sim_run_synchronous_one_phy.wlf
+run_test hyperbus_cfg_regs_tb              sim_run_cfg_regs.wlf
 
 quit -code $regression_failed -f
