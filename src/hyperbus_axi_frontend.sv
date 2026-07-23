@@ -29,8 +29,6 @@ module hyperbus_axi_frontend #(
     input  host_rsp_t  host_rsp_i
 );
 
-    localparam int unsigned AxiDataBytes = AxiDataWidth / 8;
-
     `ASSERT_INIT(AxiAddrWidthValid, AxiAddrWidth >= 1)
     `ASSERT_INIT(AxiDataWidthValid,
         AxiDataWidth >= 16 && AxiDataWidth <= 1024 &&
@@ -39,13 +37,6 @@ module hyperbus_axi_frontend #(
     `ASSERT_INIT(AxiUserWidthValid, AxiUserWidth >= 1)
 
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
-    typedef logic [AxiDataWidth-1:0] axi_data_t;
-    typedef logic [AxiIdWidth-1:0]   axi_id_t;
-    typedef logic [AxiDataBytes-1:0] axi_strb_t;
-    typedef logic [AxiUserWidth-1:0] axi_user_t;
-
-    `AXI_TYPEDEF_ALL_CT(axi_fifo, axi_fifo_req, axi_fifo_rsp, axi_addr_t, axi_id_t,
-                        axi_data_t, axi_strb_t, axi_user_t)
 
     // IDs stay in the AXI serializer; the neutral stream is single-outstanding.
     typedef struct packed {
@@ -59,39 +50,30 @@ module hyperbus_axi_frontend #(
     typedef struct packed {
         axi_ax_t ax_data;
         logic    write;
-    } ax_channel_spill_t;
+    } ax_channel_t;
 
-    typedef struct packed {
-        axi_strb_t strb;
-        axi_data_t data;
-        axi_user_t user;
-        logic      last;
-    } axi_w_chan_t;
+    ///////////////////////////
+    // Serialized AXI stream //
+    ///////////////////////////
 
-    axi_req_t fifo_in_req;
-    axi_rsp_t fifo_in_rsp;
-    axi_req_t fifo_out_req;
-    axi_rsp_t fifo_out_rsp;
+    axi_req_t ser_in_req;
+    axi_rsp_t ser_in_rsp;
     axi_req_t ser_out_req;
     axi_rsp_t ser_out_rsp;
 
-    axi_ax_t ser_out_req_aw;
-    axi_ax_t ser_out_req_ar;
-    axi_ax_t rr_out_req_ax;
-    axi_ax_t spill_rr_out_req_ax;
+    axi_ax_t     ser_out_req_aw;
+    axi_ax_t     ser_out_req_ar;
+    ax_channel_t ser_out_req_aw_channel;
+    ax_channel_t ser_out_req_ar_channel;
+    ax_channel_t arbitrated_ax;
+    ax_channel_t selected_ax;
 
-    ax_channel_spill_t spill_ax_channel_in;
-    ax_channel_spill_t spill_ax_channel_out;
+    logic ax_arb_valid;
+    logic ax_arb_ready;
 
-    axi_w_chan_t w_data_fifo;
-    axi_w_chan_t w_data_fifo_in;
-
-    logic spill_ax_valid;
-    logic spill_ax_ready;
-    logic spill_rr_out_req_write;
-    logic rr_out_req_write;
-    logic w_data_valid;
-    logic w_data_ready;
+    //////////////////////
+    // Drain accounting //
+    //////////////////////
 
     localparam int unsigned PendingWidth = 8;
     typedef logic [PendingWidth-1:0] pending_cnt_t;
@@ -116,15 +98,15 @@ module hyperbus_axi_frontend #(
             allow_w  = w_partial_q || (write_balance_q > 0);
         end
 
-        fifo_in_req          = axi_req_i;
-        fifo_in_req.ar_valid = axi_req_i.ar_valid && !drain_i;
-        fifo_in_req.aw_valid = axi_req_i.aw_valid && allow_aw;
-        fifo_in_req.w_valid  = axi_req_i.w_valid && allow_w;
+        ser_in_req          = axi_req_i;
+        ser_in_req.ar_valid = axi_req_i.ar_valid && !drain_i;
+        ser_in_req.aw_valid = axi_req_i.aw_valid && allow_aw;
+        ser_in_req.w_valid  = axi_req_i.w_valid && allow_w;
 
-        axi_rsp_o          = fifo_in_rsp;
-        axi_rsp_o.ar_ready = fifo_in_rsp.ar_ready && !drain_i;
-        axi_rsp_o.aw_ready = fifo_in_rsp.aw_ready && allow_aw;
-        axi_rsp_o.w_ready  = fifo_in_rsp.w_ready && allow_w;
+        axi_rsp_o          = ser_in_rsp;
+        axi_rsp_o.ar_ready = ser_in_rsp.ar_ready && !drain_i;
+        axi_rsp_o.aw_ready = ser_in_rsp.aw_ready && allow_aw;
+        axi_rsp_o.w_ready  = ser_in_rsp.w_ready && allow_w;
     end
 
     assign axi_ar_accepted = axi_req_i.ar_valid && axi_rsp_o.ar_ready;
@@ -170,37 +152,21 @@ module hyperbus_axi_frontend #(
     assign idle_o = (read_pending_q == '0) && (write_pending_q == '0) &&
                     (write_balance_q == '0) && !w_partial_q;
 
-    axi_fifo #(
-        .Depth       ( 8                  ),
-        .FallThrough ( 1'b0               ),
-        .aw_chan_t   ( axi_fifo_aw_chan_t ),
-        .w_chan_t    ( axi_fifo_w_chan_t  ),
-        .b_chan_t    ( axi_fifo_b_chan_t  ),
-        .ar_chan_t   ( axi_fifo_ar_chan_t ),
-        .r_chan_t    ( axi_fifo_r_chan_t  ),
-        .axi_req_t   ( axi_req_t          ),
-        .axi_resp_t  ( axi_rsp_t          )
-    ) i_axi_fifo (
-        .clk_i,
-        .rst_ni,
-        .test_i     ( 1'b0         ),
-        .slv_req_i  ( fifo_in_req  ),
-        .slv_resp_o ( fifo_in_rsp  ),
-        .mst_req_o  ( fifo_out_req ),
-        .mst_resp_i ( fifo_out_rsp )
-    );
+    /////////////////////////
+    // Command arbitration //
+    /////////////////////////
 
     axi_serializer #(
-        .MaxReadTxns  ( 1          ),
-        .MaxWriteTxns ( 1          ),
+        .MaxReadTxns  ( 4          ),
+        .MaxWriteTxns ( 4          ),
         .AxiIdWidth   ( AxiIdWidth ),
         .axi_req_t    ( axi_req_t  ),
         .axi_resp_t   ( axi_rsp_t  )
     ) i_axi_serializer (
         .clk_i,
         .rst_ni,
-        .slv_req_i  ( fifo_out_req ),
-        .slv_resp_o ( fifo_out_rsp ),
+        .slv_req_i  ( ser_in_req   ),
+        .slv_resp_o ( ser_in_rsp   ),
         .mst_req_o  ( ser_out_req  ),
         .mst_resp_i ( ser_out_rsp  )
     );
@@ -217,65 +183,80 @@ module hyperbus_axi_frontend #(
     assign ser_out_req_aw.size  = ser_out_req.aw.size;
     assign ser_out_req_aw.atop  = ser_out_req.aw.atop;
 
+    assign ser_out_req_ar_channel = '{ax_data: ser_out_req_ar, write: 1'b0};
+    assign ser_out_req_aw_channel = '{ax_data: ser_out_req_aw, write: 1'b1};
+
     rr_arb_tree #(
-        .NumIn     ( 2        ),
-        .DataType  ( axi_ax_t ),
-        .AxiVldRdy ( 1        ),
-        .ExtPrio   ( 1'b1     )
+        .NumIn     ( 2            ),
+        .DataType  ( ax_channel_t ),
+        .AxiVldRdy ( 1'b1         )
     ) i_rr_arb_tree_ax (
         .clk_i,
         .rst_ni,
-        .flush_i ( 1'b0                                      ),
-        .rr_i    ( '0                                        ),
+        .flush_i ( 1'b0                                         ),
+        .rr_i    ( '0                                           ),
         .req_i   ( {ser_out_req.aw_valid, ser_out_req.ar_valid} ),
         .gnt_o   ( {ser_out_rsp.aw_ready, ser_out_rsp.ar_ready} ),
-        .data_i  ( {ser_out_req_aw, ser_out_req_ar}          ),
-        .req_o   ( spill_ax_valid                            ),
-        .gnt_i   ( spill_ax_ready                            ),
-        .data_o  ( spill_rr_out_req_ax                       ),
-        .idx_o   ( spill_rr_out_req_write                    )
+        .data_i  ( {ser_out_req_aw_channel, ser_out_req_ar_channel} ),
+        .req_o   ( ax_arb_valid                                ),
+        .gnt_i   ( ax_arb_ready                                ),
+        .data_o  ( arbitrated_ax                               ),
+        .idx_o   (                                             )
     );
 
-    assign spill_ax_channel_in.ax_data = spill_rr_out_req_ax;
-    assign spill_ax_channel_in.write   = spill_rr_out_req_write;
-
-    spill_register #(
-        .T ( ax_channel_spill_t )
-    ) i_ax_spill_register (
+    stream_register #(
+        .T ( ax_channel_t )
+    ) i_ax_register (
         .clk_i,
         .rst_ni,
-        .valid_i ( spill_ax_valid       ),
-        .ready_o ( spill_ax_ready       ),
-        .data_i  ( spill_ax_channel_in  ),
-        .valid_o ( host_req_o.cmd_valid ),
-        .ready_i ( host_rsp_i.cmd_ready ),
-        .data_o  ( spill_ax_channel_out )
+        .clr_i      ( 1'b0                  ),
+        .testmode_i ( 1'b0                  ),
+        .valid_i    ( ax_arb_valid           ),
+        .ready_o    ( ax_arb_ready           ),
+        .data_i     ( arbitrated_ax          ),
+        .valid_o    ( host_req_o.cmd_valid  ),
+        .ready_i    ( host_rsp_i.cmd_ready  ),
+        .data_o     ( selected_ax            )
     );
 
-    assign rr_out_req_ax    = spill_ax_channel_out.ax_data;
-    assign rr_out_req_write = spill_ax_channel_out.write;
+    //////////////////////////
+    // Host command mapping //
+    //////////////////////////
 
-    assign host_req_o.cmd.write = rr_out_req_write;
-    assign host_req_o.cmd.addr  = rr_out_req_ax.addr;
-    assign host_req_o.cmd.beats = hyperbus_pkg::hyper_blen_t'(rr_out_req_ax.len) +
+    assign host_req_o.cmd.write = selected_ax.write;
+    assign host_req_o.cmd.addr  = selected_ax.ax_data.addr;
+    assign host_req_o.cmd.beats = hyperbus_pkg::hyper_blen_t'(selected_ax.ax_data.len) +
                                   hyperbus_pkg::hyper_blen_t'(1);
-    assign host_req_o.cmd.size  = rr_out_req_ax.size;
-    assign host_req_o.cmd.burst = (rr_out_req_ax.burst == axi_pkg::BURST_FIXED) ?
+    assign host_req_o.cmd.size  = selected_ax.ax_data.size;
+    assign host_req_o.cmd.burst = (selected_ax.ax_data.burst == axi_pkg::BURST_FIXED) ?
                                   hyperbus_pkg::HyperBurstFixed :
                                   hyperbus_pkg::HyperBurstIncr;
+
+    logic atomic_arithmetic_class;
+    logic atomic_endian_sensitive;
+    logic atomic_big_endian_unsupported;
+
+    assign atomic_arithmetic_class =
+        (selected_ax.ax_data.atop[5:4] == axi_pkg::ATOP_ATOMICSTORE) ||
+        (selected_ax.ax_data.atop[5:4] == axi_pkg::ATOP_ATOMICLOAD);
+    assign atomic_endian_sensitive =
+        (selected_ax.ax_data.atop[2:0] == axi_pkg::ATOP_ADD) ||
+        (selected_ax.ax_data.atop[2:0] >= axi_pkg::ATOP_SMAX);
+    assign atomic_big_endian_unsupported =
+        selected_ax.ax_data.atop[3] && atomic_endian_sensitive;
+
     always_comb begin : proc_atomic_decode
-        host_req_o.cmd.atomic_op = (rr_out_req_ax.atop == '0) ?
+        host_req_o.cmd.atomic_op = (selected_ax.ax_data.atop == '0) ?
                                    hyperbus_pkg::HyperAtomicNone :
                                    hyperbus_pkg::HyperAtomicInvalid;
-        unique case (rr_out_req_ax.atop)
+        unique case (selected_ax.ax_data.atop)
             axi_pkg::ATOP_ATOMICSWAP:
                 host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicSwap;
             axi_pkg::ATOP_ATOMICCMP:
                 host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicCompare;
             default: begin
-                if ((rr_out_req_ax.atop[5:4] == axi_pkg::ATOP_ATOMICSTORE) ||
-                    (rr_out_req_ax.atop[5:4] == axi_pkg::ATOP_ATOMICLOAD)) begin
-                    unique case (rr_out_req_ax.atop[2:0])
+                if (atomic_arithmetic_class) begin
+                    unique case (selected_ax.ax_data.atop[2:0])
                         axi_pkg::ATOP_ADD:
                             host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicAdd;
                         axi_pkg::ATOP_CLR:
@@ -295,46 +276,29 @@ module hyperbus_axi_frontend #(
                         default:;
                     endcase
                     // AXI defines bit 3 as endianness for arithmetic atomics.
-                    if (rr_out_req_ax.atop[3] &&
-                        ((rr_out_req_ax.atop[2:0] == axi_pkg::ATOP_ADD) ||
-                         (rr_out_req_ax.atop[2:0] >= axi_pkg::ATOP_SMAX))) begin
+                    if (atomic_big_endian_unsupported) begin
                         host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicInvalid;
                     end
                 end
             end
         endcase
-        host_req_o.cmd.atomic_return = rr_out_req_ax.atop[axi_pkg::ATOP_R_RESP];
-        host_req_o.cmd.ordered       = rr_out_req_ax.atop != '0;
+        host_req_o.cmd.atomic_return = selected_ax.ax_data.atop[axi_pkg::ATOP_R_RESP];
+        host_req_o.cmd.ordered       = selected_ax.ax_data.atop != '0;
     end
 
-    assign w_data_fifo_in.data = ser_out_req.w.data;
-    assign w_data_fifo_in.strb = ser_out_req.w.strb;
-    assign w_data_fifo_in.last = ser_out_req.w.last;
-    assign w_data_fifo_in.user = ser_out_req.w.user;
+    ///////////////////////
+    // Host write stream //
+    ///////////////////////
 
-    stream_fifo #(
-        .FALL_THROUGH ( 1'b0         ),
-        .T            ( axi_w_chan_t ),
-        .DEPTH        ( 16           )
-    ) i_wchan_stream_fifo (
-        .clk_i,
-        .rst_ni,
-        .flush_i    ( 1'b0                ),
-        .testmode_i ( 1'b0                ),
-        .usage_o    (                     ),
-        .data_i     ( w_data_fifo_in      ),
-        .valid_i    ( ser_out_req.w_valid ),
-        .ready_o    ( ser_out_rsp.w_ready ),
-        .data_o     ( w_data_fifo         ),
-        .valid_o    ( w_data_valid        ),
-        .ready_i    ( w_data_ready        )
-    );
+    assign host_req_o.w.data   = ser_out_req.w.data;
+    assign host_req_o.w.strb   = ser_out_req.w.strb;
+    assign host_req_o.w.last   = ser_out_req.w.last;
+    assign host_req_o.w_valid  = ser_out_req.w_valid;
+    assign ser_out_rsp.w_ready = host_rsp_i.w_ready;
 
-    assign host_req_o.w.data  = w_data_fifo.data;
-    assign host_req_o.w.strb  = w_data_fifo.strb;
-    assign host_req_o.w.last  = w_data_fifo.last;
-    assign host_req_o.w_valid = w_data_valid;
-    assign w_data_ready       = host_rsp_i.w_ready;
+    //////////////////////
+    // Response mapping //
+    //////////////////////
 
     assign ser_out_rsp.r.data  = host_rsp_i.r.data;
     assign ser_out_rsp.r.last  = host_rsp_i.r.last;
@@ -366,8 +330,9 @@ module hyperbus_axi_frontend #(
     assign host_req_o.wrsp_ready = ser_out_req.b_ready;
 
     `ASSERT(AxiBurstType, (host_req_o.cmd_valid && host_rsp_i.cmd_ready) |->
-        ((rr_out_req_ax.burst == axi_pkg::BURST_INCR) ||
-         ((rr_out_req_ax.burst == axi_pkg::BURST_FIXED) && (rr_out_req_ax.len == '0))))
+        ((selected_ax.ax_data.burst == axi_pkg::BURST_INCR) ||
+         ((selected_ax.ax_data.burst == axi_pkg::BURST_FIXED) &&
+          (selected_ax.ax_data.len == '0))))
     `ASSERT(ReadResponsePending, axi_r_completed |-> (read_pending_q != '0))
     `ASSERT(WriteResponsePending, axi_b_accepted |-> (write_pending_q != '0))
 

@@ -4,7 +4,6 @@
 
 module hyperbus_test_dut #(
     parameter int unsigned  DutVariant       = 0,
-    parameter int unsigned  NumChips         = -1,
     parameter int unsigned  NumPhys          = 2,
     parameter int unsigned  AxiAddrWidth     = -1,
     parameter int unsigned  AxiDataWidth     = -1,
@@ -32,7 +31,7 @@ module hyperbus_test_dut #(
     input  reg_req_t                    reg_req_i,
     output reg_rsp_t                    reg_rsp_o,
 
-    output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
+    output logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_no,
     output logic [NumPhys-1:0]               hyper_ck_o,
     output logic [NumPhys-1:0]               hyper_ck_no,
     output logic [NumPhys-1:0]               hyper_rwds_o,
@@ -50,7 +49,6 @@ module hyperbus_test_dut #(
 
     if (DutVariant == VariantIsochronous) begin : gen_isochronous
         hyperbus_isochronous #(
-            .NumChips       ( NumChips      ),
             .NumPhys        ( NumPhys       ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
@@ -86,7 +84,6 @@ module hyperbus_test_dut #(
         );
     end else if (DutVariant == VariantSynchronous) begin : gen_synchronous
         hyperbus_synchronous #(
-            .NumChips       ( NumChips      ),
             .NumPhys        ( NumPhys       ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
@@ -122,7 +119,6 @@ module hyperbus_test_dut #(
         );
     end else if (DutVariant == VariantAsynchronous) begin : gen_asynchronous
         hyperbus_asynchronous #(
-            .NumChips       ( NumChips      ),
             .NumPhys        ( NumPhys       ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),

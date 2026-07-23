@@ -9,28 +9,27 @@
 (* no_ungroup *)
 (* no_boundary_optimization *)
 (* keep_hierarchy = "yes" *)
-module hyperbus_clock_diff_out
-(
+module hyperbus_clock_diff_out (
     input  logic in_i,
-    input  logic en_i, //high enable
+    input  logic en_i,
     output logic out_o,
     output logic out_no
 );
 
-   `ifdef FPGA_EMUL
+`ifdef FPGA_EMUL
 
-       logic en_sync;
+    logic en_sync;
 
-       always_latch
-       begin
-         if (in_i == 1'b0)
-           en_sync <= en_i;
-       end
+    always_latch begin
+        if (in_i == 1'b0) begin
+            en_sync <= en_i;
+        end
+    end
 
-       assign out_o = in_i & en_sync;
-       assign out_no = ~out_o;
+    assign out_o  = in_i & en_sync;
+    assign out_no = ~out_o;
 
-   `else
+`else
 
     tc_clk_gating i_hyper_ck_gating (
         .clk_i     ( in_i  ),
@@ -44,6 +43,6 @@ module hyperbus_clock_diff_out
         .clk_o ( out_no )
     );
 
-   `endif // !`ifdef FPGA_EMUL
+`endif
 
 endmodule

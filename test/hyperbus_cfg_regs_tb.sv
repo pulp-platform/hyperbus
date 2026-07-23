@@ -4,8 +4,6 @@
 
 module hyperbus_cfg_regs_tb;
 
-    localparam int unsigned NumChips = 8;
-
     typedef struct packed {
         logic [31:0] addr;
         logic        write;
@@ -32,7 +30,7 @@ module hyperbus_cfg_regs_tb;
     reg_rsp_t                          reg_rsp;
     hyperbus_pkg::frontend_cfg_t       frontend_cfg;
     hyperbus_pkg::phy_cfg_t            phy_cfg;
-    addr_rule_t [NumChips-1:0]         chip_rules;
+    addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules;
     logic                              decode_error;
 
     task automatic reg_write(
@@ -96,7 +94,6 @@ module hyperbus_cfg_regs_tb;
     );
 
     hyperbus_cfg_regs #(
-        .NumChips     ( NumChips   ),
         .NumPhys      ( 2          ),
         .RegDataWidth ( 32         ),
         .reg_req_t    ( reg_req_t  ),
