@@ -116,6 +116,7 @@ module hyperbus_cfg_regs_tb;
     initial begin : proc_stimulus
         logic [31:0] status;
         logic [31:0] chip_addr;
+        logic [31:0] clock_div;
         logic [31:0] rx_clk_delay;
         logic [31:0] tx_clk_delay;
 
@@ -131,6 +132,17 @@ module hyperbus_cfg_regs_tb;
             (chip_rules[7].start_addr != 32'h01c0_0000) ||
             (chip_rules[7].end_addr != 32'h0200_0000)) begin
             $error("Unexpected reset chip address map");
+        end
+
+        reg_read(8'h78, clock_div);
+        if ((clock_div != 8) || (frontend_cfg.phy_clock_div != 8)) begin
+            $error("Unexpected PHY clock divider reset value");
+        end
+
+        reg_write(8'h78, 8'd4, 1'b0);
+        reg_read(8'h78, clock_div);
+        if ((clock_div != 4) || (frontend_cfg.phy_clock_div != 4)) begin
+            $error("PHY clock divider write did not take effect");
         end
 
         // Exercise both the fine [4:0] and coarse [7:5] delay settings.

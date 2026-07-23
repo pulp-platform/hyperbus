@@ -52,6 +52,7 @@ package hyperbus_pkg;
         logic [4:0]      address_mask_msb;
         logic            address_space;
         logic            dual_phy;
+        logic [7:0]      phy_clock_div;
     } frontend_cfg_t;
 
     typedef struct packed {

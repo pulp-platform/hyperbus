@@ -191,6 +191,12 @@ extern "C" {
 #define HYPERBUS_CFG_REGS__CHIP7_BOUND__VALUE_bw 10
 #define HYPERBUS_CFG_REGS__CHIP7_BOUND__VALUE_reset 0x8
 
+// reg - hyperbus_cfg_regs::phy_clock_div
+#define HYPERBUS_CFG_REGS__PHY_CLOCK_DIV__VALUE_bm 0xff
+#define HYPERBUS_CFG_REGS__PHY_CLOCK_DIV__VALUE_bp 0
+#define HYPERBUS_CFG_REGS__PHY_CLOCK_DIV__VALUE_bw 8
+#define HYPERBUS_CFG_REGS__PHY_CLOCK_DIV__VALUE_reset 0x8
+
 // addrmap - hyperbus_cfg_regs
 typedef struct __attribute__ ((__packed__)) {
     uint32_t t_latency_access;
@@ -223,10 +229,11 @@ typedef struct __attribute__ ((__packed__)) {
     uint32_t chip6_bound;
     uint32_t chip7_base;
     uint32_t chip7_bound;
+    uint32_t phy_clock_div;
 } hyperbus_cfg_regs_t;
 
 
-static_assert(sizeof(hyperbus_cfg_regs_t) == 0x78, "Packing error");
+static_assert(sizeof(hyperbus_cfg_regs_t) == 0x7c, "Packing error");
 
 #ifdef __cplusplus
 }

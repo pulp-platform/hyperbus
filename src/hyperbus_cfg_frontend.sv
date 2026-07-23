@@ -28,6 +28,11 @@ module hyperbus_cfg_frontend #(
     input  logic                       cfg_apply_ready_i,
     input  logic                       cfg_apply_done_i,
 
+    output logic [7:0]                 clock_div_apply_o,
+    output logic                       clock_div_apply_valid_o,
+    input  logic                       clock_div_apply_ready_i,
+    input  logic                       clock_div_apply_done_i,
+
     output hyperbus_pkg::frontend_cfg_t frontend_cfg_o,
     output host_rule_t [NumChips-1:0]  chip_rules_o,
     input  logic                       decode_error_i
@@ -38,8 +43,10 @@ module hyperbus_cfg_frontend #(
         CfgDrain,
         CfgCommit,
         CfgObserve,
-        CfgSend,
-        CfgWaitAck
+        CfgClockSend,
+        CfgClockWaitAck,
+        CfgPhySend,
+        CfgPhyWaitAck
     } cfg_state_e;
 
     cfg_state_e                       cfg_state_d;
@@ -47,6 +54,10 @@ module hyperbus_cfg_frontend #(
     hyperbus_pkg::phy_cfg_t           phy_cfg;
     hyperbus_pkg::phy_cfg_t           cfg_applied_d;
     hyperbus_pkg::phy_cfg_t           cfg_applied_q;
+    logic [7:0]                       clock_div_applied_d;
+    logic [7:0]                       clock_div_applied_q;
+    logic                             phy_cfg_changed;
+    logic                             clock_div_changed;
     logic                             cfg_changed;
     logic                             cfg_write_pending_d;
     logic                             cfg_write_pending_q;
@@ -58,10 +69,14 @@ module hyperbus_cfg_frontend #(
     reg_req_t                         cfg_reg_req;
     reg_rsp_t                         cfg_reg_rsp;
 
-    assign cfg_changed       = phy_cfg != cfg_applied_q;
-    assign drain_o           = (cfg_state_q != CfgIdle) || cfg_changed;
-    assign cfg_apply_valid_o = cfg_state_q == CfgSend;
-    assign cfg_apply_o       = phy_cfg;
+    assign phy_cfg_changed          = phy_cfg != cfg_applied_q;
+    assign clock_div_changed        = frontend_cfg_o.phy_clock_div != clock_div_applied_q;
+    assign cfg_changed              = phy_cfg_changed || clock_div_changed;
+    assign drain_o                  = (cfg_state_q != CfgIdle) || cfg_changed;
+    assign cfg_apply_valid_o        = cfg_state_q == CfgPhySend;
+    assign cfg_apply_o              = phy_cfg;
+    assign clock_div_apply_valid_o  = cfg_state_q == CfgClockSend;
+    assign clock_div_apply_o        = frontend_cfg_o.phy_clock_div;
 
     always_comb begin : proc_cfg_reg_gate
         cfg_reg_req = reg_req_i;
@@ -85,6 +100,7 @@ module hyperbus_cfg_frontend #(
     always_comb begin : proc_cfg_apply
         cfg_state_d   = cfg_state_q;
         cfg_applied_d = cfg_applied_q;
+        clock_div_applied_d = clock_div_applied_q;
         cfg_write_pending_d = cfg_write_pending_q;
 
         unique case (cfg_state_q)
@@ -99,7 +115,7 @@ module hyperbus_cfg_frontend #(
             end
             CfgDrain: begin
                 if (host_idle_i && !trans_active_i) begin
-                    cfg_state_d = cfg_write_pending_q ? CfgCommit : CfgSend;
+                    cfg_state_d = cfg_write_pending_q ? CfgCommit : CfgObserve;
                 end
             end
             CfgCommit: begin
@@ -109,23 +125,41 @@ module hyperbus_cfg_frontend #(
                 end
             end
             CfgObserve: begin
-                if (cfg_changed) begin
-                    cfg_state_d = CfgSend;
+                if (clock_div_changed) begin
+                    cfg_state_d = CfgClockSend;
+                end else if (phy_cfg_changed) begin
+                    cfg_state_d = CfgPhySend;
                 end else begin
                     cfg_state_d = CfgIdle;
                 end
             end
-            CfgSend: begin
+            CfgClockSend: begin
+                if (clock_div_apply_ready_i) begin
+                    if (clock_div_apply_done_i) begin
+                        clock_div_applied_d = frontend_cfg_o.phy_clock_div;
+                        cfg_state_d = phy_cfg_changed ? CfgPhySend : CfgIdle;
+                    end else begin
+                        cfg_state_d = CfgClockWaitAck;
+                    end
+                end
+            end
+            CfgClockWaitAck: begin
+                if (clock_div_apply_done_i) begin
+                    clock_div_applied_d = frontend_cfg_o.phy_clock_div;
+                    cfg_state_d = phy_cfg_changed ? CfgPhySend : CfgIdle;
+                end
+            end
+            CfgPhySend: begin
                 if (cfg_apply_ready_i) begin
                     if (cfg_apply_done_i) begin
                         cfg_applied_d = phy_cfg;
                         cfg_state_d   = CfgIdle;
                     end else begin
-                        cfg_state_d = CfgWaitAck;
+                        cfg_state_d = CfgPhyWaitAck;
                     end
                 end
             end
-            CfgWaitAck: begin
+            CfgPhyWaitAck: begin
                 if (cfg_apply_done_i) begin
                     cfg_applied_d = phy_cfg;
                     cfg_state_d   = CfgIdle;
@@ -139,6 +173,7 @@ module hyperbus_cfg_frontend #(
 
     `FFARN(cfg_state_q, cfg_state_d, CfgIdle, clk_i, rst_ni)
     `FFARN(cfg_applied_q, cfg_applied_d, '0, clk_i, rst_ni)
+    `FFARN(clock_div_applied_q, clock_div_applied_d, '0, clk_i, rst_ni)
     `FFARN(cfg_write_pending_q, cfg_write_pending_d, 1'b0, clk_i, rst_ni)
 
     hyperbus_cfg_regs #(

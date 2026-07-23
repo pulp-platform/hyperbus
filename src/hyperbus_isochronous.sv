@@ -4,6 +4,7 @@
 
 `include "hyperbus/typedef.svh"
 `include "common_cells/assertions.svh"
+`include "common_cells/registers.svh"
 
 module hyperbus_isochronous #(
     parameter int unsigned  NumChips         = -1,
@@ -57,18 +58,20 @@ module hyperbus_isochronous #(
     `HYPERBUS_TYPEDEF_LINK_ALL_CT(hyper, NumPhys, NumChips)
 
     logic                      clk_backend;
-    logic                      clk_backend_90;
     logic                      rst_backend_n;
     hyperbus_pkg::phy_cfg_t    frontend_cfg_apply;
     logic                      frontend_cfg_apply_valid;
     logic                      frontend_cfg_apply_ready;
     logic                      frontend_cfg_apply_done;
+    logic [7:0]                frontend_clock_div_apply;
+    logic                      frontend_clock_div_apply_valid;
+    logic                      frontend_clock_div_apply_ready;
+    logic                      frontend_clock_div_apply_done;
     logic                      frontend_drain;
     logic                      host_idle;
     hyperbus_pkg::phy_cfg_t    backend_cfg_apply;
     logic                      backend_cfg_apply_valid;
     logic                      backend_cfg_apply_ready;
-    logic                      rst_backend_async_n;
 
     hyperbus_pkg::frontend_cfg_t frontend_cfg;
     axi_rule_t [NumChips-1:0]    frontend_chip_rules;
@@ -82,22 +85,66 @@ module hyperbus_isochronous #(
     hyper_req_t               backend_req;
     hyper_rsp_t               backend_rsp;
 
-    hyperbus_clk_gen i_clk_gen (
-        .clk_i    ( clk_sys_i        ),
-        .rst_ni   ( rst_sys_ni       ),
-        .clk0_o   ( clk_backend      ),
-        .clk90_o  ( clk_backend_90   ),
-        .clk180_o (                  ),
-        .clk270_o (                  ),
-        .rst_no   ( rst_backend_async_n )
+    logic                      clock_div_req_valid;
+    logic                      clock_div_update_accepted;
+    logic                      clock_div_update_pending_d;
+    logic                      clock_div_update_pending_q;
+    logic                      clock_alive_ready;
+
+    assign clock_div_req_valid = frontend_clock_div_apply_valid &&
+        clock_alive_ready && !clock_div_update_pending_q;
+    assign frontend_clock_div_apply_ready = clock_div_req_valid &&
+        clock_div_update_accepted;
+    assign frontend_clock_div_apply_done = clock_div_update_pending_q && clock_alive_ready;
+
+    always_comb begin : proc_clock_div_update_pending
+        clock_div_update_pending_d = clock_div_update_pending_q;
+
+        if (clock_div_update_accepted) begin
+            clock_div_update_pending_d = 1'b1;
+        end else if (frontend_clock_div_apply_done) begin
+            clock_div_update_pending_d = 1'b0;
+        end
+    end
+
+    `FFARN(clock_div_update_pending_q, clock_div_update_pending_d, 1'b0,
+        clk_sys_i, rst_sys_ni)
+
+    clk_int_div #(
+        .DIV_VALUE_WIDTH   ( 8 ),
+        .DEFAULT_DIV_VALUE ( 8 )
+    ) i_clk_div (
+        .clk_i          ( clk_sys_i    ),
+        .rst_ni         ( rst_sys_ni   ),
+        .en_i           ( 1'b1         ),
+        .test_mode_en_i ( test_mode_i  ),
+        .div_i           ( frontend_clock_div_apply ),
+        .div_valid_i     ( clock_div_req_valid       ),
+        .div_ready_o     ( clock_div_update_accepted ),
+        .clk_o          ( clk_backend  ),
+        .cycl_count_o    (              )
     );
 
+    isochronous_4phase_handshake i_clock_alive (
+        .src_clk_i   ( clk_sys_i                  ),
+        .src_rst_ni  ( rst_sys_ni                 ),
+        .src_valid_i ( clock_div_req_valid && clock_div_update_accepted ),
+        .src_ready_o ( clock_alive_ready          ),
+        .dst_clk_i   ( clk_backend                ),
+        .dst_rst_ni  ( rst_backend_n              ),
+        .dst_valid_o (                            ),
+        .dst_ready_i ( 1'b1                       )
+    );
+
+    `ASSERT(PhyClockDivValid, frontend_clock_div_apply_valid |->
+        (frontend_clock_div_apply >= 2), clk_sys_i, !rst_sys_ni)
+
     rstgen i_rstgen_backend (
-        .clk_i       ( clk_backend         ),
-        .rst_ni      ( rst_backend_async_n ),
-        .test_mode_i ( test_mode_i         ),
-        .rst_no      ( rst_backend_n       ),
-        .init_no     (                     )
+        .clk_i       ( clk_backend    ),
+        .rst_ni      ( rst_sys_ni     ),
+        .test_mode_i ( test_mode_i    ),
+        .rst_no      ( rst_backend_n  ),
+        .init_no     (                )
     );
 
     hyperbus_cfg_frontend #(
@@ -119,6 +166,10 @@ module hyperbus_isochronous #(
         .cfg_apply_valid_o  ( frontend_cfg_apply_valid ),
         .cfg_apply_ready_i  ( frontend_cfg_apply_ready ),
         .cfg_apply_done_i   ( frontend_cfg_apply_done  ),
+        .clock_div_apply_o       ( frontend_clock_div_apply       ),
+        .clock_div_apply_valid_o ( frontend_clock_div_apply_valid ),
+        .clock_div_apply_ready_i ( frontend_clock_div_apply_ready ),
+        .clock_div_apply_done_i  ( frontend_clock_div_apply_done  ),
         .frontend_cfg_o     ( frontend_cfg           ),
         .chip_rules_o       ( frontend_chip_rules    ),
         .decode_error_i     ( midend_decode_error    )
@@ -212,14 +263,15 @@ module hyperbus_isochronous #(
         .hyper_rsp_t      ( hyper_rsp_t       )
     ) i_backend (
         .clk_i                  ( clk_backend               ),
-        .clk_90_i               ( clk_backend_90            ),
         .rst_ni                 ( rst_backend_n             ),
+`ifdef TARGET_XILINX
+        .clk_ref200_i           ( clk_ref200_i              ),
+`endif
         .test_mode_i            ( test_mode_i               ),
         .cfg_apply_i            ( backend_cfg_apply         ),
         .cfg_apply_valid_i      ( backend_cfg_apply_valid   ),
         .cfg_apply_ready_o      ( backend_cfg_apply_ready   ),
         .busy_o                 (                           ),
-        .tx_clk_delay_o         (                           ),
         .req_i                  ( backend_req               ),
         .rsp_o                  ( backend_rsp               ),
         .hyper_cs_no            ( hyper_cs_no               ),

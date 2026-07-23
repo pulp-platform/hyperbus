@@ -60,13 +60,12 @@ module hyperbus_asynchronous #(
     `HYPERBUS_TYPEDEF_LINK_ALL_CT(hyper, NumPhys, NumChips)
 
     logic                      clk_backend;
-    logic                      clk_backend_90;
     logic                      rst_backend_n;
-    logic [7:0]                backend_tx_clk_delay;
     hyperbus_pkg::phy_cfg_t    frontend_cfg_apply;
     logic                      frontend_cfg_apply_valid;
     logic                      frontend_cfg_apply_ready;
     logic                      frontend_cfg_apply_done;
+    logic                      frontend_clock_div_apply_valid;
     logic                      frontend_drain;
     logic                      host_idle;
     hyperbus_pkg::phy_cfg_t    backend_cfg_apply;
@@ -102,17 +101,6 @@ module hyperbus_asynchronous #(
         .init_no     (                 )
     );
 
-    hyperbus_tx_clk_delay i_tx_clk_delay (
-        .rst_ni        ( rst_backend_n        ),
-`ifdef TARGET_XILINX
-        .clk_ref200_i  ( clk_ref200_i         ),
-`endif
-        .clk_i         ( clk_backend          ),
-        .in_i          ( clk_backend          ),
-        .delay_i       ( backend_tx_clk_delay ),
-        .out_o         ( clk_backend_90       )
-    );
-
     hyperbus_cfg_frontend #(
         .NumChips      ( NumChips      ),
         .NumPhys       ( NumPhys       ),
@@ -132,6 +120,10 @@ module hyperbus_asynchronous #(
         .cfg_apply_valid_o  ( frontend_cfg_apply_valid ),
         .cfg_apply_ready_i  ( frontend_cfg_apply_ready ),
         .cfg_apply_done_i   ( frontend_cfg_apply_done  ),
+        .clock_div_apply_o       (                                ),
+        .clock_div_apply_valid_o ( frontend_clock_div_apply_valid ),
+        .clock_div_apply_ready_i ( 1'b1                           ),
+        .clock_div_apply_done_i  ( frontend_clock_div_apply_valid ),
         .frontend_cfg_o     ( frontend_cfg           ),
         .chip_rules_o       ( frontend_chip_rules    ),
         .decode_error_i     ( midend_decode_error    )
@@ -226,14 +218,15 @@ module hyperbus_asynchronous #(
         .hyper_rsp_t      ( hyper_rsp_t       )
     ) i_backend (
         .clk_i                  ( clk_backend               ),
-        .clk_90_i               ( clk_backend_90            ),
         .rst_ni                 ( rst_backend_n             ),
+`ifdef TARGET_XILINX
+        .clk_ref200_i           ( clk_ref200_i              ),
+`endif
         .test_mode_i            ( test_mode_i               ),
         .cfg_apply_i            ( backend_cfg_apply         ),
         .cfg_apply_valid_i      ( backend_cfg_apply_valid   ),
         .cfg_apply_ready_o      ( backend_cfg_apply_ready   ),
         .busy_o                 (                           ),
-        .tx_clk_delay_o         ( backend_tx_clk_delay      ),
         .req_i                  ( backend_req               ),
         .rsp_o                  ( backend_rsp               ),
         .hyper_cs_no            ( hyper_cs_no               ),
@@ -248,12 +241,7 @@ module hyperbus_asynchronous #(
         .hyper_reset_no         ( hyper_reset_no            )
     );
 
-    // pragma translate_off
-    `ifndef VERILATOR
-    phy_reset_only_when_idle : assert property (
-        @(posedge clk_sys_i) disable iff (!rst_sys_ni) !rst_phy_ni |-> !midend_trans_active
-    ) else $error("%m: PHY reset asserted while a HyperBus transaction is active");
-    `endif
-    // pragma translate_on
+    `ASSERT(PhyResetOnlyWhenIdle, !rst_phy_ni |-> !midend_trans_active,
+        clk_sys_i, !rst_sys_ni)
 
 endmodule

@@ -9,7 +9,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x78
+- Size: 0x7C
 
 <p>HyperBus controller configuration. Chip address ranges must be 4 MiB aligned, ordered by chip-select index, and non-overlapping.</p>
 
@@ -44,6 +44,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 | 0x6C |     chip6_bound     |  — |
 | 0x70 |      chip7_base     |  — |
 | 0x74 |     chip7_bound     |  — |
+| 0x78 |    phy_clock_div    |  — |
 
 ### t_latency_access register
 
@@ -418,3 +419,19 @@ Don't override. Generated from: hyperbus_cfg_regs
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
 |31:22|   value  |  rw  | 0x8 |  — |
+
+### phy_clock_div register
+
+- Absolute Address: 0x78
+- Base Offset: 0x78
+- Size: 0x4
+
+<p>System-to-PHY clock division factor used by the isochronous top.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|   value  |  rw  | 0x8 |  — |
+
+#### value field
+
+<p>Must be at least two. Ignored by synchronous and asynchronous tops.</p>

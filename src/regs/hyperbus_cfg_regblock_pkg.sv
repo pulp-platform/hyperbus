@@ -5,7 +5,7 @@ package hyperbus_cfg_regblock_pkg;
 
     localparam HYPERBUS_CFG_REGBLOCK_DATA_WIDTH = 32;
     localparam HYPERBUS_CFG_REGBLOCK_MIN_ADDR_WIDTH = 7;
-    localparam HYPERBUS_CFG_REGBLOCK_SIZE = 'h78;
+    localparam HYPERBUS_CFG_REGBLOCK_SIZE = 'h7c;
 
     typedef struct {
         logic hwset;
@@ -262,6 +262,14 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__chip7_bound__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__phy_clock_div__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__phy_clock_div__value__out_t value;
+    } hyperbus_cfg_regs__phy_clock_div__out_t;
+
+    typedef struct {
         hyperbus_cfg_regs__t_latency_access__out_t t_latency_access;
         hyperbus_cfg_regs__en_latency_additional__out_t en_latency_additional;
         hyperbus_cfg_regs__t_burst_max__out_t t_burst_max;
@@ -291,5 +299,6 @@ package hyperbus_cfg_regblock_pkg;
         hyperbus_cfg_regs__chip6_bound__out_t chip6_bound;
         hyperbus_cfg_regs__chip7_base__out_t chip7_base;
         hyperbus_cfg_regs__chip7_bound__out_t chip7_bound;
+        hyperbus_cfg_regs__phy_clock_div__out_t phy_clock_div;
     } hyperbus_cfg_regs__out_t;
 endpackage

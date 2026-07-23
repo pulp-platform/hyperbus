@@ -365,24 +365,10 @@ module hyperbus_axi_frontend #(
     assign ser_out_rsp.b_valid   = host_rsp_i.wrsp_valid;
     assign host_req_o.wrsp_ready = ser_out_req.b_ready;
 
-    // pragma translate_off
-    `ifndef VERILATOR
-    axi_burst_type : assert property(
-        @(posedge clk_i) host_req_o.cmd_valid && host_rsp_i.cmd_ready |->
-            ((rr_out_req_ax.burst == axi_pkg::BURST_INCR) ||
-             ((rr_out_req_ax.burst == axi_pkg::BURST_FIXED) && (rr_out_req_ax.len == '0))))
-        else $fatal(1, "Only incremental bursts and single-beat fixed bursts are supported.");
-
-    read_response_pending : assert property(
-        @(posedge clk_i) disable iff (!rst_ni)
-            axi_r_completed |-> (read_pending_q != '0))
-        else $fatal(1, "AXI read response completed without a pending request.");
-
-    write_response_pending : assert property(
-        @(posedge clk_i) disable iff (!rst_ni)
-            axi_b_accepted |-> (write_pending_q != '0))
-        else $fatal(1, "AXI write response completed without a pending request.");
-    `endif
-    // pragma translate_on
+    `ASSERT(AxiBurstType, (host_req_o.cmd_valid && host_rsp_i.cmd_ready) |->
+        ((rr_out_req_ax.burst == axi_pkg::BURST_INCR) ||
+         ((rr_out_req_ax.burst == axi_pkg::BURST_FIXED) && (rr_out_req_ax.len == '0))))
+    `ASSERT(ReadResponsePending, axi_r_completed |-> (read_pending_q != '0))
+    `ASSERT(WriteResponsePending, axi_b_accepted |-> (write_pending_q != '0))
 
 endmodule

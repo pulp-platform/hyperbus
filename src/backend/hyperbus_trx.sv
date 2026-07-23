@@ -6,6 +6,8 @@
 // Armin Berger <bergerar@ethz.ch>
 // Stephan Keck <kecks@ethz.ch>
 
+`include "common_cells/assertions.svh"
+
 module hyperbus_trx #(
     parameter int unsigned NumChips        = 2,
     parameter int unsigned RxFifoLogDepth  = 3,
@@ -13,7 +15,7 @@ module hyperbus_trx #(
 )(
     // Global signals
     input  logic       clk_i,
-    input  logic       clk_i_90,
+    input  logic       clk_tx_i,
     input  logic       rst_ni,
     input  logic       test_mode_i,
 
@@ -48,9 +50,7 @@ module hyperbus_trx #(
     output logic                   hyper_reset_no
 );
 
-    // 90-degree-shifted clocks generated with delay line
     logic tx_clk_ena_q;
-    logic tx_clk_90;
     logic rx_rwds_90;
 
     // Delayed clock enable synchronous with data
@@ -72,14 +72,10 @@ module hyperbus_trx #(
     //    TX + control
     // =================
 
-    // Shift clock by 90 degrees
-    assign tx_clk_90 = clk_i_90;
-
-    // 90deg-shifted differential output clock, sampling output bytes centrally
-    // TODO: tx_clk_ena_q to tx_clk_90 may need a constraint at the pins of this module
-    // specifically tx_clk_ena_q must arrive BEFORE tx_clk_90 otherwise the gating may fail
+    // The delayed differential output clock samples output bytes centrally.
+    // TODO: tx_clk_ena_q must arrive before clk_tx_i to avoid disturbing clock gating.
     hyperbus_clock_diff_out i_clock_diff_out (
-        .in_i   ( tx_clk_90     ),
+        .in_i   ( clk_tx_i      ),
         .en_i   ( tx_clk_ena_q  ),
         .out_o  ( hyper_ck_o    ),
         .out_no ( hyper_ck_no   )
@@ -228,14 +224,7 @@ module hyperbus_trx #(
         .dst_ready_i ( rx_ready_i   )
     );
 
-    // assert that the FIFO does not drop data in simulation
-    `ifndef SYNTHESIS
-    always @(negedge rx_rwds_fifo_ready) assert(rx_rwds_fifo_ready)
-        else $error("%m: HyperBus RX FIFO must always be ready to receive data");
-
-    rx_capture_control_exclusive : assert property (
-        @(posedge clk_i) disable iff (!rst_ni) !(rx_clk_set_i && rx_clk_reset_i)
-    ) else $error("%m: RWDS capture set and reset asserted together");
-    `endif
+    `ASSERT(RxRwdsFifoReady, rx_rwds_fifo_ready, rx_rwds_clk_n, !rst_ni)
+    `ASSERT(RxCaptureControlExclusive, !(rx_clk_set_i && rx_clk_reset_i))
 
 endmodule
