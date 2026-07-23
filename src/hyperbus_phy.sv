@@ -60,15 +60,16 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 );
 
     localparam int unsigned RxFifoDepth = 2 ** RxFifoLogDepth;
-    // Stop before the RWDS CDC FIFO can become completely full. The extra
-    // margin covers pointer synchronization and the delayed effect of CK gating.
-    localparam int unsigned RxFifoStopMargin = SyncStages + 2;
+    // r_outstand_q includes samples still crossing the RWDS CDC, so its limit
+    // must not include the synchronizer depth again. Reserve two entries for
+    // stopping CK and the final RWDS capture at the clock-gating boundary.
+    localparam int unsigned RxFifoStopMargin = 2;
     localparam int unsigned RxOutstandingLimit = (RxFifoDepth > RxFifoStopMargin) ?
                                                  (RxFifoDepth - RxFifoStopMargin) : 1;
 
-    logic [1:0]                  phys_in_use;
+    logic [1:0]                  words_per_beat;
 
-    assign phys_in_use = (NumPhys==2) ? (cfg_i.phys_in_use + 1) : 1;
+    assign words_per_beat = (NumPhys == 2 && cfg_i.dual_phy) ? 2 : 1;
 
     // PHY state
     hyper_phy_state_t       state_d,    state_q;
@@ -234,7 +235,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // cfg_i.chip.en_latency_additional overwrites the sampled RWDS value.
     assign ctl_add_latency      = trx_rwds_sample | cfg_i.chip.en_latency_additional;
 
-    assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == phys_in_use);
+    assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == words_per_beat);
     assign ctl_tf_burst_done    = (tf_q.burst == 0);
 
     assign ctl_timer_rwr_done   = (timer_q <= 3);
@@ -384,7 +385,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (ctl_rclk_ena) begin
                     trx_clk_ena     = 1'b1;
                     r_outstand_inc  = 1'b1;
-                    tf_d.burst      = tf_q.burst - phys_in_use;
+                    tf_d.burst      = tf_q.burst - words_per_beat;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         timer_d = cfg_i.chip.t_csh_cycles;
@@ -405,7 +406,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Dataflow handled outside FSM
                 if (ctl_wclk_ena) begin
                     trx_clk_ena = 1'b1;
-                    tf_d.burst  = tf_q.burst - phys_in_use;
+                    tf_d.burst  = tf_q.burst - words_per_beat;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         b_pending_set   = 1'b1;
@@ -449,7 +450,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     // PHY state registers, including timer and transfer
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_phy
-        if (~rst_ni) begin
+        if (!rst_ni) begin
             state_q <= Startup;
             timer_q <= StartupCycles;
             tf_q    <= hyper_tf_t'{burst_type: 1'b1, default:'0};

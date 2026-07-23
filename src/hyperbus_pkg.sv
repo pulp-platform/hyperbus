@@ -8,6 +8,35 @@ package hyperbus_pkg;
     localparam unsigned HyperBurstWidth = 8 + $clog2(1024/16) + 1;
     typedef logic [HyperBurstWidth-1:0] hyper_blen_t;
 
+    typedef logic [2:0]                    hyper_host_size_t;
+
+    typedef enum logic [1:0] {
+        HyperBurstIncr,
+        HyperBurstFixed
+    } hyper_host_burst_e;
+
+    typedef enum logic [3:0] {
+        HyperAtomicNone,
+        HyperAtomicInvalid,
+        HyperAtomicSwap,
+        HyperAtomicCompare,
+        HyperAtomicAdd,
+        HyperAtomicClear,
+        HyperAtomicXor,
+        HyperAtomicSet,
+        HyperAtomicSignedMax,
+        HyperAtomicSignedMin,
+        HyperAtomicUnsignedMax,
+        HyperAtomicUnsignedMin
+    } hyper_atomic_op_e;
+
+    typedef enum logic [1:0] {
+        HyperRespOkay,
+        HyperRespDecodeError,
+        HyperRespAccessError,
+        HyperRespAtomicError
+    } hyper_resp_e;
+
     // configuration type
     typedef struct packed {
         logic [3:0]      t_latency_access;
@@ -15,22 +44,20 @@ package hyperbus_pkg;
         logic [15:0]     t_burst_max;
         logic [3:0]      t_read_write_recovery;
         logic [7:0]      t_rx_clk_delay;
-        logic [3:0]      t_csh_cycles; // configurable t_CSH for high-frequency operation (200 MHz HyperRAM)
-        logic [3:0]      csn_to_ck_cycles; // delay hyper_ck after CS is asserted (more time for t_DSV)
+        logic [3:0]      t_csh_cycles;     // CS-high recovery cycles
+        logic [3:0]      csn_to_ck_cycles; // CS assertion to clock-start delay
     } chip_phy_cfg_t;
 
     typedef struct packed {
         logic [4:0]      address_mask_msb;
         logic            address_space;
-        logic            phys_in_use;
-        logic            which_phy;
+        logic            dual_phy;
     } frontend_cfg_t;
 
     typedef struct packed {
         chip_phy_cfg_t   chip;
         logic [7:0]      t_tx_clk_delay;
-        logic            phys_in_use;
-        logic            which_phy;
+        logic            dual_phy;
     } phy_cfg_t;
 
     typedef struct packed {

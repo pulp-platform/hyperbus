@@ -2,6 +2,9 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
+`include "hyperbus/typedef.svh"
+`include "common_cells/assertions.svh"
+
 module hyperbus_synchronous #(
     parameter int unsigned  NumChips         = -1,
     parameter int unsigned  NumPhys          = 2,
@@ -11,20 +14,10 @@ module hyperbus_synchronous #(
     parameter int unsigned  AxiUserWidth     = -1,
     parameter type          axi_req_t        = logic,
     parameter type          axi_rsp_t        = logic,
-    parameter type          axi_w_chan_t     = logic,
-    parameter type          axi_b_chan_t     = logic,
-    parameter type          axi_ar_chan_t    = logic,
-    parameter type          axi_r_chan_t     = logic,
-    parameter type          axi_aw_chan_t    = logic,
-    parameter int unsigned  RegAddrWidth     = -1,
     parameter int unsigned  RegDataWidth     = -1,
-    parameter int unsigned  MinFreqMHz       = 100,
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          axi_rule_t       = logic,
-    parameter logic [RegDataWidth-1:0]  RstChipBase  = 'h0,
-    parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000,
-    parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys, MinFreqMHz),
     parameter int unsigned  PhyStartupCycles = 300 * 200,
     parameter int unsigned  SyncStages       = 2
 ) (
@@ -53,6 +46,8 @@ module hyperbus_synchronous #(
     output logic [NumPhys-1:0]               hyper_reset_no
 );
 
+    `ASSERT_INIT(AxiAddrWidthValid, AxiAddrWidth >= $clog2(AxiDataWidth / 8))
+
     typedef struct packed {
         logic [(16*NumPhys)-1:0] data;
         logic                    last;
@@ -68,85 +63,208 @@ module hyperbus_synchronous #(
     typedef struct packed {
         hyperbus_pkg::hyper_tf_t trans;
         logic [NumChips-1:0]     cs;
-    } tf_t;
+    } hyper_cmd_t;
 
-    logic                     clk_backend_90;
-    logic [7:0]               backend_tx_clk_delay;
-    hyperbus_pkg::hyper_cfg_t cfg_apply;
-    logic                     cfg_apply_valid;
-    logic                     cfg_apply_ready;
+    typedef logic [AxiAddrWidth-1:0]   host_addr_t;
+    typedef logic [AxiDataWidth-1:0]   host_data_t;
+    typedef logic [AxiDataWidth/8-1:0] host_strb_t;
+    `HYPERBUS_TYPEDEF_HOST_ALL_CT(host, host_addr_t, host_data_t, host_strb_t)
 
-    hyper_rx_t                rx;
-    logic                     rx_valid;
-    logic                     rx_ready;
-    hyper_tx_t                tx;
-    logic                     tx_valid;
-    logic                     tx_ready;
-    tf_t                      frontend_trans;
-    logic                     frontend_trans_valid;
-    logic                     frontend_trans_ready;
-    logic                     backend_trans_ready;
-    logic                     b_error;
-    logic                     b_valid;
-    logic                     b_ready;
+    logic                      clk_backend;
+    logic                      clk_backend_90;
+    logic                      rst_backend_n;
+    logic [7:0]                backend_tx_clk_delay;
+    hyperbus_pkg::phy_cfg_t    frontend_cfg_apply;
+    logic                      frontend_cfg_apply_valid;
+    logic                      frontend_cfg_apply_ready;
+    logic                      frontend_cfg_apply_done;
+    logic                      frontend_drain;
+    logic                      host_idle;
+    hyperbus_pkg::phy_cfg_t    backend_cfg_apply;
+    logic                      backend_cfg_apply_valid;
+    logic                      backend_cfg_apply_ready;
+
+    hyperbus_pkg::frontend_cfg_t frontend_cfg;
+    axi_rule_t [NumChips-1:0]    frontend_chip_rules;
+
+    host_req_t                host_req;
+    logic                     host_req_valid;
+    logic                     host_req_ready;
+    host_w_t                  host_w;
+    logic                     host_w_valid;
+    logic                     host_w_ready;
+    host_r_t                  host_r;
+    logic                     host_r_valid;
+    logic                     host_r_ready;
+    host_wrsp_t               host_wrsp;
+    logic                     host_wrsp_valid;
+    logic                     host_wrsp_ready;
+
+    hyper_rx_t                midend_rx;
+    logic                     midend_rx_valid;
+    logic                     midend_rx_ready;
+    hyper_tx_t                midend_tx;
+    logic                     midend_tx_valid;
+    logic                     midend_tx_ready;
+    logic                     midend_wrsp_error;
+    logic                     midend_wrsp_valid;
+    logic                     midend_wrsp_ready;
+    hyper_cmd_t               midend_cmd;
+    logic                     midend_cmd_valid;
+    logic                     midend_cmd_ready;
+    logic                     midend_trans_active;
+    logic                     midend_decode_error;
+
+    hyper_rx_t                 backend_rx;
+    logic                      backend_rx_valid;
+    logic                      backend_rx_ready;
+    hyper_tx_t                 backend_tx;
+    logic                      backend_tx_valid;
+    logic                      backend_tx_ready;
+    logic                      backend_wrsp_error;
+    logic                      backend_wrsp_valid;
+    logic                      backend_wrsp_ready;
+    hyper_cmd_t                backend_cmd;
+    logic                      backend_cmd_valid;
+    logic                      backend_cmd_ready;
+
+    assign clk_backend = clk_sys_i;
+    assign rst_backend_n = rst_sys_ni;
+
+    // The synchronous top keeps the frontend/backend boundary visible without a bridge module.
+    assign backend_cfg_apply        = frontend_cfg_apply;
+    assign backend_cfg_apply_valid  = frontend_cfg_apply_valid;
+    assign frontend_cfg_apply_ready = backend_cfg_apply_ready;
+    assign frontend_cfg_apply_done  = frontend_cfg_apply_valid && backend_cfg_apply_ready;
+
+    assign midend_rx        = backend_rx;
+    assign midend_rx_valid  = backend_rx_valid;
+    assign backend_rx_ready = midend_rx_ready;
+
+    assign backend_tx       = midend_tx;
+    assign backend_tx_valid = midend_tx_valid;
+    assign midend_tx_ready  = backend_tx_ready;
+
+    assign midend_wrsp_error = backend_wrsp_error;
+    assign midend_wrsp_valid = backend_wrsp_valid;
+    assign backend_wrsp_ready = midend_wrsp_ready;
+
+    assign backend_cmd        = midend_cmd;
+    assign backend_cmd_valid  = midend_cmd_valid;
+    assign midend_cmd_ready   = backend_cmd_ready;
 
     hyperbus_tx_clk_delay i_tx_clk_delay (
-        .rst_ni        ( rst_sys_ni           ),
+        .rst_ni        ( rst_backend_n        ),
 `ifdef TARGET_XILINX
         .clk_ref200_i  ( clk_ref200_i         ),
 `endif
-        .clk_i         ( clk_sys_i            ),
-        .in_i          ( clk_sys_i            ),
+        .clk_i         ( clk_backend          ),
+        .in_i          ( clk_backend          ),
         .delay_i       ( backend_tx_clk_delay ),
         .out_o         ( clk_backend_90       )
     );
 
-    hyperbus_frontend #(
+    hyperbus_cfg_frontend #(
         .NumChips      ( NumChips      ),
         .NumPhys       ( NumPhys       ),
-        .AxiAddrWidth  ( AxiAddrWidth  ),
-        .AxiDataWidth  ( AxiDataWidth  ),
-        .AxiIdWidth    ( AxiIdWidth    ),
-        .AxiUserWidth  ( AxiUserWidth  ),
-        .axi_req_t     ( axi_req_t     ),
-        .axi_rsp_t     ( axi_rsp_t     ),
         .reg_req_t     ( reg_req_t     ),
         .reg_rsp_t     ( reg_rsp_t     ),
-        .axi_rule_t    ( axi_rule_t    ),
-        .hyper_rx_t    ( hyper_rx_t    ),
-        .hyper_tx_t    ( hyper_tx_t    ),
-        .tf_cdc_t      ( tf_t          ),
-        .RegAddrWidth  ( RegAddrWidth  ),
-        .RegDataWidth  ( RegDataWidth  ),
-        .RstChipBase   ( RstChipBase   ),
-        .RstChipSpace  ( RstChipSpace  ),
-        .RstCfg        ( RstCfg        )
-    ) i_frontend (
-        .clk_i              ( clk_sys_i       ),
-        .rst_ni             ( rst_sys_ni      ),
-        .axi_req_i          ( axi_req_i       ),
-        .axi_rsp_o          ( axi_rsp_o       ),
-        .reg_req_i          ( reg_req_i       ),
-        .reg_rsp_o          ( reg_rsp_o       ),
-        .cfg_o              (                 ),
-        .cfg_apply_o        ( cfg_apply       ),
-        .cfg_apply_valid_o  ( cfg_apply_valid ),
-        .cfg_apply_ready_i  ( cfg_apply_ready ),
-        .rx_i               ( rx              ),
-        .rx_valid_i         ( rx_valid        ),
-        .rx_ready_o         ( rx_ready        ),
-        .tx_o               ( tx              ),
-        .tx_valid_o         ( tx_valid        ),
-        .tx_ready_i         ( tx_ready        ),
-        .b_error_i          ( b_error         ),
-        .b_valid_i          ( b_valid         ),
-        .b_ready_o          ( b_ready         ),
-        .trans_o            ( frontend_trans        ),
-        .trans_valid_o      ( frontend_trans_valid  ),
-        .trans_ready_i      ( frontend_trans_ready  )
+        .host_rule_t   ( axi_rule_t    ),
+        .RegDataWidth  ( RegDataWidth  )
+    ) i_cfg_frontend (
+        .clk_i              ( clk_sys_i                ),
+        .rst_ni             ( rst_sys_ni               ),
+        .reg_req_i          ( reg_req_i                ),
+        .reg_rsp_o          ( reg_rsp_o                ),
+        .drain_o            ( frontend_drain           ),
+        .host_idle_i        ( host_idle                ),
+        .trans_active_i     ( midend_trans_active      ),
+        .cfg_apply_o        ( frontend_cfg_apply       ),
+        .cfg_apply_valid_o  ( frontend_cfg_apply_valid ),
+        .cfg_apply_ready_i  ( frontend_cfg_apply_ready ),
+        .cfg_apply_done_i   ( frontend_cfg_apply_done  ),
+        .frontend_cfg_o     ( frontend_cfg             ),
+        .chip_rules_o       ( frontend_chip_rules      ),
+        .decode_error_i     ( midend_decode_error      )
     );
 
-    assign frontend_trans_ready = backend_trans_ready;
+    hyperbus_axi_frontend #(
+        .AxiDataWidth ( AxiDataWidth ),
+        .AxiAddrWidth ( AxiAddrWidth ),
+        .AxiIdWidth   ( AxiIdWidth   ),
+        .AxiUserWidth ( AxiUserWidth ),
+        .axi_req_t    ( axi_req_t    ),
+        .axi_rsp_t    ( axi_rsp_t    ),
+        .host_req_t   ( host_req_t   ),
+        .host_w_t     ( host_w_t     ),
+        .host_r_t     ( host_r_t     ),
+        .host_wrsp_t  ( host_wrsp_t  )
+    ) i_axi_frontend (
+        .clk_i             ( clk_sys_i       ),
+        .rst_ni            ( rst_sys_ni      ),
+        .drain_i           ( frontend_drain  ),
+        .idle_o            ( host_idle       ),
+        .axi_req_i         ( axi_req_i       ),
+        .axi_rsp_o         ( axi_rsp_o       ),
+        .host_req_o         ( host_req                 ),
+        .host_req_valid_o   ( host_req_valid           ),
+        .host_req_ready_i   ( host_req_ready           ),
+        .host_w_o           ( host_w                   ),
+        .host_w_valid_o     ( host_w_valid             ),
+        .host_w_ready_i     ( host_w_ready             ),
+        .host_r_i           ( host_r                   ),
+        .host_r_valid_i     ( host_r_valid             ),
+        .host_r_ready_o     ( host_r_ready             ),
+        .host_wrsp_i        ( host_wrsp                ),
+        .host_wrsp_valid_i  ( host_wrsp_valid          ),
+        .host_wrsp_ready_o  ( host_wrsp_ready          )
+    );
+
+    hyperbus_midend #(
+        .HostAddrWidth ( AxiAddrWidth        ),
+        .HostDataWidth ( AxiDataWidth        ),
+        .NumChips      ( NumChips            ),
+        .NumPhys       ( NumPhys             ),
+        .host_req_t    ( host_req_t          ),
+        .host_w_t      ( host_w_t            ),
+        .host_r_t      ( host_r_t            ),
+        .host_wrsp_t   ( host_wrsp_t         ),
+        .hyper_rx_t    ( hyper_rx_t          ),
+        .hyper_tx_t    ( hyper_tx_t          ),
+        .hyper_cmd_t   ( hyper_cmd_t         ),
+        .rule_t        ( axi_rule_t          )
+    ) i_midend (
+        .clk_i             ( clk_sys_i              ),
+        .rst_ni            ( rst_sys_ni             ),
+        .host_req_i        ( host_req               ),
+        .host_req_valid_i  ( host_req_valid         ),
+        .host_req_ready_o  ( host_req_ready         ),
+        .host_w_i          ( host_w                 ),
+        .host_w_valid_i    ( host_w_valid           ),
+        .host_w_ready_o    ( host_w_ready           ),
+        .host_r_o          ( host_r                 ),
+        .host_r_valid_o    ( host_r_valid           ),
+        .host_r_ready_i    ( host_r_ready           ),
+        .host_wrsp_o       ( host_wrsp              ),
+        .host_wrsp_valid_o ( host_wrsp_valid        ),
+        .host_wrsp_ready_i ( host_wrsp_ready        ),
+        .frontend_cfg_i    ( frontend_cfg           ),
+        .chip_rules_i      ( frontend_chip_rules    ),
+        .trans_active_o    ( midend_trans_active    ),
+        .decode_error_o    ( midend_decode_error    ),
+        .rx_i              ( midend_rx              ),
+        .rx_valid_i        ( midend_rx_valid        ),
+        .rx_ready_o        ( midend_rx_ready        ),
+        .tx_o              ( midend_tx              ),
+        .tx_valid_o        ( midend_tx_valid        ),
+        .tx_ready_i        ( midend_tx_ready        ),
+        .wrsp_error_i      ( midend_wrsp_error      ),
+        .wrsp_valid_i      ( midend_wrsp_valid      ),
+        .wrsp_ready_o      ( midend_wrsp_ready      ),
+        .cmd_o             ( midend_cmd             ),
+        .cmd_valid_o       ( midend_cmd_valid       ),
+        .cmd_ready_i       ( midend_cmd_ready       )
+    );
 
     hyperbus_backend #(
         .NumChips         ( NumChips          ),
@@ -155,30 +273,29 @@ module hyperbus_synchronous #(
         .SyncStages       ( SyncStages        ),
         .hyper_rx_t       ( hyper_rx_t        ),
         .hyper_tx_t       ( hyper_tx_t        ),
-        .tf_cdc_t         ( tf_t              ),
-        .RstCfg           ( RstCfg            )
+        .hyper_cmd_t      ( hyper_cmd_t       )
     ) i_backend (
-        .clk_i                  ( clk_sys_i             ),
+        .clk_i                  ( clk_backend           ),
         .clk_90_i               ( clk_backend_90        ),
-        .rst_ni                 ( rst_sys_ni            ),
+        .rst_ni                 ( rst_backend_n         ),
         .test_mode_i            ( test_mode_i           ),
-        .cfg_apply_i            ( cfg_apply             ),
-        .cfg_apply_valid_i      ( cfg_apply_valid       ),
-        .cfg_apply_ready_o      ( cfg_apply_ready       ),
+        .cfg_apply_i            ( backend_cfg_apply     ),
+        .cfg_apply_valid_i      ( backend_cfg_apply_valid ),
+        .cfg_apply_ready_o      ( backend_cfg_apply_ready ),
         .busy_o                 (                       ),
         .tx_clk_delay_o         ( backend_tx_clk_delay  ),
-        .rx_o                   ( rx                    ),
-        .rx_valid_o             ( rx_valid              ),
-        .rx_ready_i             ( rx_ready              ),
-        .tx_i                   ( tx                    ),
-        .tx_valid_i             ( tx_valid              ),
-        .tx_ready_o             ( tx_ready              ),
-        .b_error_o              ( b_error               ),
-        .b_valid_o              ( b_valid               ),
-        .b_ready_i              ( b_ready               ),
-        .trans_i                ( frontend_trans        ),
-        .trans_valid_i          ( frontend_trans_valid  ),
-        .trans_ready_o          ( backend_trans_ready   ),
+        .rx_o                   ( backend_rx            ),
+        .rx_valid_o             ( backend_rx_valid      ),
+        .rx_ready_i             ( backend_rx_ready      ),
+        .tx_i                   ( backend_tx            ),
+        .tx_valid_i             ( backend_tx_valid      ),
+        .tx_ready_o             ( backend_tx_ready      ),
+        .wrsp_error_o           ( backend_wrsp_error    ),
+        .wrsp_valid_o           ( backend_wrsp_valid    ),
+        .wrsp_ready_i           ( backend_wrsp_ready    ),
+        .cmd_i                  ( backend_cmd           ),
+        .cmd_valid_i            ( backend_cmd_valid     ),
+        .cmd_ready_o            ( backend_cmd_ready     ),
         .hyper_cs_no            ( hyper_cs_no           ),
         .hyper_ck_o             ( hyper_ck_o            ),
         .hyper_ck_no            ( hyper_ck_no           ),
