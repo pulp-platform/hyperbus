@@ -31,9 +31,9 @@ module axi_hyper_tb
   parameter time         TbTestTime =  4ns,
   /// DUT variant: 0 is isochronous, 1 is synchronous, 2 is asynchronous
   parameter int unsigned TbDutVariant = 0,
-  /// RX delay-line tap value used by variants with explicit delay lines.
+  /// RX delay-line tap value.
   parameter int unsigned TbRxDelayLineTaps = 16,
-  /// TX delay-line tap value used by variants with explicit delay lines.
+  /// TX delay-line tap value.
   parameter int unsigned TbTxDelayLineTaps = 19,
   /// Number of AXI beats in the directed slow read/write stress transactions.
   parameter int unsigned TbSlowNumBeats = 64,
@@ -1015,6 +1015,9 @@ module axi_hyper_tb
     automatic reg_bus_master_t     reg_master     = new( reg_bus_mst       );
 
     automatic s27ks_cfg0_reg_t s27ks_cfg0 = hyperbus_tb_pkg::s27ks_cfg0_default;
+    automatic logic [63:0] divider_cycle_snapshot;
+    automatic logic [63:0] div2_write_cycles;
+    automatic logic [63:0] div4_write_cycles;
 
     // Reset the AXI drivers and scoreboards
     end_of_sim = 1'b0;
@@ -1043,14 +1046,45 @@ module axi_hyper_tb
     reg_master.send_write(32'h30, 32'h8000_0000, '1, s_reg_error);
     if (s_reg_error != 1'b0) $error("unexpected error");
 
-    if (TbDutVariant != 0) begin
-      reg_master.send_write(32'h4 << 2, TbRxDelayLineTaps, '1, s_reg_error);
-      if (s_reg_error != 1'b0) $error("unexpected error");
-      reg_master.send_write(32'h5 << 2, TbTxDelayLineTaps, '1, s_reg_error);
+    reg_master.send_write(32'h4 << 2, TbRxDelayLineTaps, '1, s_reg_error);
+    if (s_reg_error != 1'b0) $error("unexpected error");
+    reg_master.send_write(32'h5 << 2, TbTxDelayLineTaps, '1, s_reg_error);
+    if (s_reg_error != 1'b0) $error("unexpected error");
+
+    if (TbDutVariant == 0) begin
+      reg_master.send_read(32'h78, reg_read, s_reg_error);
+      if ((s_reg_error != 1'b0) || (reg_read != 8)) $error("unexpected divider reset value");
+      reg_master.send_write(32'h78, 8'd2, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
     end
 
     #600350ns;
+
+    if (TbDutVariant == 0) begin
+      // The configuration barrier completes only after the divided clock resumes.
+      reg_master.send_write(32'h78, 8'd4, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
+      reg_master.send_read(32'h78, reg_read, s_reg_error);
+      if ((s_reg_error != 1'b0) || (reg_read != 4)) $error("divider update failed");
+
+      divider_cycle_snapshot = cycle_count;
+      axi_write_slow(axi_ctrl_mst, 32'h8000_7000, 4, 0);
+      div4_write_cycles = cycle_count - divider_cycle_snapshot;
+
+      reg_master.send_write(32'h78, 8'd2, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected error");
+      reg_master.send_read(32'h78, reg_read, s_reg_error);
+      if ((s_reg_error != 1'b0) || (reg_read != 2)) $error("divider restore failed");
+
+      divider_cycle_snapshot = cycle_count;
+      axi_write_slow(axi_ctrl_mst, 32'h8000_8000, 4, 0);
+      div2_write_cycles = cycle_count - divider_cycle_snapshot;
+
+      if (div4_write_cycles <= div2_write_cycles + div2_write_cycles / 2) begin
+        $error("divider did not reduce PHY throughput: div4=%0d cycles, div2=%0d cycles",
+               div4_write_cycles, div2_write_cycles);
+      end
+    end
 
     run_performance_smoke(axi_ctrl_mst);
     run_slow_backpressure_test(axi_ctrl_mst, reg_master);
@@ -1159,9 +1193,10 @@ endmodule
 
 module axi_hyper_tb_isochronous;
   axi_hyper_tb #(
-    .TbDutVariant  ( 0   ),
-    .TbCyclTime    ( 5ns ),
-    .TbPhyCyclTime ( 6ns )
+    .TbDutVariant      ( 0    ),
+    .TbCyclTime        ( 5ns  ),
+    .TbPhyCyclTime     ( 6ns  ),
+    .TbTxDelayLineTaps ( 31   )
   ) i_axi_hyper_tb ();
 endmodule
 
