@@ -59,7 +59,8 @@ module hyperbus_trx #(
     logic           rx_rwds_clk_ena;
     logic           rx_rwds_clk_orig;
     logic           rx_rwds_clk;
-    logic           rx_rwds_soft_rst;
+    logic           rx_rwds_clk_n;
+    logic           rx_capture_rst;
     logic [15:0]    rx_rwds_fifo_in;
     logic           rx_rwds_fifo_valid;
     logic           rx_rwds_fifo_ready;
@@ -86,7 +87,7 @@ module hyperbus_trx #(
 
     // Synchronize output chip select to shifted differential output clock
     always_ff @(negedge clk_i or negedge rst_ni) begin : proc_ff_tx_shift90
-        if (~rst_ni)    hyper_cs_no <= '1;
+        if (!rst_ni)    hyper_cs_no <= '1;
         else            hyper_cs_no <= cs_ena_i ? ~cs_i : '1;
     end
 
@@ -117,7 +118,7 @@ module hyperbus_trx #(
     // Delay output, clock enables to be synchronous with DDR-converted data
     // The delayed clock also ensures t_CSS is respected at the start, end of CS
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_tx_delay
-        if(~rst_ni) begin
+        if (!rst_ni) begin
             hyper_rwds_oe_o <= 1'b0;
             hyper_dq_oe_o   <= 1'b0;
             tx_clk_ena_q    <= 1'b0;
@@ -134,13 +135,13 @@ module hyperbus_trx #(
 
     // Sample RWDS for extra latency determination.
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rwds_sample
-        if (~rst_ni)                rwds_sample_o <= '0;
+        if (!rst_ni)                rwds_sample_o <= '0;
         else if (rwds_sample_ena_i) rwds_sample_o <= hyper_rwds_i;
     end
 
     // Set and Reset RX clock enable
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rx_delay
-        if (~rst_ni)                rx_rwds_clk_ena <= 1'b0;
+        if (!rst_ni)                rx_rwds_clk_ena <= 1'b0;
         else if (rx_clk_set_i)      rx_rwds_clk_ena <= 1'b1;
         else if (rx_clk_reset_i)    rx_rwds_clk_ena <= 1'b0;
     end
@@ -148,7 +149,7 @@ module hyperbus_trx #(
     // Shift RWDS clock by 90 degrees
 `ifdef TARGET_XILINX
         hyperbus_rwds_delay i_delay_rx_rwds_90 (
-            .rst_i   ( ~rst_ni ),
+            .rst_i   ( !rst_ni ),
             .clk_i,
             .in_i    ( hyper_rwds_i   ),
             .delay_i ( rx_clk_delay_i ),
@@ -174,12 +175,12 @@ module hyperbus_trx #(
 
      // Reset RX state on async reset or on gated clock (whenever inactive)
      // TODO: is this safe? Replace with tech cells?
-    assign rx_rwds_soft_rst = ~rst_ni | (~rx_rwds_clk_ena & ~test_mode_i);
+    assign rx_capture_rst = !rst_ni || (!rx_rwds_clk_ena && !test_mode_i);
 
     // RX data is valid one cycle after each RX soft reset
-    always_ff @(posedge rx_rwds_clk or posedge rx_rwds_soft_rst) begin : proc_read_in_valid
-        if (rx_rwds_soft_rst)   rx_rwds_fifo_valid <= 1'b0;
-        else                    rx_rwds_fifo_valid <= 1'b1;
+    always_ff @(posedge rx_rwds_clk or posedge rx_capture_rst) begin : proc_read_in_valid
+        if (rx_capture_rst) rx_rwds_fifo_valid <= 1'b0;
+        else                rx_rwds_fifo_valid <= 1'b1;
     end
 
     // If testing, replace gated RWDS clock with primary (PHY) clock;
@@ -197,9 +198,9 @@ module hyperbus_trx #(
 
     // Data input DDR conversion
     assign rx_rwds_fifo_in[7:0] = hyper_dq_i;
-    always @(posedge rx_rwds_clk or posedge rx_rwds_soft_rst) begin : proc_ff_ddr_in
-        if(rx_rwds_soft_rst)    rx_rwds_fifo_in[15:8] <= '0;
-        else                    rx_rwds_fifo_in[15:8] <= hyper_dq_i;
+    always @(posedge rx_rwds_clk or posedge rx_capture_rst) begin : proc_ff_ddr_in
+        if (rx_capture_rst) rx_rwds_fifo_in[15:8] <= '0;
+        else                rx_rwds_fifo_in[15:8] <= hyper_dq_i;
     end
 
     tc_clk_inverter i_rwds_clk_inverter (
@@ -231,6 +232,10 @@ module hyperbus_trx #(
     `ifndef SYNTHESIS
     always @(negedge rx_rwds_fifo_ready) assert(rx_rwds_fifo_ready)
         else $error("%m: HyperBus RX FIFO must always be ready to receive data");
+
+    rx_capture_control_exclusive : assert property (
+        @(posedge clk_i) disable iff (!rst_ni) !(rx_clk_set_i && rx_clk_reset_i)
+    ) else $error("%m: RWDS capture set and reset asserted together");
     `endif
 
 endmodule

@@ -11,6 +11,9 @@ package:
     - "Paul Scheffler <paulsc@iis.ee.ethz.ch>"
     - "Luca Valente <luca.valente@unibo.it>"   # current maintainer
 
+export_include_dirs:
+  - include
+
 dependencies:
   common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 1.21.0        }
   axi:                 { git: "https://github.com/pulp-platform/axi.git",                version: 0.39.1        }
@@ -55,7 +58,8 @@ sources:
     - src/hyperbus_phy.sv
     - src/hyperbus_phy_if.sv
     - src/hyperbus_axi.sv
-    - src/hyperbus_frontend.sv
+    - src/hyperbus_midend.sv
+    - src/hyperbus_cfg_frontend.sv
     - src/hyperbus_async_bridge.sv
     - src/hyperbus_iso_bridge.sv
     - src/hyperbus_backend.sv
