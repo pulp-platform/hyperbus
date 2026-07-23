@@ -6,7 +6,7 @@
 
 `include "common_cells/registers.svh"
 
-module hyperbus_phy2r #(
+module hyperbus_read_adapter #(
     parameter int unsigned HostDataWidth = -1,
     parameter int unsigned NumPhys       = -1,
     parameter type         T             = logic,
@@ -16,8 +16,8 @@ module hyperbus_phy2r #(
     input  logic                   clk_i,
     input  logic                   rst_ni,
     input  logic [2:0]             size_i,
-    input  logic                   is_read_i,
-    input  logic                   cmd_fire_i,
+    input  logic                   start_i,
+    input  logic                   dual_phy_i,
     input  logic [AddrWidth-1:0]   start_addr_i,
     input  logic [BurstLength-1:0] burst_len_i,
     output logic                   host_valid_o,
@@ -41,9 +41,9 @@ module hyperbus_phy2r #(
         WaitData,
         Sample,
         CntReady
-    } hyper_splitter_state_e;
+    } read_adapter_state_e;
 
-    hyper_splitter_state_e        state_d, state_q;
+    read_adapter_state_e          state_d, state_q;
     logic [BurstLength-1:0]       byte_host_addr_d, byte_host_addr_q;
     logic [BurstLength-1:0]       byte_phy_cnt_d, byte_phy_cnt_q;
     logic [BurstLength-1:0]       last_addr_d, last_addr_q;
@@ -55,6 +55,11 @@ module hyperbus_phy2r #(
     logic                         sent_available_data;
     logic [BurstLength-1:0]       next_host_addr;
     logic                         host_last;
+    logic [16*NumPhys-1:0]        converted_data;
+    logic                         converted_last;
+    logic                         converted_error;
+    logic                         converted_valid;
+    logic                         converted_ready;
 
     assign word_cnt = (PhyBeatsPerHost == 1) ? '0 :
         byte_phy_cnt_q[($clog2(NumPhys) + 1) +: WordCntWidth];
@@ -75,7 +80,7 @@ module hyperbus_phy2r #(
         last_addr_d      = last_addr_q;
         size_d           = size_q;
 
-        if (cmd_fire_i && is_read_i) begin
+        if (start_i) begin
             byte_host_addr_d[BurstLength-1:AddrWidth] = '0;
             byte_host_addr_d[AddrWidth-1:0] = start_addr_i;
             byte_phy_cnt_d[BurstLength-1:AddrWidth] = '0;
@@ -86,7 +91,7 @@ module hyperbus_phy2r #(
         if (host_valid_o && host_ready_i) begin
             byte_host_addr_d = ((byte_host_addr_q >> size_q) << size_q) + (1 << size_q);
         end
-        if (phy_valid_i && phy_ready_o) begin
+        if (converted_valid && converted_ready) begin
             byte_phy_cnt_d = byte_phy_cnt_q + NumPhys * 2;
         end
     end
@@ -102,12 +107,12 @@ module hyperbus_phy2r #(
             if (host_valid_o && host_ready_i) begin
                 data_buffer_d.resp = hyperbus_pkg::HyperRespOkay;
             end
-            if (phy_ready_o && phy_valid_i) begin
-                data_buffer_d.data[word_cnt*(16*NumPhys) +: (16*NumPhys)] = data_i;
-                if (error_i) begin
+            if (converted_ready && converted_valid) begin
+                data_buffer_d.data[word_cnt*(16*NumPhys) +: (16*NumPhys)] = converted_data;
+                if (converted_error) begin
                     data_buffer_d.resp = hyperbus_pkg::HyperRespAccessError;
                 end
-                data_buffer_d.last = last_i;
+                data_buffer_d.last = converted_last;
             end
         end
     end
@@ -115,35 +120,35 @@ module hyperbus_phy2r #(
     always_comb begin : proc_fsm
         state_d      = state_q;
         host_valid_o = 1'b0;
-        phy_ready_o  = 1'b0;
+        converted_ready = 1'b0;
 
         unique case (state_q)
             Idle: begin
-                if (cmd_fire_i && is_read_i) begin
+                if (start_i) begin
                     state_d = WaitData;
                 end
             end
             WaitData: begin
-                phy_ready_o = 1'b1;
-                if (phy_valid_i) begin
+                converted_ready = 1'b1;
+                if (converted_valid) begin
                     state_d = Sample;
                 end
             end
             Sample: begin
-                phy_ready_o = 1'b1;
+                converted_ready = 1'b1;
                 if (enough_data) begin
                     state_d = CntReady;
                 end
             end
             CntReady: begin
                 host_valid_o = enough_data_q;
-                phy_ready_o  = !enough_data_q;
+                converted_ready = !enough_data_q;
                 if (host_valid_o && host_ready_i) begin
                     if (data_o.last || (last_addr_q == byte_host_addr_d)) begin
                         state_d = Idle;
                     end else if (sent_available_data) begin
-                        phy_ready_o = 1'b1;
-                        state_d = phy_valid_i ? Sample : WaitData;
+                        converted_ready = 1'b1;
+                        state_d = converted_valid ? Sample : WaitData;
                     end
                 end
             end
@@ -153,11 +158,59 @@ module hyperbus_phy2r #(
         endcase
     end
 
+    if (NumPhys == 2) begin : gen_dual_phy
+        logic [15:0] lower_data_d, lower_data_q;
+        logic        lower_error_d, lower_error_q;
+        logic        merge_d, merge_q;
+
+        always_comb begin : proc_phy_width
+            converted_data  = data_i;
+            converted_last  = last_i;
+            converted_error = error_i;
+            converted_valid = phy_valid_i;
+            phy_ready_o      = converted_ready;
+            lower_data_d     = lower_data_q;
+            lower_error_d    = lower_error_q;
+            merge_d          = merge_q;
+
+            if (!dual_phy_i) begin
+                converted_data  = {data_i[15:0], lower_data_q};
+                converted_last  = last_i && merge_q;
+                converted_error = error_i || lower_error_q;
+                converted_valid = phy_valid_i && merge_q;
+                if (phy_valid_i && phy_ready_o) begin
+                    merge_d = !merge_q;
+                    if (!merge_q) begin
+                        lower_data_d  = data_i[15:0];
+                        lower_error_d = error_i;
+                    end else begin
+                        lower_error_d = 1'b0;
+                    end
+                end
+            end
+            if (start_i) begin
+                merge_d       = 1'b0;
+                lower_error_d = 1'b0;
+            end
+        end
+
+        `FFARN(lower_data_q, lower_data_d, '0, clk_i, rst_ni)
+        `FFARN(lower_error_q, lower_error_d, 1'b0, clk_i, rst_ni)
+        `FFARN(merge_q, merge_d, 1'b0, clk_i, rst_ni)
+    end else begin : gen_single_phy
+        always_comb begin : proc_phy_width
+            converted_data  = data_i;
+            converted_last  = last_i;
+            converted_error = error_i;
+            converted_valid = phy_valid_i;
+            phy_ready_o      = converted_ready;
+        end
+    end
+
     `FFARN(state_q, state_d, Idle, clk_i, rst_ni)
     `FFARN(data_buffer_q, data_buffer_d, '0, clk_i, rst_ni)
     `FFARN(byte_host_addr_q, byte_host_addr_d, '0, clk_i, rst_ni)
     `FFARN(byte_phy_cnt_q, byte_phy_cnt_d, '0, clk_i, rst_ni)
     `FFARN(size_q, size_d, '0, clk_i, rst_ni)
     `FFARN(last_addr_q, last_addr_d, '0, clk_i, rst_ni)
-
-endmodule
+endmodule : hyperbus_read_adapter
