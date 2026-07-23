@@ -14,9 +14,7 @@ module hyperbus_axi_frontend #(
     parameter type         axi_req_t    = logic,
     parameter type         axi_rsp_t    = logic,
     parameter type         host_req_t   = logic,
-    parameter type         host_w_t     = logic,
-    parameter type         host_r_t     = logic,
-    parameter type         host_wrsp_t  = logic
+    parameter type         host_rsp_t   = logic
 ) (
     input  logic       clk_i,
     input  logic       rst_ni,
@@ -28,20 +26,7 @@ module hyperbus_axi_frontend #(
     output axi_rsp_t   axi_rsp_o,
 
     output host_req_t  host_req_o,
-    output logic       host_req_valid_o,
-    input  logic       host_req_ready_i,
-
-    output host_w_t    host_w_o,
-    output logic       host_w_valid_o,
-    input  logic       host_w_ready_i,
-
-    input  host_r_t    host_r_i,
-    input  logic       host_r_valid_i,
-    output logic       host_r_ready_o,
-
-    input  host_wrsp_t host_wrsp_i,
-    input  logic       host_wrsp_valid_i,
-    output logic       host_wrsp_ready_o
+    input  host_rsp_t  host_rsp_i
 );
 
     localparam int unsigned AxiDataBytes = AxiDataWidth / 8;
@@ -117,9 +102,9 @@ module hyperbus_axi_frontend #(
     write_balance_t write_balance_d, write_balance_q;
     logic           w_partial_d, w_partial_q;
     logic           allow_aw, allow_w;
-    logic           axi_ar_fire, axi_aw_fire, axi_w_fire;
-    logic           axi_atomic_r_fire;
-    logic           axi_r_last_fire, axi_b_fire;
+    logic           axi_ar_accepted, axi_aw_accepted, axi_w_accepted;
+    logic           axi_atomic_read_started;
+    logic           axi_r_completed, axi_b_accepted;
 
     always_comb begin : proc_axi_drain
         allow_aw = !drain_i;
@@ -142,13 +127,13 @@ module hyperbus_axi_frontend #(
         axi_rsp_o.w_ready  = fifo_in_rsp.w_ready && allow_w;
     end
 
-    assign axi_ar_fire     = axi_req_i.ar_valid && axi_rsp_o.ar_ready;
-    assign axi_aw_fire     = axi_req_i.aw_valid && axi_rsp_o.aw_ready;
-    assign axi_w_fire      = axi_req_i.w_valid && axi_rsp_o.w_ready;
-    assign axi_atomic_r_fire = axi_aw_fire &&
+    assign axi_ar_accepted = axi_req_i.ar_valid && axi_rsp_o.ar_ready;
+    assign axi_aw_accepted = axi_req_i.aw_valid && axi_rsp_o.aw_ready;
+    assign axi_w_accepted  = axi_req_i.w_valid && axi_rsp_o.w_ready;
+    assign axi_atomic_read_started = axi_aw_accepted &&
                                axi_req_i.aw.atop[axi_pkg::ATOP_R_RESP];
-    assign axi_r_last_fire = axi_rsp_o.r_valid && axi_req_i.r_ready && axi_rsp_o.r.last;
-    assign axi_b_fire      = axi_rsp_o.b_valid && axi_req_i.b_ready;
+    assign axi_r_completed = axi_rsp_o.r_valid && axi_req_i.r_ready && axi_rsp_o.r.last;
+    assign axi_b_accepted  = axi_rsp_o.b_valid && axi_req_i.b_ready;
 
     always_comb begin : proc_pending_counts
         read_pending_d  = read_pending_q;
@@ -156,23 +141,23 @@ module hyperbus_axi_frontend #(
         write_balance_d = write_balance_q;
         w_partial_d     = w_partial_q;
 
-        read_pending_d = read_pending_q + pending_cnt_t'(axi_ar_fire) +
-                         pending_cnt_t'(axi_atomic_r_fire) -
-                         pending_cnt_t'(axi_r_last_fire);
+        read_pending_d = read_pending_q + pending_cnt_t'(axi_ar_accepted) +
+                         pending_cnt_t'(axi_atomic_read_started) -
+                         pending_cnt_t'(axi_r_completed);
 
-        unique case ({axi_aw_fire, axi_b_fire})
+        unique case ({axi_aw_accepted, axi_b_accepted})
             2'b10: write_pending_d = write_pending_q + 1'b1;
             2'b01: write_pending_d = write_pending_q - 1'b1;
             default:;
         endcase
 
-        if (axi_aw_fire) begin
+        if (axi_aw_accepted) begin
             write_balance_d = write_balance_d + 1'b1;
         end
-        if (axi_w_fire && axi_req_i.w.last) begin
+        if (axi_w_accepted && axi_req_i.w.last) begin
             write_balance_d = write_balance_d - 1'b1;
         end
-        if (axi_w_fire) begin
+        if (axi_w_accepted) begin
             w_partial_d = !axi_req_i.w.last;
         end
     end
@@ -262,54 +247,64 @@ module hyperbus_axi_frontend #(
         .valid_i ( spill_ax_valid       ),
         .ready_o ( spill_ax_ready       ),
         .data_i  ( spill_ax_channel_in  ),
-        .valid_o ( host_req_valid_o     ),
-        .ready_i ( host_req_ready_i     ),
+        .valid_o ( host_req_o.cmd_valid ),
+        .ready_i ( host_rsp_i.cmd_ready ),
         .data_o  ( spill_ax_channel_out )
     );
 
     assign rr_out_req_ax    = spill_ax_channel_out.ax_data;
     assign rr_out_req_write = spill_ax_channel_out.write;
 
-    assign host_req_o.write = rr_out_req_write;
-    assign host_req_o.addr  = rr_out_req_ax.addr;
-    assign host_req_o.beats = hyperbus_pkg::hyper_blen_t'(rr_out_req_ax.len) +
-                              hyperbus_pkg::hyper_blen_t'(1);
-    assign host_req_o.size  = rr_out_req_ax.size;
-    assign host_req_o.burst = (rr_out_req_ax.burst == axi_pkg::BURST_FIXED) ?
-                              hyperbus_pkg::HyperBurstFixed :
-                              hyperbus_pkg::HyperBurstIncr;
+    assign host_req_o.cmd.write = rr_out_req_write;
+    assign host_req_o.cmd.addr  = rr_out_req_ax.addr;
+    assign host_req_o.cmd.beats = hyperbus_pkg::hyper_blen_t'(rr_out_req_ax.len) +
+                                  hyperbus_pkg::hyper_blen_t'(1);
+    assign host_req_o.cmd.size  = rr_out_req_ax.size;
+    assign host_req_o.cmd.burst = (rr_out_req_ax.burst == axi_pkg::BURST_FIXED) ?
+                                  hyperbus_pkg::HyperBurstFixed :
+                                  hyperbus_pkg::HyperBurstIncr;
     always_comb begin : proc_atomic_decode
-        host_req_o.atomic_op = (rr_out_req_ax.atop == '0) ?
-                               hyperbus_pkg::HyperAtomicNone :
-                               hyperbus_pkg::HyperAtomicInvalid;
+        host_req_o.cmd.atomic_op = (rr_out_req_ax.atop == '0) ?
+                                   hyperbus_pkg::HyperAtomicNone :
+                                   hyperbus_pkg::HyperAtomicInvalid;
         unique case (rr_out_req_ax.atop)
-            axi_pkg::ATOP_ATOMICSWAP: host_req_o.atomic_op = hyperbus_pkg::HyperAtomicSwap;
-            axi_pkg::ATOP_ATOMICCMP:  host_req_o.atomic_op = hyperbus_pkg::HyperAtomicCompare;
+            axi_pkg::ATOP_ATOMICSWAP:
+                host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicSwap;
+            axi_pkg::ATOP_ATOMICCMP:
+                host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicCompare;
             default: begin
                 if ((rr_out_req_ax.atop[5:4] == axi_pkg::ATOP_ATOMICSTORE) ||
                     (rr_out_req_ax.atop[5:4] == axi_pkg::ATOP_ATOMICLOAD)) begin
                     unique case (rr_out_req_ax.atop[2:0])
-                        axi_pkg::ATOP_ADD:  host_req_o.atomic_op = hyperbus_pkg::HyperAtomicAdd;
-                        axi_pkg::ATOP_CLR:  host_req_o.atomic_op = hyperbus_pkg::HyperAtomicClear;
-                        axi_pkg::ATOP_EOR:  host_req_o.atomic_op = hyperbus_pkg::HyperAtomicXor;
-                        axi_pkg::ATOP_SET:  host_req_o.atomic_op = hyperbus_pkg::HyperAtomicSet;
-                        axi_pkg::ATOP_SMAX: host_req_o.atomic_op = hyperbus_pkg::HyperAtomicSignedMax;
-                        axi_pkg::ATOP_SMIN: host_req_o.atomic_op = hyperbus_pkg::HyperAtomicSignedMin;
-                        axi_pkg::ATOP_UMAX: host_req_o.atomic_op = hyperbus_pkg::HyperAtomicUnsignedMax;
-                        axi_pkg::ATOP_UMIN: host_req_o.atomic_op = hyperbus_pkg::HyperAtomicUnsignedMin;
+                        axi_pkg::ATOP_ADD:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicAdd;
+                        axi_pkg::ATOP_CLR:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicClear;
+                        axi_pkg::ATOP_EOR:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicXor;
+                        axi_pkg::ATOP_SET:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicSet;
+                        axi_pkg::ATOP_SMAX:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicSignedMax;
+                        axi_pkg::ATOP_SMIN:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicSignedMin;
+                        axi_pkg::ATOP_UMAX:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicUnsignedMax;
+                        axi_pkg::ATOP_UMIN:
+                            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicUnsignedMin;
                         default:;
                     endcase
                     // AXI defines bit 3 as endianness for arithmetic atomics.
                     if (rr_out_req_ax.atop[3] &&
                         ((rr_out_req_ax.atop[2:0] == axi_pkg::ATOP_ADD) ||
                          (rr_out_req_ax.atop[2:0] >= axi_pkg::ATOP_SMAX))) begin
-                        host_req_o.atomic_op = hyperbus_pkg::HyperAtomicInvalid;
+                        host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicInvalid;
                     end
                 end
             end
         endcase
-        host_req_o.atomic_return = rr_out_req_ax.atop[axi_pkg::ATOP_R_RESP];
-        host_req_o.ordered       = rr_out_req_ax.atop != '0;
+        host_req_o.cmd.atomic_return = rr_out_req_ax.atop[axi_pkg::ATOP_R_RESP];
+        host_req_o.cmd.ordered       = rr_out_req_ax.atop != '0;
     end
 
     assign w_data_fifo_in.data = ser_out_req.w.data;
@@ -335,57 +330,57 @@ module hyperbus_axi_frontend #(
         .ready_i    ( w_data_ready        )
     );
 
-    assign host_w_o.data  = w_data_fifo.data;
-    assign host_w_o.strb  = w_data_fifo.strb;
-    assign host_w_o.last  = w_data_fifo.last;
-    assign host_w_valid_o = w_data_valid;
-    assign w_data_ready   = host_w_ready_i;
+    assign host_req_o.w.data  = w_data_fifo.data;
+    assign host_req_o.w.strb  = w_data_fifo.strb;
+    assign host_req_o.w.last  = w_data_fifo.last;
+    assign host_req_o.w_valid = w_data_valid;
+    assign w_data_ready       = host_rsp_i.w_ready;
 
-    assign ser_out_rsp.r.data  = host_r_i.data;
-    assign ser_out_rsp.r.last  = host_r_i.last;
+    assign ser_out_rsp.r.data  = host_rsp_i.r.data;
+    assign ser_out_rsp.r.last  = host_rsp_i.r.last;
     always_comb begin : proc_host_resp
         ser_out_rsp.r.resp = axi_pkg::RESP_OKAY;
         ser_out_rsp.b.resp = axi_pkg::RESP_OKAY;
 
-        if (host_r_i.resp == hyperbus_pkg::HyperRespDecodeError) begin
+        if (host_rsp_i.r.resp == hyperbus_pkg::HyperRespDecodeError) begin
             ser_out_rsp.r.resp = axi_pkg::RESP_DECERR;
-        end else if (host_r_i.resp != hyperbus_pkg::HyperRespOkay) begin
+        end else if (host_rsp_i.r.resp != hyperbus_pkg::HyperRespOkay) begin
             ser_out_rsp.r.resp = axi_pkg::RESP_SLVERR;
         end
 
-        if (host_wrsp_i.resp == hyperbus_pkg::HyperRespDecodeError) begin
+        if (host_rsp_i.wrsp.resp == hyperbus_pkg::HyperRespDecodeError) begin
             ser_out_rsp.b.resp = axi_pkg::RESP_DECERR;
-        end else if (host_wrsp_i.resp != hyperbus_pkg::HyperRespOkay) begin
+        end else if (host_rsp_i.wrsp.resp != hyperbus_pkg::HyperRespOkay) begin
             ser_out_rsp.b.resp = axi_pkg::RESP_SLVERR;
         end
     end
 
     assign ser_out_rsp.r.id    = '0;
     assign ser_out_rsp.r.user  = '0;
-    assign ser_out_rsp.r_valid = host_r_valid_i;
-    assign host_r_ready_o      = ser_out_req.r_ready;
+    assign ser_out_rsp.r_valid = host_rsp_i.r_valid;
+    assign host_req_o.r_ready  = ser_out_req.r_ready;
 
     assign ser_out_rsp.b.user  = '0;
     assign ser_out_rsp.b.id    = '0;
-    assign ser_out_rsp.b_valid = host_wrsp_valid_i;
-    assign host_wrsp_ready_o   = ser_out_req.b_ready;
+    assign ser_out_rsp.b_valid   = host_rsp_i.wrsp_valid;
+    assign host_req_o.wrsp_ready = ser_out_req.b_ready;
 
     // pragma translate_off
     `ifndef VERILATOR
     axi_burst_type : assert property(
-        @(posedge clk_i) host_req_valid_o && host_req_ready_i |->
+        @(posedge clk_i) host_req_o.cmd_valid && host_rsp_i.cmd_ready |->
             ((rr_out_req_ax.burst == axi_pkg::BURST_INCR) ||
              ((rr_out_req_ax.burst == axi_pkg::BURST_FIXED) && (rr_out_req_ax.len == '0))))
         else $fatal(1, "Only incremental bursts and single-beat fixed bursts are supported.");
 
     read_response_pending : assert property(
         @(posedge clk_i) disable iff (!rst_ni)
-            axi_r_last_fire |-> (read_pending_q != '0))
+            axi_r_completed |-> (read_pending_q != '0))
         else $fatal(1, "AXI read response completed without a pending request.");
 
     write_response_pending : assert property(
         @(posedge clk_i) disable iff (!rst_ni)
-            axi_b_fire |-> (write_pending_q != '0))
+            axi_b_accepted |-> (write_pending_q != '0))
         else $fatal(1, "AXI write response completed without a pending request.");
     `endif
     // pragma translate_on
