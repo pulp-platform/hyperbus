@@ -21,7 +21,6 @@ proc run_test {top_name wlf_name} {
     set StdArithNoWarnings 1
     set NumericStdNoWarnings 1
     log -r /*
-
     catch {delete wave *}
 
     run -all
@@ -37,7 +36,9 @@ proc run_test {top_name wlf_name} {
     }
 }
 
-run_test axi_hyper_tb           sim_run_axi.wlf
-run_test hyperbus_cfg_regs_tb   sim_run_cfg_regs.wlf
+run_test axi_hyper_tb_isochronous   sim_run_isochronous.wlf
+run_test axi_hyper_tb_synchronous   sim_run_synchronous.wlf
+run_test axi_hyper_tb_asynchronous  sim_run_asynchronous.wlf
+run_test hyperbus_cfg_regs_tb       sim_run_cfg_regs.wlf
 
 quit -code $regression_failed -f
