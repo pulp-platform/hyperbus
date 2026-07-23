@@ -16,8 +16,10 @@ module hyperbus_backend #(
     parameter type          hyper_rsp_t      = logic
 ) (
     input  logic                       clk_i,
-    input  logic                       clk_90_i,
     input  logic                       rst_ni,
+`ifdef TARGET_XILINX
+    input  logic                       clk_ref200_i,
+`endif
     input  logic                       test_mode_i,
 
     input  hyperbus_pkg::phy_cfg_t     cfg_apply_i,
@@ -25,7 +27,6 @@ module hyperbus_backend #(
     output logic                       cfg_apply_ready_o,
 
     output logic                       busy_o,
-    output logic [7:0]                 tx_clk_delay_o,
 
     input  hyper_req_t                 req_i,
     output hyper_rsp_t                 rsp_o,
@@ -45,6 +46,7 @@ module hyperbus_backend #(
     hyperbus_pkg::phy_cfg_t cfg_q;
     logic                     cfg_apply_accepted;
     logic                     phy_busy_any;
+    logic                     clk_tx;
 
     `ASSERT_INIT(NumChipsValid, NumChips >= 1 && NumChips <= 8)
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
@@ -53,9 +55,19 @@ module hyperbus_backend #(
     assign cfg_apply_ready_o  = ~phy_busy_any;
     assign cfg_apply_accepted = cfg_apply_valid_i && cfg_apply_ready_o;
     assign busy_o             = phy_busy_any || cfg_apply_valid_i;
-    assign tx_clk_delay_o     = cfg_q.t_tx_clk_delay;
 
     `FFLARN(cfg_q, cfg_apply_i, cfg_apply_accepted, '0, clk_i, rst_ni)
+
+    hyperbus_tx_clk_delay i_tx_clk_delay (
+        .rst_ni,
+`ifdef TARGET_XILINX
+        .clk_ref200_i,
+`endif
+        .clk_i,
+        .in_i    ( clk_i                ),
+        .delay_i ( cfg_q.t_tx_clk_delay ),
+        .out_o   ( clk_tx               )
+    );
 
     if (NumPhys == 2) begin : gen_dual_phy
         hyperbus_pkg::phy_rx_t [NumPhys-1:0] phy_rx;
@@ -163,7 +175,7 @@ module hyperbus_backend #(
                 .SyncStages     ( SyncStages     )
             ) i_phy (
                 .clk_i,
-                .clk_i_90       ( clk_90_i          ),
+                .clk_tx_i       ( clk_tx            ),
                 .rst_ni,
                 .test_mode_i,
                 .cfg_i          ( cfg_q              ),
@@ -205,7 +217,7 @@ module hyperbus_backend #(
             .SyncStages     ( SyncStages     )
         ) i_phy (
             .clk_i,
-            .clk_i_90       ( clk_90_i          ),
+            .clk_tx_i       ( clk_tx            ),
             .rst_ni,
             .test_mode_i,
             .cfg_i          ( cfg_q              ),

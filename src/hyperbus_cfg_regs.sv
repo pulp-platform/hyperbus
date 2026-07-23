@@ -26,7 +26,7 @@ module hyperbus_cfg_regs #(
     input                               decode_error_i
 );
     localparam int unsigned NumChipsMax = 8;
-    localparam int unsigned NumRegs      = 30;
+    localparam int unsigned NumRegs      = 31;
     localparam int unsigned RegsBits     = cf_math_pkg::idx_width(NumRegs);
     localparam int unsigned RegStrbWidth = RegDataWidth/8;
 
@@ -192,6 +192,7 @@ module hyperbus_cfg_regs #(
         frontend_cfg_o.address_mask_msb = cfg_hwif_out.address_mask_msb.value.value;
         frontend_cfg_o.address_space    = cfg_hwif_out.address_space.value.value;
         frontend_cfg_o.dual_phy         = (NumPhys == 2) && cfg_hwif_out.dual_phy.value.value;
+        frontend_cfg_o.phy_clock_div    = cfg_hwif_out.phy_clock_div.value.value;
 
         phy_cfg_o.chip.t_latency_access      = cfg_hwif_out.t_latency_access.value.value;
         phy_cfg_o.chip.en_latency_additional = cfg_hwif_out.en_latency_additional.value.value;

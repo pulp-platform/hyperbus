@@ -116,6 +116,7 @@ module hyperbus_cfg_regblock (
         logic chip6_bound;
         logic chip7_base;
         logic chip7_bound;
+        logic phy_clock_div;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_err;
@@ -159,6 +160,7 @@ module hyperbus_cfg_regblock (
         decoded_reg_strb.chip6_bound = cpuif_req_masked & (cpuif_addr == 7'h6c);
         decoded_reg_strb.chip7_base = cpuif_req_masked & (cpuif_addr == 7'h70);
         decoded_reg_strb.chip7_bound = cpuif_req_masked & (cpuif_addr == 7'h74);
+        decoded_reg_strb.phy_clock_div = cpuif_req_masked & (cpuif_addr == 7'h78);
         decoded_err = '0;
     end
 
@@ -355,6 +357,12 @@ module hyperbus_cfg_regblock (
                 logic load_next;
             } value;
         } chip7_bound;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } value;
+        } phy_clock_div;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -510,6 +518,11 @@ module hyperbus_cfg_regblock (
                 logic [9:0] value;
             } value;
         } chip7_bound;
+        struct {
+            struct {
+                logic [7:0] value;
+            } value;
+        } phy_clock_div;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -1225,6 +1238,29 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.chip7_bound.value.value = field_storage.chip7_bound.value.value;
+    // Field: hyperbus_cfg_regs.phy_clock_div.value
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.phy_clock_div.value.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.phy_clock_div && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.phy_clock_div.value.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.phy_clock_div.value.next = next_c;
+        field_combo.phy_clock_div.value.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.phy_clock_div.value.value <= 8'h8;
+        end else begin
+            if(field_combo.phy_clock_div.value.load_next) begin
+                field_storage.phy_clock_div.value.value <= field_combo.phy_clock_div.value.next;
+            end
+        end
+    end
+    assign hwif_out.phy_clock_div.value.value = field_storage.phy_clock_div.value.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1331,6 +1367,9 @@ module hyperbus_cfg_regblock (
         end
         if(rd_mux_addr == 7'h74) begin
             readback_data_var[31:22] = field_storage.chip7_bound.value.value;
+        end
+        if(rd_mux_addr == 7'h78) begin
+            readback_data_var[7:0] = field_storage.phy_clock_div.value.value;
         end
         readback_data = readback_data_var;
         readback_done = decoded_req & ~decoded_req_is_wr;

@@ -53,6 +53,16 @@ addrmap hyperbus_cfg_regs {
         } coarse[7:5];
     };
 
+    reg phy_clock_div {
+        desc = "System-to-PHY clock division factor used by the isochronous top.";
+        field {
+            desc = "Must be at least two. Ignored by synchronous and asynchronous tops.";
+            sw = rw;
+            hw = r;
+            reset = 8'd8;
+        } value[7:0];
+    };
+
     reg address_mask_msb {
         desc = "Most-significant address bit used by frontend address packing.";
         field { sw = rw; hw = r; reset = 5'd25; } value[4:0];
@@ -209,4 +219,5 @@ addrmap hyperbus_cfg_regs {
     chip6_bound chip6_bound @ 0x6c;
     chip7_base chip7_base @ 0x70;
     chip7_bound chip7_bound @ 0x74;
+    phy_clock_div phy_clock_div @ 0x78;
 };
