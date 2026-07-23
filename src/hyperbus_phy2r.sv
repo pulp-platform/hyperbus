@@ -53,17 +53,21 @@ module hyperbus_phy2r #(
    logic                        is_16_bw, is_8_bw;
    logic [WordCntWidth-1:0]     word_cnt;
    logic                        enough_data;
+   logic                        enough_data_q;
    logic                        sent_available_data;
    logic [BurstLength-1:0]      next_axi_addr;
+   logic                        axi_last;
 
    assign word_cnt = (AxiBytesInPhyBeat==1) ? '0 : byte_phy_cnt_q[($clog2(NumPhys)+1) +:WordCntWidth];
    assign next_axi_addr = ((byte_axi_addr_q>>size_d)<< size_d) + (1<<size_d);
    assign enough_data = byte_phy_cnt_d >= next_axi_addr;
+   assign enough_data_q = byte_phy_cnt_q >= next_axi_addr;
    assign sent_available_data = byte_axi_addr_d >= byte_phy_cnt_q;
+   assign axi_last = data_buffer_q.last && (last_addr_q == next_axi_addr);
    assign data_o.data = data_buffer_q.data;
    assign data_o.error = data_buffer_q.error;
    assign data_o.valid = '0;
-   assign data_o.last = data_buffer_q.last && (last_addr_q==byte_axi_addr_d);
+   assign data_o.last = axi_last;
 
    always_comb begin : counter
       byte_axi_addr_d = byte_axi_addr_q;
@@ -121,12 +125,12 @@ module hyperbus_phy2r #(
            end
         end
         CntReady: begin
-           phy_ready_o = 1'b0;
-           axi_valid_o = 1'b1;
-           if(sent_available_data) begin
+           axi_valid_o = enough_data_q;
+           phy_ready_o = !enough_data_q;
+           if(axi_valid_o && sent_available_data) begin
                 phy_ready_o = 1'b1;
                 state_d = (data_o.last) ? Idle : ( phy_valid_i ? Sample : WaitData );
-           end else if (last_addr_q==byte_axi_addr_d) begin
+           end else if (axi_valid_o && (last_addr_q==byte_axi_addr_d)) begin
               state_d = Idle;
            end
         end
