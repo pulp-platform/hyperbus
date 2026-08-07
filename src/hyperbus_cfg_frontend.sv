@@ -238,5 +238,9 @@ module hyperbus_cfg_frontend #(
     for (genvar i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin : gen_cfg_range_checks
         `ASSERT(CfgLatencyAccessRange, staged_phy_cfg.chip[i].t_latency_access >= 4'd3,
             clk_i, !rst_ni)
+        `ASSERT(CfgRwdsSampleFitsLatency,
+            ({1'b0, staged_phy_cfg.chip[i].rwds_sample_delay} + 5'd2) <=
+            {1'b0, staged_phy_cfg.chip[i].t_latency_access},
+            clk_i, !rst_ni)
     end
 endmodule : hyperbus_cfg_frontend
