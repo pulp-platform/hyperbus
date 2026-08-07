@@ -28,12 +28,14 @@ module dut_if
   parameter int  IsClockODelayed = -1,
   parameter int unsigned DutVariant = 0,
   parameter time PhyCyclTime     = 6ns,
+  parameter time PadDelayTickCyclTime = 5ns,
   parameter type axi_rule_t      = logic
 )(
  input logic clk_i,
  input logic rst_ni,
  input logic end_sim_i,
  output logic [31:0] segment_start_count_o,
+ input hyperbus_tb_pkg::pad_delay_cfg_t pad_delay_cfg_i,
 
  AXI_BUS.Slave axi_slv_if,
  REG_BUS.in    reg_slv_if
@@ -85,8 +87,20 @@ module dut_if
     logic [NumPhys-1:0]               hyper_dq_oe;
     logic [NumPhys-1:0]               hyper_reset_n_wire;
     logic                             phy_clk;
+    logic                             pad_delay_tick_clk;
     logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_q;
     logic                             segment_start;
+
+    logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_pad;
+    logic [NumPhys-1:0]               hyper_ck_pad;
+    logic [NumPhys-1:0]               hyper_ck_n_pad;
+    logic [NumPhys-1:0]               hyper_rwds_o_pad;
+    logic [NumPhys-1:0]               hyper_rwds_oe_pad;
+    logic [NumPhys-1:0][7:0]          hyper_dq_o_pad;
+    logic [NumPhys-1:0]               hyper_dq_oe_pad;
+    logic [NumPhys-1:0]               hyper_reset_n_pad;
+    logic [NumPhys-1:0]               hyper_rwds_i_pad;
+    logic [NumPhys-1:0][7:0]          hyper_dq_i_pad;
              
     wire  [NumPhys-1:0][NumConnectedChips-1:0] pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
@@ -94,6 +108,36 @@ module dut_if
     wire  [NumPhys-1:0]                pad_hyper_rwds;
     wire  [NumPhys-1:0]                pad_hyper_reset;
     wire  [NumPhys-1:0][7:0]           pad_hyper_dq;
+
+    hyperbus_pad_delay #(
+      .NumPhys            ( NumPhys            ),
+      .NumConnectedChips  ( NumConnectedChips  ),
+      .NumChips           ( hyperbus_pkg::HyperNumChips )
+    ) i_pad_delay (
+      .tick_i       ( pad_delay_tick_clk    ),
+      .rst_ni       ( rst_ni                ),
+      .cfg_i        ( pad_delay_cfg_i       ),
+      .cs_n_i       ( hyper_cs_n_wire       ),
+      .ck_i         ( hyper_ck_wire         ),
+      .ck_n_i       ( hyper_ck_n_wire       ),
+      .rwds_o_i     ( hyper_rwds_o          ),
+      .dq_o_i       ( hyper_dq_o            ),
+      .reset_n_i    ( hyper_reset_n_wire    ),
+      .dq_oe_i      ( hyper_dq_oe           ),
+      .rwds_oe_i    ( hyper_rwds_oe         ),
+      .cs_n_o       ( hyper_cs_n_pad        ),
+      .ck_o         ( hyper_ck_pad          ),
+      .ck_n_o       ( hyper_ck_n_pad        ),
+      .rwds_o_o     ( hyper_rwds_o_pad      ),
+      .dq_o_o       ( hyper_dq_o_pad        ),
+      .reset_n_o    ( hyper_reset_n_pad     ),
+      .dq_oe_o      ( hyper_dq_oe_pad       ),
+      .rwds_oe_o    ( hyper_rwds_oe_pad     ),
+      .rwds_i_pad   ( hyper_rwds_i_pad      ),
+      .dq_i_pad     ( hyper_dq_i_pad        ),
+      .rwds_i       ( hyper_rwds_i           ),
+      .dq_i         ( hyper_dq_i             )
+    );
    
   axi_chan_logger #(
     .aw_chan_t ( axi_aw_chan_t ),
@@ -134,6 +178,15 @@ module dut_if
         forever begin
             #(PhyCyclTime/2);
             phy_clk = ~phy_clk;
+        end
+    end
+
+    initial begin
+        pad_delay_tick_clk = 1'b0;
+        #(real'(PadDelayTickCyclTime) / 8.0);
+        forever begin
+            #(real'(PadDelayTickCyclTime) / 4.0);
+            pad_delay_tick_clk = ~pad_delay_tick_clk;
         end
     end
 
@@ -199,22 +252,22 @@ module dut_if
           for (genvar j=0; j<NumConnectedChips; j++) begin : chips
 
              s27ks0641 #(
-               /*.mem_file_name ( "s27ks0641.mem"    ),*/
-               .TimingModel   ( "S27KS0641DPBHI020"    )
-             ) dut (
-               .DQ7           ( pad_hyper_dq[i][7]  ),
-               .DQ6           ( pad_hyper_dq[i][6]  ),
-               .DQ5           ( pad_hyper_dq[i][5]  ),
-               .DQ4           ( pad_hyper_dq[i][4]  ),
-               .DQ3           ( pad_hyper_dq[i][3]  ),
-               .DQ2           ( pad_hyper_dq[i][2]  ),
-               .DQ1           ( pad_hyper_dq[i][1]  ),
-               .DQ0           ( pad_hyper_dq[i][0]  ),
-               .RWDS          ( pad_hyper_rwds[i]   ),
-               .CSNeg         ( pad_hyper_csn[i][j] ),
-               .CK            ( pad_hyper_ck[i]     ),
-               .CKNeg         ( pad_hyper_ckn[i]    ),
-               .RESETNeg      ( pad_hyper_reset[i]  )
+                  /*.mem_file_name ( "s27ks0641.mem"    ),*/
+                  .TimingModel   ( "S27KS0641DPBHI020"    )
+                ) dut (
+                  .DQ7           ( pad_hyper_dq[i][7]  ),
+                  .DQ6           ( pad_hyper_dq[i][6]  ),
+                  .DQ5           ( pad_hyper_dq[i][5]  ),
+                  .DQ4           ( pad_hyper_dq[i][4]  ),
+                  .DQ3           ( pad_hyper_dq[i][3]  ),
+                  .DQ2           ( pad_hyper_dq[i][2]  ),
+                  .DQ1           ( pad_hyper_dq[i][1]  ),
+                  .DQ0           ( pad_hyper_dq[i][0]  ),
+                  .RWDS          ( pad_hyper_rwds[i]   ),
+                  .CSNeg         ( pad_hyper_csn[i][j] ),
+                  .CK            ( pad_hyper_ck[i]     ),
+                  .CKNeg         ( pad_hyper_ckn[i]    ),
+                  .RESETNeg      ( pad_hyper_reset[i]  )
              );
           end // block: chips
        end // block: hyperrams
@@ -235,20 +288,20 @@ module dut_if
 
    for (genvar i = 0 ; i<NumPhys; i++) begin: pad_gen
     for (genvar j = 0; j<NumConnectedChips; j++) begin
-       pad_functional_pd padinst_hyper_csno   (.OEN( 1'b0            ), .I( hyper_cs_n_wire[i][j] ), .O(                  ), .PAD( pad_hyper_csn[i][j] ), .PEN( 1'b0 ));
+       pad_functional_pd padinst_hyper_csno   (.OEN( 1'b0            ), .I( hyper_cs_n_pad[i][j] ), .O(                  ), .PAD( pad_hyper_csn[i][j] ), .PEN( 1'b0 ));
     end
-    pad_functional_pd padinst_hyper_ck     (.OEN( 1'b0            ), .I( hyper_ck_wire[i]      ), .O(                  ), .PAD( pad_hyper_ck[i]     ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_ckno   (.OEN( 1'b0            ), .I( hyper_ck_n_wire[i]    ), .O(                  ), .PAD( pad_hyper_ckn[i]    ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_rwds   (.OEN(~hyper_rwds_oe[i]), .I( hyper_rwds_o[i]       ), .O( hyper_rwds_i[i]  ), .PAD( pad_hyper_rwds[i]   ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_resetn (.OEN( 1'b0            ), .I( hyper_reset_n_wire[i] ), .O(                  ), .PAD( pad_hyper_reset[i]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio0  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][0]      ), .O( hyper_dq_i[i][0] ), .PAD( pad_hyper_dq[i][0]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio1  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][1]      ), .O( hyper_dq_i[i][1] ), .PAD( pad_hyper_dq[i][1]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio2  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][2]      ), .O( hyper_dq_i[i][2] ), .PAD( pad_hyper_dq[i][2]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio3  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][3]      ), .O( hyper_dq_i[i][3] ), .PAD( pad_hyper_dq[i][3]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio4  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][4]      ), .O( hyper_dq_i[i][4] ), .PAD( pad_hyper_dq[i][4]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio5  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][5]      ), .O( hyper_dq_i[i][5] ), .PAD( pad_hyper_dq[i][5]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio6  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][6]      ), .O( hyper_dq_i[i][6] ), .PAD( pad_hyper_dq[i][6]  ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_dqio7  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][7]      ), .O( hyper_dq_i[i][7] ), .PAD( pad_hyper_dq[i][7]  ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_ck     (.OEN( 1'b0            ), .I( hyper_ck_pad[i]      ), .O(                  ), .PAD( pad_hyper_ck[i]     ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_ckno   (.OEN( 1'b0            ), .I( hyper_ck_n_pad[i]    ), .O(                  ), .PAD( pad_hyper_ckn[i]    ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_rwds   (.OEN(~hyper_rwds_oe_pad[i]), .I( hyper_rwds_o_pad[i] ), .O( hyper_rwds_i_pad[i] ), .PAD( pad_hyper_rwds[i] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_resetn (.OEN( 1'b0            ), .I( hyper_reset_n_pad[i] ), .O(                  ), .PAD( pad_hyper_reset[i]  ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio0  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][0] ), .O( hyper_dq_i_pad[i][0] ), .PAD( pad_hyper_dq[i][0] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio1  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][1] ), .O( hyper_dq_i_pad[i][1] ), .PAD( pad_hyper_dq[i][1] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio2  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][2] ), .O( hyper_dq_i_pad[i][2] ), .PAD( pad_hyper_dq[i][2] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio3  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][3] ), .O( hyper_dq_i_pad[i][3] ), .PAD( pad_hyper_dq[i][3] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio4  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][4] ), .O( hyper_dq_i_pad[i][4] ), .PAD( pad_hyper_dq[i][4] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio5  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][5] ), .O( hyper_dq_i_pad[i][5] ), .PAD( pad_hyper_dq[i][5] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio6  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][6] ), .O( hyper_dq_i_pad[i][6] ), .PAD( pad_hyper_dq[i][6] ), .PEN( 1'b0 ) );
+    pad_functional_pd padinst_hyper_dqio7  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][7] ), .O( hyper_dq_i_pad[i][7] ), .PAD( pad_hyper_dq[i][7] ), .PEN( 1'b0 ) );
    end
                         
 endmodule
