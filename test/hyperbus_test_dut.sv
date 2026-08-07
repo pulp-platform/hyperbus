@@ -12,6 +12,7 @@ module hyperbus_test_dut #(
     parameter type          axi_req_t        = logic,
     parameter type          axi_rsp_t        = logic,
     parameter int unsigned  RegDataWidth     = -1,
+    parameter int unsigned  RegAddrWidth     = 32,
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          axi_rule_t       = logic
@@ -57,6 +58,7 @@ module hyperbus_test_dut #(
             .axi_req_t      ( axi_req_t     ),
             .axi_rsp_t      ( axi_rsp_t     ),
             .RegDataWidth   ( RegDataWidth  ),
+            .RegAddrWidth   ( RegAddrWidth  ),
             .reg_req_t      ( reg_req_t     ),
             .reg_rsp_t      ( reg_rsp_t     ),
             .axi_rule_t     ( axi_rule_t    )
@@ -92,6 +94,7 @@ module hyperbus_test_dut #(
             .axi_req_t      ( axi_req_t     ),
             .axi_rsp_t      ( axi_rsp_t     ),
             .RegDataWidth   ( RegDataWidth  ),
+            .RegAddrWidth   ( RegAddrWidth  ),
             .reg_req_t      ( reg_req_t     ),
             .reg_rsp_t      ( reg_rsp_t     ),
             .axi_rule_t     ( axi_rule_t    )
@@ -127,6 +130,7 @@ module hyperbus_test_dut #(
             .axi_req_t      ( axi_req_t     ),
             .axi_rsp_t      ( axi_rsp_t     ),
             .RegDataWidth   ( RegDataWidth  ),
+            .RegAddrWidth   ( RegAddrWidth  ),
             .reg_req_t      ( reg_req_t     ),
             .reg_rsp_t      ( reg_rsp_t     ),
             .axi_rule_t     ( axi_rule_t    )

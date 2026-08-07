@@ -217,6 +217,7 @@ module hyperbus_midend #(
     host_ext_addr_t            req_last_addr;
     host_ext_addr_t            req_phy_bytes;
     host_ext_addr_t            cmd_rule_end_addr;
+    host_ext_addr_t            covered_rule_end_addr;
     hyperbus_pkg::hyper_blen_t req_phy_burst;
     logic                      cmd_dec_valid;
     logic                      cmd_end_dec_valid;
@@ -355,37 +356,30 @@ module hyperbus_midend #(
                             (req_phy_end_addr > (host_ext_addr_t'(1) << HostAddrWidth));
     end
 
-    addr_decode #(
-        .NoIndices ( hyperbus_pkg::HyperNumChips ),
-        .NoRules   ( hyperbus_pkg::HyperNumChips ),
-        .addr_t    ( host_addr_t                 ),
-        .rule_t    ( rule_t                      ),
-        .idx_t     ( chip_sel_idx_t              )
-    ) i_start_addr_decode (
-        .addr_i           ( req_phy_first_addr ),
-        .addr_map_i       ( chip_rules_i       ),
-        .idx_o            ( cmd_chip_sel_idx   ),
-        .dec_valid_o      ( cmd_dec_valid      ),
-        .dec_error_o      (                    ),
-        .en_default_idx_i ( 1'b0               ),
-        .default_idx_i    ( '0                 )
-    );
+    // Decode only enabled rules; common_cells addr_decode has no per-rule enable.
+    always_comb begin : proc_chip_decode
+        cmd_chip_sel_idx = '0;
+        cmd_end_chip_sel_idx = '0;
+        cmd_dec_valid = 1'b0;
+        cmd_end_dec_valid = 1'b0;
 
-    addr_decode #(
-        .NoIndices ( hyperbus_pkg::HyperNumChips ),
-        .NoRules   ( hyperbus_pkg::HyperNumChips ),
-        .addr_t    ( host_addr_t                 ),
-        .rule_t    ( rule_t                      ),
-        .idx_t     ( chip_sel_idx_t              )
-    ) i_end_addr_decode (
-        .addr_i           ( req_phy_last_addr     ),
-        .addr_map_i       ( chip_rules_i          ),
-        .idx_o            ( cmd_end_chip_sel_idx  ),
-        .dec_valid_o      ( cmd_end_dec_valid     ),
-        .dec_error_o      (                       ),
-        .en_default_idx_i ( 1'b0                  ),
-        .default_idx_i    ( '0                    )
-    );
+        for (int unsigned i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
+            if (frontend_cfg_i.chip[i].enable &&
+                (req_phy_first_addr >= chip_rules_i[i].start_addr) &&
+                ((req_phy_first_addr < chip_rules_i[i].end_addr) ||
+                 (chip_rules_i[i].end_addr == '0))) begin
+                cmd_chip_sel_idx = chip_sel_idx_t'(i);
+                cmd_dec_valid = 1'b1;
+            end
+            if (frontend_cfg_i.chip[i].enable &&
+                (req_phy_last_addr >= chip_rules_i[i].start_addr) &&
+                ((req_phy_last_addr < chip_rules_i[i].end_addr) ||
+                 (chip_rules_i[i].end_addr == '0))) begin
+                cmd_end_chip_sel_idx = chip_sel_idx_t'(i);
+                cmd_end_dec_valid = 1'b1;
+            end
+        end
+    end
 
     // Software keeps ranges ordered and non-overlapping; transactions may cross contiguous ranges.
     always_comb begin : proc_req_rule_range
@@ -396,13 +390,22 @@ module hyperbus_midend #(
                                 host_ext_addr_t'(
                                     chip_rules_i[cmd_chip_sel_idx].end_addr);
         end
+        covered_rule_end_addr = cmd_rule_end_addr;
 
         req_range_valid = !req_addr_overflow && cmd_dec_valid && cmd_end_dec_valid &&
-                          (cmd_end_chip_sel_idx >= cmd_chip_sel_idx);
-        for (int unsigned i = 0; i < hyperbus_pkg::HyperNumChips - 1; i++) begin
-            if ((i >= cmd_chip_sel_idx) && (i < cmd_end_chip_sel_idx) &&
-                (chip_rules_i[i].end_addr != chip_rules_i[i+1].start_addr)) begin
-                req_range_valid = 1'b0;
+                          (cmd_end_chip_sel_idx >= cmd_chip_sel_idx) &&
+                          frontend_cfg_i.chip[cmd_chip_sel_idx].enable &&
+                          frontend_cfg_i.chip[cmd_end_chip_sel_idx].enable;
+        for (int unsigned i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
+            if ((i > cmd_chip_sel_idx) && (i <= cmd_end_chip_sel_idx) &&
+                frontend_cfg_i.chip[i].enable) begin
+                if (host_ext_addr_t'(chip_rules_i[i].start_addr) !=
+                    covered_rule_end_addr) begin
+                    req_range_valid = 1'b0;
+                end
+                covered_rule_end_addr = (chip_rules_i[i].end_addr == '0) ?
+                    (host_ext_addr_t'(1) << HostAddrWidth) :
+                    host_ext_addr_t'(chip_rules_i[i].end_addr);
             end
         end
     end
@@ -416,13 +419,15 @@ module hyperbus_midend #(
 
     assign cmd_o.trans.write         = cmd_req.write;
     assign cmd_o.trans.burst_type    = 1'b1; // Wrapping HyperBus bursts are not supported.
-    assign cmd_o.trans.address_space = frontend_cfg_i.address_space;
+    assign cmd_o.trans.address_space = cmd_dec_valid ?
+        frontend_cfg_i.chip[cmd_chip_sel_idx].address_space : 1'b0;
     host_addr_t cmd_phy_address;
     host_addr_t masked_req_address;
 
     always_comb begin : proc_cmd_address
         masked_req_address = req_phy_first_addr &
-                             ((host_addr_t'(1) << frontend_cfg_i.address_mask_msb) - 1);
+                             ((host_addr_t'(1) << (cmd_dec_valid ?
+                                frontend_cfg_i.chip[cmd_chip_sel_idx].address_mask_msb : 5'd0)) - 1);
         cmd_phy_address = masked_req_address >> 1;
         if (NumPhys == 2) begin
             cmd_phy_address = masked_req_address >> 2;

@@ -1,223 +1,148 @@
 addrmap hyperbus_cfg_regs {
-    desc = "HyperBus controller configuration. Chip address ranges must be 4 MiB aligned, ordered by chip-select index, and non-overlapping.";
+    desc = "HyperBus controller configuration register map. Enabled chip ranges must be 4 MiB aligned, ordered by chip-select index, and non-overlapping.";
 
-    reg t_latency_access {
-        desc = "Initial latency cycles before read or write data.";
-        field { sw = rw; hw = r; reset = 4'h6; } value[3:0];
+    reg ip_version {
+        desc = "IP version (major.minor.patch.revision).";
+        field { sw = r; hw = r; reset = 8'd0; } major[31:24];
+        field { sw = r; hw = r; reset = 8'd0; } minor[23:16];
+        field { sw = r; hw = r; reset = 8'd9; } patch[15:8];
+        field { sw = r; hw = r; reset = 8'd0; } revision[7:0];
     };
-
-    reg en_latency_additional {
-        desc = "Enable additional latency cycles when requested by RWDS.";
-        field { sw = rw; hw = r; reset = 1'b0; } value;
+    reg reg_if_version {
+        desc = "Register interface version.";
+        field { sw = r; hw = r; reset = 16'd1; } major[31:16];
+        field { sw = r; hw = r; reset = 16'd0; } minor[15:0];
     };
-
-    reg t_burst_max {
-        desc = "Maximum continuous burst length before the PHY restarts a transfer.";
-        field { sw = rw; hw = r; reset = 16'd350; } value[15:0];
+    reg capability {
+        desc = "Hardware-provided implementation capabilities.";
+        field { desc = "Number of implemented chip selects."; sw = r; hw = rw; reset = 8'd0; } num_chips[7:0];
+        field { desc = "Number of implemented PHY lanes."; sw = r; hw = rw; reset = 8'd0; } num_phys[15:8];
+        field { desc = "Each chip record controls its corresponding chip rather than chip 0 being shared."; sw = r; hw = rw; reset = 1'b0; } per_chip_cfg[16:16];
+        field { desc = "Each PHY record controls its corresponding lane rather than PHY 0 being shared."; sw = r; hw = rw; reset = 1'b0; } per_phy_cfg[17:17];
+        field { desc = "Per-chip enable bits participate in address decoding."; sw = r; hw = rw; reset = 1'b0; } chip_enable[18:18];
+        field { desc = "CLOCK_CFG controls an implemented backend clock divider."; sw = r; hw = rw; reset = 1'b0; } clock_divider[19:19];
+        field { desc = "FLUSH and APPLY commands implement a staged configuration barrier."; sw = r; hw = rw; reset = 1'b0; } staged_apply[20:20];
+        field { desc = "STATUS reports sticky controller errors."; sw = r; hw = rw; reset = 1'b0; } error_status[21:21];
+        field { desc = "Per-chip RWDS sample timing is implemented."; sw = r; hw = rw; reset = 1'b0; } rwds_sample_timing[22:22];
+        field { desc = "Per-PHY RWDS output-enable timing is implemented."; sw = r; hw = rw; reset = 1'b0; } rwds_oe_timing[23:23];
     };
-
-    reg t_read_write_recovery {
-        desc = "Recovery cycles inserted between read and write phases.";
-        field { sw = rw; hw = r; reset = 4'h6; } value[3:0];
+    reg command {
+        desc = "Single-cycle write-one command strobes, active when capability.staged_apply is set; otherwise writes are retained only as inert pulses.";
+        field { sw = rw; hw = r; singlepulse = true; reset = 1'b0; } flush;
+        field { sw = rw; hw = r; singlepulse = true; reset = 1'b0; } apply;
     };
-
-    reg t_rx_clk_delay {
-        desc = "RX sampling delay with fine taps in bits 4:0 and coarse taps in bits 7:5.";
-        field {
-            desc = "Fine delay-line tap setting, nominally about 78 ps per tap.";
-            sw = rw;
-            hw = r;
-            reset = 5'h10;
-        } fine[4:0];
-        field {
-            desc = "Coarse delay-line tap setting with an implementation-defined step size.";
-            sw = rw;
-            hw = r;
-            reset = 3'h0;
-        } coarse[7:5];
+    reg status {
+        desc = "Controller status.";
+        field { sw = rw; hw = rw; onwrite = woclr; hwset = true; precedence = hw; reset = 1'b0; } decode_error;
+        field { sw = r; hw = rw; reset = 1'b0; } busy;
+        field { sw = r; hw = rw; reset = 1'b0; } dirty;
     };
-
-    reg t_tx_clk_delay {
-        desc = "TX clock delay with fine taps in bits 4:0 and coarse taps in bits 7:5.";
-        field {
-            desc = "Fine delay-line tap setting, nominally about 78 ps per tap.";
-            sw = rw;
-            hw = r;
-            reset = 5'h10;
-        } fine[4:0];
-        field {
-            desc = "Coarse delay-line tap setting with an implementation-defined step size.";
-            sw = rw;
-            hw = r;
-            reset = 3'h0;
-        } coarse[7:5];
+    reg frontend_cfg {
+        desc = "Frontend configuration. dual_phy must be 0 or 1.";
+        field { sw = rw; hw = r; reset = 1'b1; } dual_phy;
     };
-
-    reg phy_clock_div {
-        desc = "System-to-PHY clock division factor used by the isochronous top.";
-        field {
-            desc = "Must be at least two. Ignored by synchronous and asynchronous tops.";
-            sw = rw;
-            hw = r;
-            reset = 8'd8;
-        } value[7:0];
+    reg clock_cfg {
+        desc = "Backend clock-divider configuration, active when capability.clock_divider is set; divider values must be at least 2.";
+        field { sw = rw; hw = r; reset = 8'd8; } divider[7:0];
     };
-
-    reg address_mask_msb {
-        desc = "Most-significant address bit used by frontend address packing.";
-        field { sw = rw; hw = r; reset = 5'd25; } value[4:0];
+    reg tx_delay {
+        desc = "PHY transmit delay. PHY 0 is shared when capability.per_phy_cfg is clear.";
+        field { sw = rw; hw = r; reset = 8'h10; } value[7:0];
     };
-
-    reg address_space {
-        desc = "Select HyperRAM or HyperFlash address-space interpretation.";
-        field { sw = rw; hw = r; reset = 1'b0; } value;
+    reg rwds_timing {
+        desc = "PHY RWDS output-enable timing. rwds_oe_setup_cycles must be at most 15 and is active when capability.rwds_oe_timing is set.";
+        field { sw = rw; hw = r; reset = 8'd1; } rwds_oe_setup_cycles[7:0];
     };
-
-    reg dual_phy {
-        desc = "Enable both PHY lanes; when clear, only PHY lane 0 is active.";
-        field { sw = rw; hw = r; reset = 1'b1; } value;
-    };
-
-    reg t_csh_cycles {
-        desc = "Chip-select high time between transfers.";
-        field { sw = rw; hw = r; reset = 4'h1; } value[3:0];
-    };
-
-    reg csn_to_ck_cycles {
-        desc = "Delay cycles from chip-select assertion to clock start.";
-        field { sw = rw; hw = r; reset = 4'h0; } value[3:0];
-    };
-
-    reg chip0_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 0 decoding.";
+    reg range_base {
+        desc = "Inclusive 4 MiB-aligned chip address range base.";
         field { sw = rw; hw = r; reset = 10'd0; } value[31:22];
     };
-
-    reg chip0_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 0 decoding.";
+    reg range_bound {
+        desc = "Exclusive 4 MiB-aligned chip address range bound.";
         field { sw = rw; hw = r; reset = 10'd1; } value[31:22];
     };
-
-    reg chip1_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 1 decoding.";
-        field { sw = rw; hw = r; reset = 10'd1; } value[31:22];
+    reg address_cfg {
+        desc = "Chip address-space interpretation and enable. address_space and enable must be 0 or 1, and address_mask_msb must be at most 31. Chip 0 is shared when capability.per_chip_cfg is clear; enable is active when capability.chip_enable is set.";
+        field { sw = rw; hw = r; reset = 8'd0; } address_space[7:0];
+        field { sw = rw; hw = r; reset = 8'd25; } address_mask_msb[15:8];
+        field { sw = rw; hw = r; reset = 1'b1; } enable[16:16];
     };
-
-    reg chip1_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 1 decoding.";
-        field { sw = rw; hw = r; reset = 10'd2; } value[31:22];
+    reg latency_cfg {
+        desc = "Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.";
+        field { sw = rw; hw = r; reset = 8'd6; } t_latency_access[7:0];
+        field { sw = rw; hw = r; reset = 8'd0; } rwds_sample_delay[15:8];
+        field { sw = rw; hw = r; reset = 1'b0; } en_latency_additional[16:16];
     };
-
-    reg chip2_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 2 decoding.";
-        field { sw = rw; hw = r; reset = 10'd2; } value[31:22];
+    reg burst_cfg {
+        desc = "Chip burst configuration. Chip 0 is shared when capability.per_chip_cfg is clear.";
+        field { sw = rw; hw = r; reset = 16'd350; } t_burst_max[15:0];
     };
-
-    reg chip2_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 2 decoding.";
-        field { sw = rw; hw = r; reset = 10'd3; } value[31:22];
+    reg chip_timing {
+        desc = "Chip-select and read/write timing; byte-backed timing values must be at most 15. Chip 0 is shared when capability.per_chip_cfg is clear.";
+        field { sw = rw; hw = r; reset = 8'd6; } t_read_write_recovery[7:0];
+        field { sw = rw; hw = r; reset = 8'd1; } t_csh_cycles[15:8];
+        field { sw = rw; hw = r; reset = 8'd0; } csn_to_ck_cycles[23:16];
     };
-
-    reg chip3_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 3 decoding.";
-        field { sw = rw; hw = r; reset = 10'd3; } value[31:22];
+    reg rx_delay {
+        desc = "Chip receive delay. Chip 0 is shared when capability.per_chip_cfg is clear.";
+        field { sw = rw; hw = r; reset = 8'h10; } value[7:0];
     };
-
-    reg chip3_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 3 decoding.";
-        field { sw = rw; hw = r; reset = 10'd4; } value[31:22];
+    reg reserved_top {
+        desc = "Reserved endpoint that fixes the register window size to 4 KiB.";
+        field { sw = r; hw = r; reset = 32'd0; } value[31:0];
     };
-
-    reg chip4_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 4 decoding.";
-        field { sw = rw; hw = r; reset = 10'd4; } value[31:22];
+    regfile phy_regs {
+        tx_delay tx_delay @0x00;
+        rwds_timing rwds_timing @0x04;
     };
-
-    reg chip4_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 4 decoding.";
-        field { sw = rw; hw = r; reset = 10'd5; } value[31:22];
+    regfile chip_regs {
+        range_base range_base @0x00;
+        range_bound range_bound @0x04;
+        address_cfg address_cfg @0x08;
+        latency_cfg latency_cfg @0x0c;
+        burst_cfg burst_cfg @0x10;
+        chip_timing chip_timing @0x14;
+        rx_delay rx_delay @0x18;
     };
-
-    reg chip5_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 5 decoding.";
-        field { sw = rw; hw = r; reset = 10'd5; } value[31:22];
+    regfile global_regs {
+        ip_version ip_version @0x000;
+        reg_if_version reg_if_version @0x004;
+        capability capability @0x008;
+        command command @0x00c;
+        status status @0x010;
     };
-
-    reg chip5_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 5 decoding.";
-        field { sw = rw; hw = r; reset = 10'd6; } value[31:22];
+    regfile frontend_regs {
+        frontend_cfg frontend_cfg @0x000;
     };
-
-    reg chip6_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 6 decoding.";
-        field { sw = rw; hw = r; reset = 10'd6; } value[31:22];
+    regfile backend_regs {
+        clock_cfg clock_cfg @0x000;
     };
-
-    reg chip6_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 6 decoding.";
-        field { sw = rw; hw = r; reset = 10'd7; } value[31:22];
-    };
-
-    reg chip7_base {
-        desc = "Inclusive 4 MiB-aligned address for chip-select 7 decoding.";
-        field { sw = rw; hw = r; reset = 10'd7; } value[31:22];
-    };
-
-    reg chip7_bound {
-        desc = "Exclusive 4 MiB-aligned address for chip-select 7 decoding.";
-        field { sw = rw; hw = r; reset = 10'd8; } value[31:22];
-    };
-
-    reg flush {
-        desc = "Write to stop accepting requests and drain all in-flight HyperBus operations.";
-        field {
-            desc = "Writing any value executes the ordering barrier; the value is not stored.";
-            sw = w;
-            hw = r;
-        } request;
-    };
-
-    reg status {
-        desc = "Sticky protocol and address error status.";
-        field {
-            desc = "A host request did not match any configured chip address range.";
-            sw = rw;
-            hw = r;
-            woclr;
-            hwset;
-            precedence = hw;
-            reset = 1'b0;
-        } decode_error;
-    };
-
-    t_latency_access t_latency_access @ 0x00;
-    en_latency_additional en_latency_additional @ 0x04;
-    t_burst_max t_burst_max @ 0x08;
-    t_read_write_recovery t_read_write_recovery @ 0x0c;
-    t_rx_clk_delay t_rx_clk_delay @ 0x10;
-    t_tx_clk_delay t_tx_clk_delay @ 0x14;
-    address_mask_msb address_mask_msb @ 0x18;
-    address_space address_space @ 0x1c;
-    dual_phy dual_phy @ 0x20;
-    t_csh_cycles t_csh_cycles @ 0x28;
-    csn_to_ck_cycles csn_to_ck_cycles @ 0x2c;
-    chip0_base chip0_base @ 0x30;
-    chip0_bound chip0_bound @ 0x34;
-    chip1_base chip1_base @ 0x38;
-    chip1_bound chip1_bound @ 0x3c;
-    chip2_base chip2_base @ 0x40;
-    chip2_bound chip2_bound @ 0x44;
-    chip3_base chip3_base @ 0x48;
-    chip3_bound chip3_bound @ 0x4c;
-    flush flush @ 0x50;
-    status status @ 0x54;
-    chip4_base chip4_base @ 0x58;
-    chip4_bound chip4_bound @ 0x5c;
-    chip5_base chip5_base @ 0x60;
-    chip5_bound chip5_bound @ 0x64;
-    chip6_base chip6_base @ 0x68;
-    chip6_bound chip6_bound @ 0x6c;
-    chip7_base chip7_base @ 0x70;
-    chip7_bound chip7_bound @ 0x74;
-    phy_clock_div phy_clock_div @ 0x78;
+    global_regs global_cfg @0x000;
+    frontend_regs frontend @0x100;
+    backend_regs backend @0x200;
+    phy_regs phy_0 @0x300;
+    phy_regs phy_1 @0x340;
+    chip_regs chip_0 @0x400;
+    chip_regs chip_1 @0x440;
+    chip_regs chip_2 @0x480;
+    chip_regs chip_3 @0x4c0;
+    chip_regs chip_4 @0x500;
+    chip_regs chip_5 @0x540;
+    chip_regs chip_6 @0x580;
+    chip_regs chip_7 @0x5c0;
+    chip_1.range_base.value->reset = 10'd1;
+    chip_1.range_bound.value->reset = 10'd2;
+    chip_2.range_base.value->reset = 10'd2;
+    chip_2.range_bound.value->reset = 10'd3;
+    chip_3.range_base.value->reset = 10'd3;
+    chip_3.range_bound.value->reset = 10'd4;
+    chip_4.range_base.value->reset = 10'd4;
+    chip_4.range_bound.value->reset = 10'd5;
+    chip_5.range_base.value->reset = 10'd5;
+    chip_5.range_bound.value->reset = 10'd6;
+    chip_6.range_base.value->reset = 10'd6;
+    chip_6.range_bound.value->reset = 10'd7;
+    chip_7.range_base.value->reset = 10'd7;
+    chip_7.range_bound.value->reset = 10'd8;
+    reserved_top reserved_top @0xffc;
 };

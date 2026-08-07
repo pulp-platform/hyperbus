@@ -49,7 +49,7 @@ module hyperbus_backend #(
     hyperbus_pkg::phy_cfg_t cfg_q;
     logic                   cfg_apply_accepted;
     logic                   phy_busy_any;
-    logic                   clk_tx;
+    logic [NumPhys-1:0]     clk_tx;
 
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
     `ASSERT_INIT(SyncStagesValid, SyncStages >= 2)
@@ -60,16 +60,18 @@ module hyperbus_backend #(
 
     `FFLARN(cfg_q, cfg_apply_i, cfg_apply_accepted, '0, clk_i, rst_ni)
 
-    hyperbus_tx_clk_delay i_tx_clk_delay (
-        .rst_ni,
+    for (genvar i = 0; i < NumPhys; i++) begin : gen_tx_clk_delay
+        hyperbus_tx_clk_delay i_tx_clk_delay (
+            .rst_ni,
 `ifdef TARGET_XILINX
-        .clk_ref200_i,
+            .clk_ref200_i,
 `endif
-        .clk_i,
-        .in_i    ( clk_i                ),
-        .delay_i ( cfg_q.t_tx_clk_delay ),
-        .out_o   ( clk_tx               )
-    );
+            .clk_i,
+            .in_i    ( clk_i                    ),
+            .delay_i ( cfg_q.phy[i].tx_delay    ),
+            .out_o   ( clk_tx[i]                )
+        );
+    end
 
     /////////////////////
     // Physical lanes //
@@ -177,10 +179,11 @@ module hyperbus_backend #(
             hyperbus_phy #(
                 .StartupCycles  ( StartupCycles  ),
                 .NumPhys        ( NumPhys        ),
-                .SyncStages     ( SyncStages     )
+                .SyncStages     ( SyncStages     ),
+                .PhyIndex       ( i               )
             ) i_phy (
                 .clk_i,
-                .clk_tx_i       ( clk_tx            ),
+                .clk_tx_i       ( clk_tx[i]         ),
                 .rst_ni,
                 .test_mode_i,
                 .cfg_i          ( cfg_q              ),
@@ -218,10 +221,11 @@ module hyperbus_backend #(
         hyperbus_phy #(
             .StartupCycles  ( StartupCycles  ),
             .NumPhys        ( NumPhys        ),
-            .SyncStages     ( SyncStages     )
+            .SyncStages     ( SyncStages     ),
+            .PhyIndex       ( 0               )
         ) i_phy (
             .clk_i,
-            .clk_tx_i       ( clk_tx            ),
+            .clk_tx_i       ( clk_tx[0]          ),
             .rst_ni,
             .test_mode_i,
             .cfg_i          ( cfg_q              ),

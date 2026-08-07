@@ -50,26 +50,39 @@ package hyperbus_pkg;
     ///////////////////
 
     typedef struct packed {
-        logic [3:0]      t_latency_access;
-        logic            en_latency_additional;
-        logic [15:0]     t_burst_max;
-        logic [3:0]      t_read_write_recovery;
-        logic [7:0]      t_rx_clk_delay;
-        logic [3:0]      t_csh_cycles;     // CS-high recovery cycles
-        logic [3:0]      csn_to_ck_cycles; // CS assertion to clock-start delay
+        logic [31:0] range_base;
+        logic [31:0] range_bound;
+        logic [4:0]  address_mask_msb;
+        logic        address_space;
+        logic        enable;
+    } chip_frontend_cfg_t;
+
+    typedef struct packed {
+        logic [3:0]  t_latency_access;
+        logic        en_latency_additional;
+        logic [3:0]  rwds_sample_delay;
+        logic [15:0] t_burst_max;
+        logic [3:0]  t_read_write_recovery;
+        logic [7:0]  t_rx_clk_delay;
+        logic [3:0]  t_csh_cycles;
+        logic [3:0]  csn_to_ck_cycles;
     } chip_phy_cfg_t;
 
     typedef struct packed {
-        logic [4:0]      address_mask_msb;
-        logic            address_space;
-        logic            dual_phy;
-        logic [7:0]      phy_clock_div;
+        logic [7:0] tx_delay;
+        logic [3:0] rwds_oe_setup_cycles;
+    } phy_lane_cfg_t;
+
+    typedef struct packed {
+        chip_frontend_cfg_t [HyperNumChips-1:0] chip;
+        logic                                  dual_phy;
+        logic [7:0]                            divider;
     } frontend_cfg_t;
 
     typedef struct packed {
-        chip_phy_cfg_t   chip;
-        logic [7:0]      t_tx_clk_delay;
-        logic            dual_phy;
+        chip_phy_cfg_t [HyperNumChips-1:0] chip;
+        phy_lane_cfg_t [1:0]                phy;
+        logic                               dual_phy;
     } phy_cfg_t;
 
     //////////////////////////

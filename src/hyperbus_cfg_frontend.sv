@@ -6,111 +6,83 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_cfg_frontend #(
-    parameter int unsigned  NumPhys          = 2,
-    parameter type          reg_req_t        = logic,
-    parameter type          reg_rsp_t        = logic,
-    parameter type          host_rule_t      = logic,
-    parameter int unsigned  RegDataWidth     = -1
+    parameter int unsigned NumPhys                 = 2,
+    parameter int unsigned RegDataWidth            = -1,
+    parameter int unsigned RegAddrWidth            = 32,
+    parameter bit          ClockDividerImplemented = 1'b0,
+    parameter type         reg_req_t               = logic,
+    parameter type         reg_rsp_t               = logic,
+    parameter type         host_rule_t             = logic
 ) (
-    input  logic                       clk_i,
-    input  logic                       rst_ni,
-
-    input  reg_req_t                   reg_req_i,
-    output reg_rsp_t                   reg_rsp_o,
-
-    output logic                       drain_o,
-    input  logic                       host_idle_i,
-    input  logic                       trans_active_i,
-
-    output hyperbus_pkg::phy_cfg_t     cfg_apply_o,
-    output logic                       cfg_apply_valid_o,
-    input  logic                       cfg_apply_ready_i,
-    input  logic                       cfg_apply_done_i,
-
-    output logic [7:0]                 clock_div_apply_o,
-    output logic                       clock_div_apply_valid_o,
-    input  logic                       clock_div_apply_ready_i,
-    input  logic                       clock_div_apply_done_i,
-
+    input  logic                         clk_i,
+    input  logic                         rst_ni,
+    input  reg_req_t                      reg_req_i,
+    output reg_rsp_t                      reg_rsp_o,
+    output logic                         drain_o,
+    input  logic                         host_idle_i,
+    input  logic                         trans_active_i,
+    output hyperbus_pkg::phy_cfg_t       cfg_apply_o,
+    output logic                         cfg_apply_valid_o,
+    input  logic                         cfg_apply_ready_i,
+    input  logic                         cfg_apply_done_i,
+    output logic [7:0]                   clock_div_apply_o,
+    output logic                         clock_div_apply_valid_o,
+    input  logic                         clock_div_apply_ready_i,
+    input  logic                         clock_div_apply_done_i,
     output hyperbus_pkg::frontend_cfg_t frontend_cfg_o,
     output host_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules_o,
-    input  logic                       decode_error_i
+    input  logic                         decode_error_i
 );
-
-    typedef enum logic [2:0] {
+    typedef enum logic [3:0] {
+        CfgInit,
         CfgIdle,
         CfgDrain,
-        CfgCommit,
-        CfgObserve,
         CfgClockSend,
-        CfgClockWaitAck,
+        CfgClockWait,
         CfgPhySend,
-        CfgPhyWaitAck
+        CfgPhyWait
     } cfg_state_e;
 
-    //////////////////////
-    // Persistent state //
-    //////////////////////
-
-    cfg_state_e                       cfg_state_d;
-    cfg_state_e                       cfg_state_q;
-    hyperbus_pkg::phy_cfg_t           phy_cfg;
-    hyperbus_pkg::phy_cfg_t           cfg_applied_d;
-    hyperbus_pkg::phy_cfg_t           cfg_applied_q;
-    logic [7:0]                       clock_div_applied_d;
-    logic [7:0]                       clock_div_applied_q;
-    logic                             phy_cfg_changed;
-    logic                             clock_div_changed;
-    logic                             cfg_changed;
-    logic                             cfg_write_pending_d;
-    logic                             cfg_write_pending_q;
+    cfg_state_e cfg_state_d, cfg_state_q;
+    hyperbus_pkg::frontend_cfg_t staged_frontend_cfg;
+    hyperbus_pkg::phy_cfg_t      staged_phy_cfg;
+    hyperbus_pkg::frontend_cfg_t applied_frontend_d, applied_frontend_q;
+    hyperbus_pkg::phy_cfg_t      applied_phy_d, applied_phy_q;
+    hyperbus_pkg::frontend_cfg_t pending_frontend_d, pending_frontend_q;
+    hyperbus_pkg::phy_cfg_t      pending_phy_d, pending_phy_q;
+    logic command_flush, command_apply;
+    logic apply_pending_d, apply_pending_q;
+    logic cfg_changed;
+    logic status_access;
+    logic clock_changed;
+    logic phy_changed;
+    logic drain_complete;
 
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
     `ASSERT_INIT(RegDataWidthValid, RegDataWidth == 32)
+    `ASSERT_INIT(RegAddrWidthValid, RegAddrWidth >= 12)
 
-    //////////////////////////
-    // Configuration changes //
-    //////////////////////////
+    assign cfg_changed = (staged_frontend_cfg != applied_frontend_q) ||
+                         (staged_phy_cfg != applied_phy_q);
+    assign clock_changed = staged_frontend_cfg.divider != applied_frontend_q.divider;
+    assign phy_changed = staged_phy_cfg != applied_phy_q;
+    assign drain_complete = host_idle_i && !trans_active_i;
+    assign status_access = reg_req_i.valid &&
+                           (reg_req_i.addr == RegAddrWidth'(12'h010));
 
-    logic cfg_write_requested;
-    logic drain_completed;
-    logic cfg_write_accepted;
-    logic clock_apply_accepted;
-    logic phy_apply_accepted;
+    assign drain_o = cfg_state_q != CfgIdle;
+    assign cfg_apply_o = pending_phy_q;
+    assign cfg_apply_valid_o = cfg_state_q == CfgPhySend;
+    assign clock_div_apply_o = pending_frontend_q.divider;
+    assign clock_div_apply_valid_o = cfg_state_q == CfgClockSend;
 
-    assign phy_cfg_changed          = phy_cfg != cfg_applied_q;
-    assign clock_div_changed        = frontend_cfg_o.phy_clock_div != clock_div_applied_q;
-    assign cfg_changed              = phy_cfg_changed || clock_div_changed;
-    assign drain_o                  = (cfg_state_q != CfgIdle) || cfg_changed;
-    assign cfg_apply_valid_o        = cfg_state_q == CfgPhySend;
-    assign cfg_apply_o              = phy_cfg;
-    assign clock_div_apply_valid_o  = cfg_state_q == CfgClockSend;
-    assign clock_div_apply_o        = frontend_cfg_o.phy_clock_div;
-    assign cfg_write_requested      = reg_req_i.valid && reg_req_i.write;
-    assign drain_completed          = host_idle_i && !trans_active_i;
-    assign cfg_write_accepted       = cfg_reg_req.valid && cfg_reg_rsp.ready;
-    assign clock_apply_accepted     = clock_div_apply_valid_o && clock_div_apply_ready_i;
-    assign phy_apply_accepted       = cfg_apply_valid_o && cfg_apply_ready_i;
-
-    ////////////////////////////
-    // Register access gating //
-    ////////////////////////////
-
+    // STATUS reads and W1C writes stay live while a barrier is in progress.
     reg_req_t cfg_reg_req;
     reg_rsp_t cfg_reg_rsp;
-
     always_comb begin : proc_cfg_reg_gate
         cfg_reg_req = reg_req_i;
-        reg_rsp_o   = cfg_reg_rsp;
-
-        if (reg_req_i.write) begin
-            cfg_reg_req.valid = reg_req_i.valid && (cfg_state_q == CfgCommit);
-            if (cfg_state_q != CfgCommit) begin
-                reg_rsp_o.ready = 1'b0;
-                reg_rsp_o.error = 1'b0;
-                reg_rsp_o.rdata = '0;
-            end
-        end else if (cfg_state_q != CfgIdle) begin
+        reg_rsp_o = cfg_reg_rsp;
+        if (cfg_state_q != CfgIdle && !status_access) begin
             cfg_reg_req.valid = 1'b0;
             reg_rsp_o.ready = 1'b0;
             reg_rsp_o.error = 1'b0;
@@ -118,118 +90,153 @@ module hyperbus_cfg_frontend #(
         end
     end
 
-    /////////////////////////////////
-    // Atomic configuration update //
-    /////////////////////////////////
-
-    // Drain host traffic before committing a register write or applying changed
-    // clock and PHY values. Each destination acknowledges before traffic resumes.
-    always_comb begin : proc_cfg_apply
-        cfg_state_d   = cfg_state_q;
-        cfg_applied_d = cfg_applied_q;
-        clock_div_applied_d = clock_div_applied_q;
-        cfg_write_pending_d = cfg_write_pending_q;
+    always_comb begin : proc_cfg_fsm
+        cfg_state_d = cfg_state_q;
+        applied_frontend_d = applied_frontend_q;
+        applied_phy_d = applied_phy_q;
+        pending_frontend_d = pending_frontend_q;
+        pending_phy_d = pending_phy_q;
+        apply_pending_d = apply_pending_q;
 
         unique case (cfg_state_q)
-            // Detect pending register or applied-configuration changes.
+            CfgInit: begin
+                pending_frontend_d = staged_frontend_cfg;
+                pending_phy_d = staged_phy_cfg;
+                apply_pending_d = 1'b1;
+                if (drain_complete) begin
+                    if (ClockDividerImplemented && clock_changed) begin
+                        cfg_state_d = CfgClockSend;
+                    end else if (phy_changed) begin
+                        cfg_state_d = CfgPhySend;
+                    end else begin
+                        applied_frontend_d = staged_frontend_cfg;
+                        applied_phy_d = staged_phy_cfg;
+                        apply_pending_d = 1'b0;
+                        cfg_state_d = CfgIdle;
+                    end
+                end
+            end
             CfgIdle: begin
-                if (cfg_changed) begin
-                    cfg_write_pending_d = 1'b0;
+                // APPLY wins if both command bits are written together.
+                if (command_apply) begin
+                    pending_frontend_d = staged_frontend_cfg;
+                    pending_phy_d = staged_phy_cfg;
+                    apply_pending_d = 1'b1;
                     cfg_state_d = CfgDrain;
-                end else if (cfg_write_requested) begin
-                    cfg_write_pending_d = 1'b1;
+                end else if (command_flush) begin
+                    apply_pending_d = 1'b0;
                     cfg_state_d = CfgDrain;
                 end
             end
-            // Stop admission and wait until all accepted traffic has completed.
             CfgDrain: begin
-                if (drain_completed) begin
-                    cfg_state_d = cfg_write_pending_q ? CfgCommit : CfgObserve;
+                if (drain_complete) begin
+                    if (apply_pending_q) begin
+                        if (ClockDividerImplemented &&
+                            (pending_frontend_q.divider != applied_frontend_q.divider)) begin
+                            cfg_state_d = CfgClockSend;
+                        end else if (pending_phy_q != applied_phy_q) begin
+                            cfg_state_d = CfgPhySend;
+                        end else begin
+                            applied_frontend_d = pending_frontend_q;
+                            applied_phy_d = pending_phy_q;
+                            apply_pending_d = 1'b0;
+                            cfg_state_d = CfgIdle;
+                        end
+                    end else begin
+                        cfg_state_d = CfgIdle;
+                    end
                 end
             end
-            // Commit exactly one blocked register write while traffic remains drained.
-            CfgCommit: begin
-                if (cfg_write_accepted) begin
-                    cfg_write_pending_d = 1'b0;
-                    cfg_state_d = CfgObserve;
+            CfgClockSend: begin
+                if (clock_div_apply_valid_o && clock_div_apply_ready_i) begin
+                    if (clock_div_apply_done_i) begin
+                        if (pending_phy_q != applied_phy_q) begin
+                            cfg_state_d = CfgPhySend;
+                        end else begin
+                            applied_frontend_d = pending_frontend_q;
+                            apply_pending_d = 1'b0;
+                            cfg_state_d = CfgIdle;
+                        end
+                    end else begin
+                        cfg_state_d = CfgClockWait;
+                    end
                 end
             end
-            // Re-evaluate generated configuration outputs after the write commits.
-            CfgObserve: begin
-                if (clock_div_changed) begin
-                    cfg_state_d = CfgClockSend;
-                end else if (phy_cfg_changed) begin
-                    cfg_state_d = CfgPhySend;
-                end else begin
+            CfgClockWait: begin
+                if (clock_div_apply_done_i) begin
+                    if (pending_phy_q != applied_phy_q) begin
+                        cfg_state_d = CfgPhySend;
+                    end else begin
+                        applied_frontend_d = pending_frontend_q;
+                        apply_pending_d = 1'b0;
+                        cfg_state_d = CfgIdle;
+                    end
+                end
+            end
+            CfgPhySend: begin
+                if (cfg_apply_valid_o && cfg_apply_ready_i) begin
+                    cfg_state_d = cfg_apply_done_i ? CfgIdle : CfgPhyWait;
+                    if (cfg_apply_done_i) begin
+                        applied_frontend_d = pending_frontend_q;
+                        applied_phy_d = pending_phy_q;
+                        apply_pending_d = 1'b0;
+                    end
+                end
+            end
+            CfgPhyWait: begin
+                if (cfg_apply_done_i) begin
+                    applied_frontend_d = pending_frontend_q;
+                    applied_phy_d = pending_phy_q;
+                    apply_pending_d = 1'b0;
                     cfg_state_d = CfgIdle;
                 end
             end
-            // Send a changed divider value to the isochronous clock generator.
-            CfgClockSend: begin
-                if (clock_apply_accepted && clock_div_apply_done_i) begin
-                    clock_div_applied_d = frontend_cfg_o.phy_clock_div;
-                    cfg_state_d = phy_cfg_changed ? CfgPhySend : CfgIdle;
-                end else if (clock_apply_accepted) begin
-                    cfg_state_d = CfgClockWaitAck;
-                end
-            end
-            // Hold the barrier until the divider confirms the update.
-            CfgClockWaitAck: begin
-                if (clock_div_apply_done_i) begin
-                    clock_div_applied_d = frontend_cfg_o.phy_clock_div;
-                    cfg_state_d = phy_cfg_changed ? CfgPhySend : CfgIdle;
-                end
-            end
-            // Send changed PHY configuration through the selected bridge.
-            CfgPhySend: begin
-                if (phy_apply_accepted && cfg_apply_done_i) begin
-                    cfg_applied_d = phy_cfg;
-                    cfg_state_d   = CfgIdle;
-                end else if (phy_apply_accepted) begin
-                    cfg_state_d = CfgPhyWaitAck;
-                end
-            end
-            // Hold the barrier until the backend confirms the PHY update.
-            CfgPhyWaitAck: begin
-                if (cfg_apply_done_i) begin
-                    cfg_applied_d = phy_cfg;
-                    cfg_state_d   = CfgIdle;
-                end
-            end
-            default: begin
-                cfg_state_d = CfgIdle;
-            end
+            default: cfg_state_d = CfgInit;
         endcase
     end
 
-    /////////////////////
-    // State registers //
-    /////////////////////
-
-    `FFARN(cfg_state_q, cfg_state_d, CfgIdle, clk_i, rst_ni)
-    `FFARN(cfg_applied_q, cfg_applied_d, '0, clk_i, rst_ni)
-    `FFARN(clock_div_applied_q, clock_div_applied_d, '0, clk_i, rst_ni)
-    `FFARN(cfg_write_pending_q, cfg_write_pending_d, 1'b0, clk_i, rst_ni)
-
-    ///////////////////
-    // Register bank //
-    ///////////////////
+    `FFARN(cfg_state_q, cfg_state_d, CfgInit, clk_i, rst_ni)
+    `FFARN(applied_frontend_q, applied_frontend_d, '0, clk_i, rst_ni)
+    `FFARN(applied_phy_q, applied_phy_d, '0, clk_i, rst_ni)
+    `FFARN(pending_frontend_q, pending_frontend_d, '0, clk_i, rst_ni)
+    `FFARN(pending_phy_q, pending_phy_d, '0, clk_i, rst_ni)
+    `FFARN(apply_pending_q, apply_pending_d, 1'b0, clk_i, rst_ni)
 
     hyperbus_cfg_regs #(
-        .NumPhys      ( NumPhys      ),
-        .RegDataWidth ( RegDataWidth ),
-        .reg_req_t    ( reg_req_t    ),
-        .reg_rsp_t    ( reg_rsp_t    ),
-        .addr_rule_t  ( host_rule_t  )
+        .NumPhys                 ( NumPhys                 ),
+        .RegDataWidth            ( RegDataWidth            ),
+        .RegAddrWidth            ( RegAddrWidth            ),
+        .ClockDividerImplemented ( ClockDividerImplemented ),
+        .reg_req_t               ( reg_req_t               ),
+        .reg_rsp_t               ( reg_rsp_t               ),
+        .addr_rule_t             ( host_rule_t              )
     ) i_cfg_regs (
         .clk_i          ( clk_i             ),
         .rst_ni         ( rst_ni            ),
         .reg_req_i      ( cfg_reg_req       ),
         .reg_rsp_o      ( cfg_reg_rsp       ),
-        .frontend_cfg_o ( frontend_cfg_o    ),
-        .phy_cfg_o      ( phy_cfg           ),
-        .chip_rules_o   ( chip_rules_o      ),
-        .decode_error_i ( decode_error_i    )
+        .status_busy_i  ( cfg_state_q != CfgIdle ),
+        .status_dirty_i ( cfg_changed        ),
+        .decode_error_i ( decode_error_i     ),
+        .command_flush_o( command_flush     ),
+        .command_apply_o( command_apply     ),
+        .frontend_cfg_o ( staged_frontend_cfg ),
+        .phy_cfg_o      ( staged_phy_cfg     ),
+        .chip_rules_o   (                    )
     );
 
-endmodule
+    assign frontend_cfg_o = applied_frontend_q;
+    always_comb begin : proc_applied_rules
+        chip_rules_o = '0;
+        for (int unsigned i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
+            chip_rules_o[i].idx = unsigned'(i);
+            chip_rules_o[i].start_addr = applied_frontend_q.chip[i].range_base;
+            chip_rules_o[i].end_addr = applied_frontend_q.chip[i].range_bound;
+        end
+    end
+
+    for (genvar i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin : gen_cfg_range_checks
+        `ASSERT(CfgLatencyAccessRange, staged_phy_cfg.chip[i].t_latency_access >= 4'd3,
+            clk_i, !rst_ni)
+    end
+endmodule : hyperbus_cfg_frontend
