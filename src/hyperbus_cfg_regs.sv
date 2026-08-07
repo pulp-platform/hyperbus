@@ -142,6 +142,16 @@ module hyperbus_cfg_regs #(
                     if (reg_req_i.wstrb[2]) begin
                         cfg_value_valid &= reg_req_i.wdata[23:16] <= 8'd1;
                     end
+                    if (reg_req_i.wstrb[0] && reg_req_i.wstrb[1]) begin
+                        cfg_value_valid &= ({1'b0, reg_req_i.wdata[15:8]} + 9'd2) <=
+                                           {1'b0, reg_req_i.wdata[7:0]};
+                    end else if (reg_req_i.wstrb[0]) begin
+                        cfg_value_valid &= ({5'b0, phy_cfg_o.chip[i].rwds_sample_delay} + 9'd2) <=
+                                           {1'b0, reg_req_i.wdata[7:0]};
+                    end else if (reg_req_i.wstrb[1]) begin
+                        cfg_value_valid &= ({1'b0, reg_req_i.wdata[15:8]} + 9'd2) <=
+                                           {5'b0, phy_cfg_o.chip[i].t_latency_access};
+                    end
                 end
                 if (cfg_addr == (12'h414 + i * 12'h40)) begin
                     if (reg_req_i.wstrb[0]) begin
@@ -179,8 +189,8 @@ module hyperbus_cfg_regs #(
     assign cfg_hwif_in.global_cfg.capability.clock_divider.next = ClockDividerImplemented;
     assign cfg_hwif_in.global_cfg.capability.staged_apply.next = 1'b1;
     assign cfg_hwif_in.global_cfg.capability.error_status.next = 1'b1;
-    assign cfg_hwif_in.global_cfg.capability.rwds_sample_timing.next = 1'b0;
-    assign cfg_hwif_in.global_cfg.capability.rwds_oe_timing.next = 1'b0;
+    assign cfg_hwif_in.global_cfg.capability.rwds_sample_timing.next = 1'b1;
+    assign cfg_hwif_in.global_cfg.capability.rwds_oe_timing.next = 1'b1;
     assign cfg_hwif_in.global_cfg.status.busy.next = status_busy_i;
     assign cfg_hwif_in.global_cfg.status.dirty.next = status_dirty_i;
     assign cfg_hwif_in.global_cfg.status.decode_error.next =
