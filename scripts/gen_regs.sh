@@ -29,7 +29,7 @@ uvx "${PEAKRDL_ARGS[@]}" \
   --default-reset arst_n \
   --module-name hyperbus_cfg_regblock \
   --package-name hyperbus_cfg_regblock_pkg \
-  --addr-width 7 \
+  --addr-width 12 \
   -o "${ROOT}/src/regs" \
   "${RDL}"
 
