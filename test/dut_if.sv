@@ -162,6 +162,7 @@ module dut_if
         .axi_req_t        ( axi_req_t     ),
         .axi_rsp_t        ( axi_resp_t    ),
         .RegDataWidth     ( RegDw         ),
+        .RegAddrWidth     ( RegAw         ),
         .reg_req_t        ( reg_req_t     ),
         .reg_rsp_t        ( reg_rsp_t     ),
         .axi_rule_t       ( axi_rule_t    )

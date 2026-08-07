@@ -14,6 +14,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     parameter int unsigned TimerWidth       = 16,
     parameter int unsigned RxFifoLogDepth   = 3,
     parameter int unsigned SyncStages       = 2,
+    parameter int unsigned PhyIndex         = 0,
     // Conservative startup delay: 300 us at 200 MHz.
     parameter int unsigned StartupCycles    = 300 * 200
 )(
@@ -67,9 +68,9 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     localparam int unsigned RxOutstandingLimit = (RxFifoDepth > RxFifoStopMargin) ?
                                                  (RxFifoDepth - RxFifoStopMargin) : 1;
 
-    logic [1:0]                  words_per_beat;
+    `ASSERT_INIT(PhyIndexValid, PhyIndex < 2)
 
-    assign words_per_beat = (NumPhys == 2 && cfg_i.dual_phy) ? 2 : 1;
+    logic [1:0] words_per_beat;
 
     //////////////////////
     // Persistent state //
@@ -80,6 +81,22 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     hyper_tf_t              tf_d,       tf_q;
     logic [HyperNumChips-1:0] cs_d, cs_q;
     logic                   add_latency_d, add_latency_q;
+    logic [HyperNumChips-1:0] cfg_select_cs;
+    logic [2:0]                cfg_chip_idx;
+    chip_phy_cfg_t             cfg_chip;
+
+    // During Idle the incoming command CS is authoritative. Once accepted,
+    // retain the registered CS for every subsequent phase of the transfer.
+    assign cfg_select_cs = (state_q == Idle) ? trans_cs_i : cs_q;
+    onehot_to_bin #(
+        .ONEHOT_WIDTH ( HyperNumChips )
+    ) i_cfg_chip_idx (
+        .onehot ( cfg_select_cs ),
+        .bin    ( cfg_chip_idx  )
+    );
+    assign cfg_chip = cfg_i.chip[cfg_chip_idx];
+
+    assign words_per_beat = (NumPhys == 2 && cfg_i.dual_phy) ? 2 : 1;
 
     // Whether B response is pending
     logic b_pending_q;
@@ -144,7 +161,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .tx_data_oe_i       ( trx_tx_data_oe              ),
         .tx_rwds_i          ( trx_tx_rwds                 ),
         .tx_rwds_oe_i       ( trx_tx_rwds_oe              ),
-        .rx_clk_delay_i     ( cfg_i.chip.t_rx_clk_delay   ),
+        .rx_clk_delay_i     ( cfg_chip.t_rx_clk_delay   ),
         .rx_clk_set_i       ( trx_rx_clk_set              ),
         .rx_clk_reset_i     ( trx_rx_clk_reset            ),
         .rx_data_o          ( trx_rx_data                 ),
@@ -189,7 +206,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             trx_tx_data     = tx_data_i;
             trx_tx_rwds     = ~tx_strb_i;
             tx_ready_o      = 1'b1;     // Memory always ready within HyperBus burst
-            ctl_wclk_ena   = tx_valid_i;
+            ctl_wclk_ena    = tx_valid_i;
         end
     end
 
@@ -234,8 +251,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     // Auxiliary control signals
     assign ctl_write_zero_lat   = tf_q.address_space & tf_q.write;
-    // cfg_i.chip.en_latency_additional overwrites the sampled RWDS value.
-    assign ctl_add_latency      = trx_rwds_sample | cfg_i.chip.en_latency_additional;
+    // The selected chip configuration overwrites the sampled RWDS value.
+    assign ctl_add_latency      = trx_rwds_sample | cfg_chip.en_latency_additional;
 
     assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == words_per_beat);
     assign ctl_tf_burst_done    = (tf_q.burst == 0);
@@ -288,11 +305,11 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     cs_d    = trans_cs_i;
                     add_latency_d = 1'b0;
 
-                    if(cfg_i.chip.csn_to_ck_cycles != 0) begin
+                    if(cfg_chip.csn_to_ck_cycles != 0) begin
                         // assert CS but delay hyper_ck to allow more time
                         // for memory to drive RWDS (to satisfy t_DSV)
                         state_d = DelayCK;
-                        timer_d = cfg_i.chip.csn_to_ck_cycles -1;
+                        timer_d = cfg_chip.csn_to_ck_cycles -1;
                     end else begin
                         // max throughput when memory RWDS signal arrives early
                         state_d = SendCA;
@@ -323,10 +340,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 trx_rwds_sample_ena = ~ctl_write_zero_lat;
                 if (ctl_timer_zero) begin
                     if (ctl_write_zero_lat) begin
-                        timer_d = cfg_i.chip.t_burst_max;
+                        timer_d = cfg_chip.t_burst_max;
                         state_d = Write;
                     end else begin
-                        timer_d = TimerWidth'(cfg_i.chip.t_latency_access);
+                        timer_d = TimerWidth'(cfg_chip.t_latency_access);
                         add_latency_d = ctl_add_latency;
                         state_d = WaitLatAccess;
                     end
@@ -344,7 +361,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (~add_latency_q) begin
                     // Substract cycle for last CA and another for state delay
                     if(ctl_timer_two) begin
-                        timer_d = cfg_i.chip.t_burst_max;
+                        timer_d = cfg_chip.t_burst_max;
                         // Switch to write or read phase and already start
                         // turnaround of tri-state driver (depending on latency
                         // config and if read or write transaction).
@@ -364,7 +381,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 end else if (ctl_timer_one) begin
                     // instead of going to 0, add another latency count
                     state_d = WaitAddLatAccess;
-                    timer_d = TimerWidth'(cfg_i.chip.t_latency_access);
+                    timer_d = TimerWidth'(cfg_chip.t_latency_access);
                     add_latency_d = 1'b0;
                 end
             end
@@ -375,7 +392,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 trx_clk_ena = 1'b1;
                 trx_tx_data_oe = 1'b1;
                 if (ctl_timer_two) begin
-                    timer_d = cfg_i.chip.t_burst_max;
+                    timer_d = cfg_chip.t_burst_max;
                     if (tf_q.write) begin
                         state_d = Write;
                         trx_tx_data_oe = 1'b1;
@@ -397,13 +414,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     tf_d.burst      = tf_q.burst - words_per_beat;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
-                        timer_d = cfg_i.chip.t_csh_cycles;
+                        timer_d = cfg_chip.t_csh_cycles;
                         state_d = WaitXfer;
                     end
                 end
                 // Force-terminate access on burst time limit
                 if (ctl_timer_one) begin
-                    timer_d = cfg_i.chip.t_csh_cycles;
+                    timer_d = cfg_chip.t_csh_cycles;
                     state_d = WaitXfer;
                 end
             end
@@ -420,13 +437,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         b_pending_set   = 1'b1;
-                        timer_d = cfg_i.chip.t_csh_cycles;
+                        timer_d = cfg_chip.t_csh_cycles;
                         state_d         = WaitXfer;
                     end
                 end
                 // Force-terminate access on burst time limit
                 if (ctl_timer_one) begin
-                    timer_d = cfg_i.chip.t_csh_cycles;
+                    timer_d = cfg_chip.t_csh_cycles;
                     state_d = WaitXfer;
                 end
             end
@@ -435,7 +452,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Wait for FFed Clock and output to stop
                 // May have to be prolonged for potential future devices with t_CSH > 0
                 if (ctl_timer_zero) begin
-                    timer_d = cfg_i.chip.t_read_write_recovery;
+                    timer_d = cfg_chip.t_read_write_recovery;
                     state_d = WaitRWR;
                 end
             end
@@ -491,5 +508,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     `ASSERT(RxCaptureActiveDuringRead, state_q == Read |-> !trx_rx_clk_reset)
     `ASSERT(RxCaptureResetAfterDrain,
         (r_outstand_dec && r_outstand_q == 1 && state_q != Read) |=> trx_rx_clk_reset)
+    `ASSERT(OutputDriversDisabledDuringRecovery,
+        state_q == WaitRWR |-> (!hyper_dq_oe_o && !hyper_rwds_oe_o))
 
 endmodule

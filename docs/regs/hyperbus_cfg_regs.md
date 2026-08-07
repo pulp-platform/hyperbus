@@ -334,7 +334,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
@@ -440,7 +440,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
@@ -546,7 +546,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
@@ -652,7 +652,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
@@ -758,7 +758,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
@@ -864,7 +864,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
@@ -970,7 +970,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
@@ -1076,7 +1076,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
