@@ -36,11 +36,18 @@ sources:
         - target/xilinx/hyperbus_clk_delay.sv
         - target/xilinx/hyperbus_rwds_delay.sv
 
-    - target: test
+    - target: any(test,pad_delay_test)
       files:
         - models/configurable_delay.behav.sv
 
-    - target: any(test,all(not(hyperbus_exclude_dline),not(all(xilinx,hyperbus_dline))))
+    - target: any(test,pad_delay_test,hyperram_model)
+      files:
+        - models/hyperram/hyperram_model_pkg.sv
+        - models/hyperram/hyperram_array.sv
+        - models/hyperram/hyperram_model_core.sv
+        - models/hyperram/hyperram_model.sv
+
+    - target: any(test,pad_delay_test,all(not(hyperbus_exclude_dline),not(all(xilinx,hyperbus_dline))))
       files:
         - src/backend/hyperbus_delay.sv
 
@@ -74,9 +81,19 @@ sources:
         - test/hyperbus_test_dut.sv
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb.sv
-        - test/dut_if.sv
         - test/hyperbus_tb_pkg.sv
+        - test/hyperbus_pad_delay.sv
+        - test/dut_if.sv
         - test/axi_hyper_tb.sv
         - test/hyperbus_atomic_handler_tb.sv
         - test/hyperbus_cfg_regs_tb.sv
         - test/axi_pre_aw_drain_tb.sv
+
+    - target: pad_delay_test
+      files:
+        - test/hyperbus_tb_pkg.sv
+        - test/hyperbus_pad_delay.sv
+        - test/hyperbus_pad_delay_direct_tb.sv
+        - test/hyperbus_test_dut.sv
+        - test/dut_if.sv
+        - test/axi_hyper_pad_delay_tb.sv

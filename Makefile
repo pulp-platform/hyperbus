@@ -87,8 +87,15 @@ models/s27ks0641:
 scripts/compile.tcl: Bender.yml models/s27ks0641
 	$(call generate_vsim, $@, -t rtl -t test -t hyper_test,..)
 
+scripts/compile_pad_delay.tcl: Bender.yml
+	$(call generate_vsim, $@, -t rtl -t test -t pad_delay_test,..)
+
 build: scripts/compile.tcl
 	$(VSIM) -c -do "source scripts/compile.tcl; exit"
 
 run: clean build
 	$(VSIM) $(VSIM_ARGS) "source scripts/start.tcl"
+
+.PHONY: run-pad-delay-matrix
+run-pad-delay-matrix:
+	scripts/run_pad_delay_matrix.sh

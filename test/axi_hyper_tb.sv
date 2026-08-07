@@ -1377,6 +1377,7 @@ module axi_hyper_tb
     .rst_ni     ( rst_n        ),
     .end_sim_i  ( end_of_sim   ),
     .segment_start_count_o ( segment_start_count ),
+    .pad_delay_cfg_i       ( '0                  ),
     .axi_slv_if ( axi_dut_intf ),
     .reg_slv_if ( reg_bus_mst  )
   );
