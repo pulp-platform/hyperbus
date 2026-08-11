@@ -153,7 +153,10 @@ module hyperbus_isochronous #(
         .reg_req_t     ( reg_req_t     ),
         .reg_rsp_t     ( reg_rsp_t     ),
         .host_rule_t   ( axi_rule_t    ),
-        .RegDataWidth  ( RegDataWidth  )
+        .RegDataWidth  ( RegDataWidth  ),
+        // Isochronous top implements the backend clock divider; decode-error
+        // status is shared by all top-level clocking variants.
+        .CapabilityFeatures ( 8'b0010_1000 )
     ) i_cfg_frontend (
         .clk_i              ( clk_sys_i              ),
         .rst_ni             ( rst_sys_ni             ),
