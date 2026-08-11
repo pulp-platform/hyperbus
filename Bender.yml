@@ -77,4 +77,5 @@ sources:
         - test/dut_if.sv
         - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
+        - test/hyperbus_atomic_handler_tb.sv
         - test/hyperbus_cfg_regs_tb.sv

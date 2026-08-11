@@ -505,6 +505,78 @@ module axi_hyper_tb
     end
   endtask
 
+  task automatic check_midend_buffering(input axi_ctrl_master_t axi_drv);
+    localparam int unsigned NumTransactions = 4;
+    localparam int unsigned WriteBeats = 4;
+    localparam axi_addr_t BufferBaseAddr = axi_addr_t'(32'h8000_2000);
+    axi_ctrl_master_t::ax_beat_t ax;
+    axi_ctrl_master_t::w_beat_t w;
+    axi_ctrl_master_t::b_beat_t b;
+    axi_ctrl_master_t::r_beat_t r;
+    axi_addr_t transaction_addr;
+
+    $display("===========================");
+    $display("= Midend queue buffering  =");
+    $display("===========================");
+
+    // Fill all write contexts and the 128-byte W buffer before accepting responses.
+    for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+      ax = new();
+      ax.ax_addr  = BufferBaseAddr + axi_addr_t'(transaction * WriteBeats *
+                                                (TbAxiDataWidthFull / 8));
+      ax.ax_id    = TbAxiIdWidthFull'(transaction + 1);
+      ax.ax_len   = WriteBeats - 1;
+      ax.ax_size  = $clog2(TbAxiDataWidthFull / 8);
+      ax.ax_burst = axi_pkg::BURST_INCR;
+      axi_drv.send_aw(ax);
+    end
+
+    for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+      transaction_addr = BufferBaseAddr + axi_addr_t'(transaction * WriteBeats *
+                                                      (TbAxiDataWidthFull / 8));
+      for (int unsigned beat = 0; beat < WriteBeats; beat++) begin
+        w = new();
+        w.w_data = slow_stress_data(transaction_addr, beat);
+        w.w_strb = '1;
+        w.w_last = beat == WriteBeats - 1;
+        axi_drv.send_w(w);
+      end
+    end
+
+    for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+      axi_drv.recv_b(b);
+      if ((b.b_resp != axi_pkg::RESP_OKAY) ||
+          (b.b_id != TbAxiIdWidthFull'(transaction + 1))) begin
+        $error("[MIDEND-BUFFER] Write %0d returned id=%0d resp=%0d",
+               transaction, b.b_id, b.b_resp);
+      end
+    end
+
+    // Four one-beat reads can occupy all read contexts and response entries.
+    for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+      ax = new();
+      ax.ax_addr  = BufferBaseAddr + axi_addr_t'(transaction * WriteBeats *
+                                                (TbAxiDataWidthFull / 8));
+      ax.ax_id    = TbAxiIdWidthFull'(transaction + 1);
+      ax.ax_len   = '0;
+      ax.ax_size  = $clog2(TbAxiDataWidthFull / 8);
+      ax.ax_burst = axi_pkg::BURST_INCR;
+      axi_drv.send_ar(ax);
+    end
+
+    for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+      axi_drv.recv_r(r);
+      transaction_addr = BufferBaseAddr + axi_addr_t'(transaction * WriteBeats *
+                                                      (TbAxiDataWidthFull / 8));
+      if ((r.r_resp != axi_pkg::RESP_OKAY) || !r.r_last ||
+          (r.r_id != TbAxiIdWidthFull'(transaction + 1)) ||
+          (r.r_data != slow_stress_data(transaction_addr, 0))) begin
+        $error("[MIDEND-BUFFER] Read %0d returned id=%0d data=0x%016x last=%0b resp=%0d",
+               transaction, r.r_id, r.r_data, r.r_last, r.r_resp);
+      end
+    end
+  endtask
+
   task automatic run_performance_smoke(input axi_ctrl_master_t axi_drv);
     localparam int unsigned NumCases = 5;
     localparam axi_addr_t PerfBaseAddr = axi_addr_t'(32'h8000_8000);
@@ -852,7 +924,10 @@ module axi_hyper_tb
     if (reg_error != 1'b0) $error("unexpected error");
   endtask
 
-  task automatic check_atomic_add(input axi_ctrl_master_t axi_drv);
+  task automatic check_atomic_add(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
     localparam axi_addr_t AtomicAddr = axi_addr_t'(32'h8000_0200);
     localparam logic [31:0] InitialValue = 32'h1234_5678;
     localparam logic [31:0] Addend = 32'h0102_0304;
@@ -860,6 +935,8 @@ module axi_hyper_tb
     axi_ctrl_master_t::w_beat_t w = new();
     axi_ctrl_master_t::b_beat_t b;
     axi_ctrl_master_t::r_beat_t r;
+    logic [31:0] status;
+    logic reg_error;
 
     $display("===========================");
     $display("= Atomic add              =");
@@ -906,6 +983,12 @@ module axi_hyper_tb
       $error("[ATOMIC] Unsupported operation returned rresp=%0d bresp=%0d",
              r.r_resp, b.b_resp);
     end
+    reg_drv.send_read(32'h54, status, reg_error);
+    if ((reg_error != 1'b0) || !status[0]) begin
+      $error("[ATOMIC] Unsupported operation did not set sticky error status");
+    end
+    reg_drv.send_write(32'h54, 32'h1, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
     axi_check_subword(axi_drv, AtomicAddr, InitialValue + Addend, 2);
 
     // A malformed multi-beat atomic must drain all W beats before returning an error.
@@ -928,6 +1011,12 @@ module axi_hyper_tb
       $error("[ATOMIC] Multi-beat operation returned rresp=%0d bresp=%0d",
              r.r_resp, b.b_resp);
     end
+    reg_drv.send_read(32'h54, status, reg_error);
+    if ((reg_error != 1'b0) || !status[0]) begin
+      $error("[ATOMIC] Malformed operation did not set sticky error status");
+    end
+    reg_drv.send_write(32'h54, 32'h1, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
     axi_write_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
     axi_check_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
   endtask
@@ -1088,6 +1177,7 @@ module axi_hyper_tb
       end
     end
 
+    check_midend_buffering(axi_ctrl_mst);
     run_performance_smoke(axi_ctrl_mst);
     run_slow_backpressure_test(axi_ctrl_mst, reg_master);
     check_config_barrier(axi_ctrl_mst, reg_master);
@@ -1095,7 +1185,7 @@ module axi_hyper_tb
     check_cross_chip_burst(axi_ctrl_mst, reg_master);
     check_large_rule_distance(axi_ctrl_mst);
     check_range_edges(axi_ctrl_mst, reg_master);
-    check_atomic_add(axi_ctrl_mst);
+    check_atomic_add(axi_ctrl_mst, reg_master);
     check_atomic_range_errors(axi_ctrl_mst, reg_master);
 
     if (TbDutVariant == 0) begin
