@@ -7,14 +7,18 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_axi_frontend #(
-    parameter int unsigned AxiDataWidth = -1,
-    parameter int unsigned AxiAddrWidth = -1,
-    parameter int unsigned AxiIdWidth   = -1,
-    parameter int unsigned AxiUserWidth = -1,
-    parameter type         axi_req_t    = logic,
-    parameter type         axi_rsp_t    = logic,
-    parameter type         host_req_t   = logic,
-    parameter type         host_rsp_t   = logic
+    parameter int unsigned AxiDataWidth    = -1,
+    parameter int unsigned AxiAddrWidth    = -1,
+    parameter int unsigned AxiIdWidth      = -1,
+    parameter int unsigned AxiUserWidth    = -1,
+    parameter int unsigned AxiMaxReadTxns  = 4,
+    parameter int unsigned AxiMaxWriteTxns = 4,
+    // Maximum number of independently accepted W beats held by the host path.
+    parameter int unsigned MaxWriteDataBeats = 1,
+    parameter type         axi_req_t       = logic,
+    parameter type         axi_rsp_t       = logic,
+    parameter type         host_req_t      = logic,
+    parameter type         host_rsp_t      = logic
 ) (
     input  logic       clk_i,
     input  logic       rst_ni,
@@ -35,6 +39,9 @@ module hyperbus_axi_frontend #(
         (AxiDataWidth & (AxiDataWidth - 1)) == 0)
     `ASSERT_INIT(AxiIdWidthValid, AxiIdWidth >= 1)
     `ASSERT_INIT(AxiUserWidthValid, AxiUserWidth >= 1)
+    `ASSERT_INIT(AxiMaxReadTxnsValid, AxiMaxReadTxns >= 1)
+    `ASSERT_INIT(AxiMaxWriteTxnsValid, AxiMaxWriteTxns >= 1)
+    `ASSERT_INIT(MaxWriteDataBeatsValid, MaxWriteDataBeats >= 1)
 
     typedef logic [AxiAddrWidth-1:0] axi_addr_t;
 
@@ -75,18 +82,51 @@ module hyperbus_axi_frontend #(
     // Drain accounting //
     //////////////////////
 
-    localparam int unsigned PendingWidth = 8;
-    typedef logic [PendingWidth-1:0] pending_cnt_t;
-    typedef logic signed [PendingWidth-1:0] write_balance_t;
+    // Widths cover the configured serializer queues.  ATOP read responses are
+    // admitted only after the serializer has drained the existing ID FIFOs.
+    localparam longint unsigned AxiMaxReadTxnsLong  = AxiMaxReadTxns;
+    localparam longint unsigned AxiMaxWriteTxnsLong = AxiMaxWriteTxns;
+    localparam int unsigned ReadPendingWidth = (AxiMaxReadTxns < 1) ?
+                                               1 : $clog2(AxiMaxReadTxnsLong + 64'd1);
+    localparam int unsigned WritePendingWidth = (AxiMaxWriteTxns < 1) ?
+                                                1 : $clog2(AxiMaxWriteTxnsLong + 64'd1);
+    // The balance can be positive for AWs accepted ahead of W, or negative for
+    // complete W bursts buffered ahead of their matching AW.  Use the larger magnitude;
+    // the 64-bit literal keeps the width calculation from overflowing when a
+    // 32-bit parameter is at its maximum value.
+    localparam longint unsigned MaxWriteDataBeatsLong = MaxWriteDataBeats;
+    localparam int unsigned WriteBalancePositiveBits =
+        $clog2(AxiMaxWriteTxnsLong + 64'd1);
+    localparam int unsigned WriteBalanceNegativeBits =
+        $clog2(MaxWriteDataBeatsLong);
+    localparam int unsigned WriteBalanceWidth = 1 +
+        ((WriteBalancePositiveBits > WriteBalanceNegativeBits) ?
+         WriteBalancePositiveBits : WriteBalanceNegativeBits);
+    localparam longint unsigned WriteBalanceHalfRange = 64'd1 << (WriteBalanceWidth - 1);
+    typedef logic [ReadPendingWidth-1:0]   read_pending_t;
+    typedef logic [WritePendingWidth-1:0]  write_pending_t;
+    typedef logic signed [WriteBalanceWidth-1:0] write_balance_t;
 
-    pending_cnt_t  read_pending_d, read_pending_q;
-    pending_cnt_t  write_pending_d, write_pending_q;
-    write_balance_t write_balance_d, write_balance_q;
+    `ASSERT_INIT(WriteBalancePositiveRangeValid,
+        AxiMaxWriteTxns < WriteBalanceHalfRange)
+    `ASSERT_INIT(WriteBalanceNegativeRangeValid,
+        MaxWriteDataBeats <= WriteBalanceHalfRange)
+
+    read_pending_t   read_pending_d, read_pending_q;
+    write_pending_t  write_pending_d, write_pending_q;
+    write_balance_t  write_balance_d, write_balance_q;
     logic           w_partial_d, w_partial_q;
     logic           allow_aw, allow_w;
+    logic           allow_aw_for_complete_w, allow_aw_for_partial_w;
     logic           axi_ar_accepted, axi_aw_accepted, axi_w_accepted;
     logic           axi_atomic_read_started;
     logic           axi_r_completed, axi_b_accepted;
+
+    // A negative balance means that one or more complete W bursts are waiting
+    // for AW.  A partial burst with zero balance is also waiting for its AW;
+    // allowing that AW lets a full W FIFO drain instead of deadlocking.
+    assign allow_aw_for_complete_w = write_balance_q < 0;
+    assign allow_aw_for_partial_w  = w_partial_q && (write_balance_q == '0);
 
     always_comb begin : proc_axi_drain
         allow_aw = !drain_i;
@@ -94,7 +134,7 @@ module hyperbus_axi_frontend #(
 
         if (drain_i) begin
             // Complete only channel fragments accepted before the barrier.
-            allow_aw = !w_partial_q && (write_balance_q < 0);
+            allow_aw = allow_aw_for_complete_w || allow_aw_for_partial_w;
             allow_w  = w_partial_q || (write_balance_q > 0);
         end
 
@@ -123,9 +163,9 @@ module hyperbus_axi_frontend #(
         write_balance_d = write_balance_q;
         w_partial_d     = w_partial_q;
 
-        read_pending_d = read_pending_q + pending_cnt_t'(axi_ar_accepted) +
-                         pending_cnt_t'(axi_atomic_read_started) -
-                         pending_cnt_t'(axi_r_completed);
+        read_pending_d = read_pending_q + read_pending_t'(axi_ar_accepted) +
+                         read_pending_t'(axi_atomic_read_started) -
+                         read_pending_t'(axi_r_completed);
 
         unique case ({axi_aw_accepted, axi_b_accepted})
             2'b10: write_pending_d = write_pending_q + 1'b1;
@@ -157,11 +197,11 @@ module hyperbus_axi_frontend #(
     /////////////////////////
 
     axi_serializer #(
-        .MaxReadTxns  ( 4          ),
-        .MaxWriteTxns ( 4          ),
-        .AxiIdWidth   ( AxiIdWidth ),
-        .axi_req_t    ( axi_req_t  ),
-        .axi_resp_t   ( axi_rsp_t  )
+        .MaxReadTxns  ( AxiMaxReadTxns  ),
+        .MaxWriteTxns ( AxiMaxWriteTxns ),
+        .AxiIdWidth   ( AxiIdWidth      ),
+        .axi_req_t    ( axi_req_t       ),
+        .axi_resp_t   ( axi_rsp_t       )
     ) i_axi_serializer (
         .clk_i,
         .rst_ni,
