@@ -11,7 +11,8 @@ module hyperbus_cfg_frontend #(
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          host_rule_t      = logic,
-    parameter int unsigned  RegDataWidth     = -1
+    parameter int unsigned  RegDataWidth     = -1,
+    parameter logic [7:0]   CapabilityFeatures = 8'b0010_0000
 ) (
     input  logic                       clk_i,
     input  logic                       rst_ni,
@@ -180,6 +181,7 @@ module hyperbus_cfg_frontend #(
         .NumChips     ( NumChips     ),
         .NumPhys      ( NumPhys      ),
         .RegDataWidth ( RegDataWidth ),
+        .CapabilityFeatures ( CapabilityFeatures ),
         .reg_req_t    ( reg_req_t    ),
         .reg_rsp_t    ( reg_rsp_t    ),
         .addr_rule_t  ( host_rule_t  )

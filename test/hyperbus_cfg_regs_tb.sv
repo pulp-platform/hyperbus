@@ -7,7 +7,7 @@ module hyperbus_cfg_regs_tb;
     localparam int unsigned NumChips = 8;
 
     typedef struct packed {
-        logic [7:0]  addr;
+        logic [31:0] addr;
         logic        write;
         logic [31:0] wdata;
         logic [3:0]  wstrb;
@@ -36,7 +36,7 @@ module hyperbus_cfg_regs_tb;
     logic                              decode_error;
 
     task automatic reg_write(
-        input logic [7:0]  addr,
+        input logic [31:0] addr,
         input logic [31:0] data,
         input logic        inject_decode_error
     );
@@ -61,7 +61,7 @@ module hyperbus_cfg_regs_tb;
     endtask
 
     task automatic reg_read(
-        input  logic [7:0]  addr,
+        input  logic [31:0] addr,
         output logic [31:0] data
     );
         @(negedge clk);
@@ -115,6 +115,7 @@ module hyperbus_cfg_regs_tb;
 
     initial begin : proc_stimulus
         logic [31:0] status;
+        logic [31:0] capability;
         logic [31:0] chip_addr;
         logic [31:0] clock_div;
         logic [31:0] rx_clk_delay;
@@ -134,22 +135,27 @@ module hyperbus_cfg_regs_tb;
             $error("Unexpected reset chip address map");
         end
 
-        reg_read(8'h78, clock_div);
+        reg_read(32'h008, capability);
+        if (capability != 32'h0020_0208) begin
+            $error("Unexpected implementation capability bits: %h", capability);
+        end
+
+        reg_read(32'h200, clock_div);
         if ((clock_div != 8) || (frontend_cfg.phy_clock_div != 8)) begin
             $error("Unexpected PHY clock divider reset value");
         end
 
-        reg_write(8'h78, 8'd4, 1'b0);
-        reg_read(8'h78, clock_div);
+        reg_write(32'h200, 8'd4, 1'b0);
+        reg_read(32'h200, clock_div);
         if ((clock_div != 4) || (frontend_cfg.phy_clock_div != 4)) begin
             $error("PHY clock divider write did not take effect");
         end
 
         // Exercise both the fine [4:0] and coarse [7:5] delay settings.
-        reg_write(8'h10, 8'hb5, 1'b0);
-        reg_write(8'h14, 8'h6a, 1'b0);
-        reg_read(8'h10, rx_clk_delay);
-        reg_read(8'h14, tx_clk_delay);
+        reg_write(32'h418, 8'hb5, 1'b0);
+        reg_write(32'h300, 8'h6a, 1'b0);
+        reg_read(32'h418, rx_clk_delay);
+        reg_read(32'h300, tx_clk_delay);
         if ((rx_clk_delay != 8'hb5) || (tx_clk_delay != 8'h6a) ||
             (phy_cfg.chip.t_rx_clk_delay != 8'hb5) ||
             (phy_cfg.t_tx_clk_delay != 8'h6a)) begin
@@ -157,22 +163,22 @@ module hyperbus_cfg_regs_tb;
         end
 
         // Only address bits [31:22] are stored; low bits read back as zero.
-        reg_write(8'h70, 32'h8134_5678, 1'b0);
-        reg_read(8'h70, chip_addr);
+        reg_write(32'h5c0, 32'h8134_5678, 1'b0);
+        reg_read(32'h5c0, chip_addr);
         if ((chip_addr != 32'h8100_0000) ||
             (chip_rules[7].start_addr != 32'h8100_0000)) begin
             $error("Chip address alignment was not enforced");
         end
 
         // A new hardware event must win over a simultaneous software W1C.
-        reg_write(8'h54, 32'h1, 1'b1);
-        reg_read(8'h54, status);
+        reg_write(32'h010, 32'h1, 1'b1);
+        reg_read(32'h010, status);
         if (!status[0]) begin
             $error("Decode error was lost during a simultaneous W1C");
         end
 
-        reg_write(8'h54, 32'h1, 1'b0);
-        reg_read(8'h54, status);
+        reg_write(32'h010, 32'h1, 1'b0);
+        reg_read(32'h010, status);
         if (status[0]) begin
             $error("Decode error did not clear without a new hardware event");
         end
