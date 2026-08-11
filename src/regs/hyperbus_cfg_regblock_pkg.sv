@@ -4,301 +4,563 @@
 package hyperbus_cfg_regblock_pkg;
 
     localparam HYPERBUS_CFG_REGBLOCK_DATA_WIDTH = 32;
-    localparam HYPERBUS_CFG_REGBLOCK_MIN_ADDR_WIDTH = 7;
-    localparam HYPERBUS_CFG_REGBLOCK_SIZE = 'h7c;
+    localparam HYPERBUS_CFG_REGBLOCK_MIN_ADDR_WIDTH = 12;
+    localparam HYPERBUS_CFG_REGBLOCK_SIZE = 'h1000;
 
     typedef struct {
+        logic [7:0] next;
+    } hyperbus_cfg_regs__capability__num_chips__in_t;
+
+    typedef struct {
+        logic [7:0] next;
+    } hyperbus_cfg_regs__capability__num_phys__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__per_chip_cfg__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__per_phy_cfg__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__chip_enable__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__clock_divider__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__staged_apply__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__error_status__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__rwds_sample_timing__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__capability__rwds_oe_timing__in_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__capability__num_chips__in_t num_chips;
+        hyperbus_cfg_regs__capability__num_phys__in_t num_phys;
+        hyperbus_cfg_regs__capability__per_chip_cfg__in_t per_chip_cfg;
+        hyperbus_cfg_regs__capability__per_phy_cfg__in_t per_phy_cfg;
+        hyperbus_cfg_regs__capability__chip_enable__in_t chip_enable;
+        hyperbus_cfg_regs__capability__clock_divider__in_t clock_divider;
+        hyperbus_cfg_regs__capability__staged_apply__in_t staged_apply;
+        hyperbus_cfg_regs__capability__error_status__in_t error_status;
+        hyperbus_cfg_regs__capability__rwds_sample_timing__in_t rwds_sample_timing;
+        hyperbus_cfg_regs__capability__rwds_oe_timing__in_t rwds_oe_timing;
+    } hyperbus_cfg_regs__capability__in_t;
+
+    typedef struct {
+        logic next;
         logic hwset;
     } hyperbus_cfg_regs__status__decode_error__in_t;
 
     typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__status__busy__in_t;
+
+    typedef struct {
+        logic next;
+    } hyperbus_cfg_regs__status__dirty__in_t;
+
+    typedef struct {
         hyperbus_cfg_regs__status__decode_error__in_t decode_error;
+        hyperbus_cfg_regs__status__busy__in_t busy;
+        hyperbus_cfg_regs__status__dirty__in_t dirty;
     } hyperbus_cfg_regs__status__in_t;
 
     typedef struct {
+        hyperbus_cfg_regs__capability__in_t capability;
         hyperbus_cfg_regs__status__in_t status;
+    } hyperbus_cfg_regs__global_regs__in_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__global_regs__in_t global_cfg;
     } hyperbus_cfg_regs__in_t;
 
     typedef struct {
-        logic [3:0] value;
-    } hyperbus_cfg_regs__t_latency_access__value__out_t;
+        logic [7:0] value;
+    } hyperbus_cfg_regs__ip_version__revision__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__t_latency_access__value__out_t value;
-    } hyperbus_cfg_regs__t_latency_access__out_t;
+        logic [7:0] value;
+    } hyperbus_cfg_regs__ip_version__patch__out_t;
 
     typedef struct {
-        logic value;
-    } hyperbus_cfg_regs__en_latency_additional__value__out_t;
+        logic [7:0] value;
+    } hyperbus_cfg_regs__ip_version__minor__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__en_latency_additional__value__out_t value;
-    } hyperbus_cfg_regs__en_latency_additional__out_t;
+        logic [7:0] value;
+    } hyperbus_cfg_regs__ip_version__major__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__ip_version__revision__out_t revision;
+        hyperbus_cfg_regs__ip_version__patch__out_t patch;
+        hyperbus_cfg_regs__ip_version__minor__out_t minor;
+        hyperbus_cfg_regs__ip_version__major__out_t major;
+    } hyperbus_cfg_regs__ip_version__out_t;
 
     typedef struct {
         logic [15:0] value;
-    } hyperbus_cfg_regs__t_burst_max__value__out_t;
+    } hyperbus_cfg_regs__reg_if_version__minor__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__t_burst_max__value__out_t value;
-    } hyperbus_cfg_regs__t_burst_max__out_t;
+        logic [15:0] value;
+    } hyperbus_cfg_regs__reg_if_version__major__out_t;
 
     typedef struct {
-        logic [3:0] value;
-    } hyperbus_cfg_regs__t_read_write_recovery__value__out_t;
+        hyperbus_cfg_regs__reg_if_version__minor__out_t minor;
+        hyperbus_cfg_regs__reg_if_version__major__out_t major;
+    } hyperbus_cfg_regs__reg_if_version__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__t_read_write_recovery__value__out_t value;
-    } hyperbus_cfg_regs__t_read_write_recovery__out_t;
+        logic [7:0] value;
+    } hyperbus_cfg_regs__capability__num_chips__out_t;
 
     typedef struct {
-        logic [4:0] value;
-    } hyperbus_cfg_regs__t_rx_clk_delay__fine__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } hyperbus_cfg_regs__t_rx_clk_delay__coarse__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__t_rx_clk_delay__fine__out_t fine;
-        hyperbus_cfg_regs__t_rx_clk_delay__coarse__out_t coarse;
-    } hyperbus_cfg_regs__t_rx_clk_delay__out_t;
-
-    typedef struct {
-        logic [4:0] value;
-    } hyperbus_cfg_regs__t_tx_clk_delay__fine__out_t;
-
-    typedef struct {
-        logic [2:0] value;
-    } hyperbus_cfg_regs__t_tx_clk_delay__coarse__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__t_tx_clk_delay__fine__out_t fine;
-        hyperbus_cfg_regs__t_tx_clk_delay__coarse__out_t coarse;
-    } hyperbus_cfg_regs__t_tx_clk_delay__out_t;
-
-    typedef struct {
-        logic [4:0] value;
-    } hyperbus_cfg_regs__address_mask_msb__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__address_mask_msb__value__out_t value;
-    } hyperbus_cfg_regs__address_mask_msb__out_t;
+        logic [7:0] value;
+    } hyperbus_cfg_regs__capability__num_phys__out_t;
 
     typedef struct {
         logic value;
-    } hyperbus_cfg_regs__address_space__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__address_space__value__out_t value;
-    } hyperbus_cfg_regs__address_space__out_t;
+    } hyperbus_cfg_regs__capability__per_chip_cfg__out_t;
 
     typedef struct {
         logic value;
-    } hyperbus_cfg_regs__dual_phy__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__dual_phy__value__out_t value;
-    } hyperbus_cfg_regs__dual_phy__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } hyperbus_cfg_regs__t_csh_cycles__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__t_csh_cycles__value__out_t value;
-    } hyperbus_cfg_regs__t_csh_cycles__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } hyperbus_cfg_regs__csn_to_ck_cycles__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__csn_to_ck_cycles__value__out_t value;
-    } hyperbus_cfg_regs__csn_to_ck_cycles__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip0_base__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip0_base__value__out_t value;
-    } hyperbus_cfg_regs__chip0_base__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip0_bound__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip0_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip0_bound__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip1_base__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip1_base__value__out_t value;
-    } hyperbus_cfg_regs__chip1_base__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip1_bound__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip1_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip1_bound__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip2_base__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip2_base__value__out_t value;
-    } hyperbus_cfg_regs__chip2_base__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip2_bound__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip2_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip2_bound__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip3_base__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip3_base__value__out_t value;
-    } hyperbus_cfg_regs__chip3_base__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip3_bound__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip3_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip3_bound__out_t;
+    } hyperbus_cfg_regs__capability__per_phy_cfg__out_t;
 
     typedef struct {
         logic value;
-    } hyperbus_cfg_regs__flush__request__out_t;
+    } hyperbus_cfg_regs__capability__chip_enable__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__flush__request__out_t request;
-    } hyperbus_cfg_regs__flush__out_t;
+        logic value;
+    } hyperbus_cfg_regs__capability__clock_divider__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__capability__staged_apply__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__capability__error_status__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__capability__rwds_sample_timing__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__capability__rwds_oe_timing__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__capability__num_chips__out_t num_chips;
+        hyperbus_cfg_regs__capability__num_phys__out_t num_phys;
+        hyperbus_cfg_regs__capability__per_chip_cfg__out_t per_chip_cfg;
+        hyperbus_cfg_regs__capability__per_phy_cfg__out_t per_phy_cfg;
+        hyperbus_cfg_regs__capability__chip_enable__out_t chip_enable;
+        hyperbus_cfg_regs__capability__clock_divider__out_t clock_divider;
+        hyperbus_cfg_regs__capability__staged_apply__out_t staged_apply;
+        hyperbus_cfg_regs__capability__error_status__out_t error_status;
+        hyperbus_cfg_regs__capability__rwds_sample_timing__out_t rwds_sample_timing;
+        hyperbus_cfg_regs__capability__rwds_oe_timing__out_t rwds_oe_timing;
+    } hyperbus_cfg_regs__capability__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__command__flush__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__command__apply__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__command__flush__out_t flush;
+        hyperbus_cfg_regs__command__apply__out_t apply;
+    } hyperbus_cfg_regs__command__out_t;
 
     typedef struct {
         logic value;
     } hyperbus_cfg_regs__status__decode_error__out_t;
 
     typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__status__busy__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__status__dirty__out_t;
+
+    typedef struct {
         hyperbus_cfg_regs__status__decode_error__out_t decode_error;
+        hyperbus_cfg_regs__status__busy__out_t busy;
+        hyperbus_cfg_regs__status__dirty__out_t dirty;
     } hyperbus_cfg_regs__status__out_t;
 
     typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip4_base__value__out_t;
+        hyperbus_cfg_regs__ip_version__out_t ip_version;
+        hyperbus_cfg_regs__reg_if_version__out_t reg_if_version;
+        hyperbus_cfg_regs__capability__out_t capability;
+        hyperbus_cfg_regs__command__out_t command;
+        hyperbus_cfg_regs__status__out_t status;
+    } hyperbus_cfg_regs__global_regs__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__chip4_base__value__out_t value;
-    } hyperbus_cfg_regs__chip4_base__out_t;
+        logic value;
+    } hyperbus_cfg_regs__frontend_cfg__dual_phy__out_t;
 
     typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip4_bound__value__out_t;
+        hyperbus_cfg_regs__frontend_cfg__dual_phy__out_t dual_phy;
+    } hyperbus_cfg_regs__frontend_cfg__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__chip4_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip4_bound__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip5_base__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip5_base__value__out_t value;
-    } hyperbus_cfg_regs__chip5_base__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip5_bound__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip5_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip5_bound__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip6_base__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip6_base__value__out_t value;
-    } hyperbus_cfg_regs__chip6_base__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip6_bound__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip6_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip6_bound__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip7_base__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip7_base__value__out_t value;
-    } hyperbus_cfg_regs__chip7_base__out_t;
-
-    typedef struct {
-        logic [9:0] value;
-    } hyperbus_cfg_regs__chip7_bound__value__out_t;
-
-    typedef struct {
-        hyperbus_cfg_regs__chip7_bound__value__out_t value;
-    } hyperbus_cfg_regs__chip7_bound__out_t;
+        hyperbus_cfg_regs__frontend_cfg__out_t frontend_cfg;
+    } hyperbus_cfg_regs__frontend_regs__out_t;
 
     typedef struct {
         logic [7:0] value;
-    } hyperbus_cfg_regs__phy_clock_div__value__out_t;
+    } hyperbus_cfg_regs__clock_cfg__divider__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__phy_clock_div__value__out_t value;
-    } hyperbus_cfg_regs__phy_clock_div__out_t;
+        hyperbus_cfg_regs__clock_cfg__divider__out_t divider;
+    } hyperbus_cfg_regs__clock_cfg__out_t;
 
     typedef struct {
-        hyperbus_cfg_regs__t_latency_access__out_t t_latency_access;
-        hyperbus_cfg_regs__en_latency_additional__out_t en_latency_additional;
-        hyperbus_cfg_regs__t_burst_max__out_t t_burst_max;
-        hyperbus_cfg_regs__t_read_write_recovery__out_t t_read_write_recovery;
-        hyperbus_cfg_regs__t_rx_clk_delay__out_t t_rx_clk_delay;
-        hyperbus_cfg_regs__t_tx_clk_delay__out_t t_tx_clk_delay;
-        hyperbus_cfg_regs__address_mask_msb__out_t address_mask_msb;
-        hyperbus_cfg_regs__address_space__out_t address_space;
-        hyperbus_cfg_regs__dual_phy__out_t dual_phy;
-        hyperbus_cfg_regs__t_csh_cycles__out_t t_csh_cycles;
-        hyperbus_cfg_regs__csn_to_ck_cycles__out_t csn_to_ck_cycles;
-        hyperbus_cfg_regs__chip0_base__out_t chip0_base;
-        hyperbus_cfg_regs__chip0_bound__out_t chip0_bound;
-        hyperbus_cfg_regs__chip1_base__out_t chip1_base;
-        hyperbus_cfg_regs__chip1_bound__out_t chip1_bound;
-        hyperbus_cfg_regs__chip2_base__out_t chip2_base;
-        hyperbus_cfg_regs__chip2_bound__out_t chip2_bound;
-        hyperbus_cfg_regs__chip3_base__out_t chip3_base;
-        hyperbus_cfg_regs__chip3_bound__out_t chip3_bound;
-        hyperbus_cfg_regs__flush__out_t flush;
-        hyperbus_cfg_regs__status__out_t status;
-        hyperbus_cfg_regs__chip4_base__out_t chip4_base;
-        hyperbus_cfg_regs__chip4_bound__out_t chip4_bound;
-        hyperbus_cfg_regs__chip5_base__out_t chip5_base;
-        hyperbus_cfg_regs__chip5_bound__out_t chip5_bound;
-        hyperbus_cfg_regs__chip6_base__out_t chip6_base;
-        hyperbus_cfg_regs__chip6_bound__out_t chip6_bound;
-        hyperbus_cfg_regs__chip7_base__out_t chip7_base;
-        hyperbus_cfg_regs__chip7_bound__out_t chip7_bound;
-        hyperbus_cfg_regs__phy_clock_div__out_t phy_clock_div;
+        hyperbus_cfg_regs__clock_cfg__out_t clock_cfg;
+    } hyperbus_cfg_regs__backend_regs__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__tx_delay__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__tx_delay__value__out_t value;
+    } hyperbus_cfg_regs__tx_delay__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__rwds_timing__rwds_oe_setup_cycles__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__rwds_timing__rwds_oe_setup_cycles__out_t rwds_oe_setup_cycles;
+    } hyperbus_cfg_regs__rwds_timing__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__tx_delay__out_t tx_delay;
+        hyperbus_cfg_regs__rwds_timing__out_t rwds_timing;
+    } hyperbus_cfg_regs__phy_regs__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base__value__out_t value;
+    } hyperbus_cfg_regs__range_base__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound__value__out_t value;
+    } hyperbus_cfg_regs__range_bound__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__address_cfg__address_space__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__address_cfg__address_mask_msb__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__address_cfg__enable__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__address_cfg__address_space__out_t address_space;
+        hyperbus_cfg_regs__address_cfg__address_mask_msb__out_t address_mask_msb;
+        hyperbus_cfg_regs__address_cfg__enable__out_t enable;
+    } hyperbus_cfg_regs__address_cfg__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__latency_cfg__t_latency_access__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__latency_cfg__rwds_sample_delay__out_t;
+
+    typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__latency_cfg__en_latency_additional__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__latency_cfg__t_latency_access__out_t t_latency_access;
+        hyperbus_cfg_regs__latency_cfg__rwds_sample_delay__out_t rwds_sample_delay;
+        hyperbus_cfg_regs__latency_cfg__en_latency_additional__out_t en_latency_additional;
+    } hyperbus_cfg_regs__latency_cfg__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } hyperbus_cfg_regs__burst_cfg__t_burst_max__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__burst_cfg__t_burst_max__out_t t_burst_max;
+    } hyperbus_cfg_regs__burst_cfg__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__chip_timing__t_read_write_recovery__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__chip_timing__t_csh_cycles__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__chip_timing__csn_to_ck_cycles__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__chip_timing__t_read_write_recovery__out_t t_read_write_recovery;
+        hyperbus_cfg_regs__chip_timing__t_csh_cycles__out_t t_csh_cycles;
+        hyperbus_cfg_regs__chip_timing__csn_to_ck_cycles__out_t csn_to_ck_cycles;
+    } hyperbus_cfg_regs__chip_timing__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } hyperbus_cfg_regs__rx_delay__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__rx_delay__value__out_t value;
+    } hyperbus_cfg_regs__rx_delay__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base__out_t range_base;
+        hyperbus_cfg_regs__range_bound__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base_value_aea1d0e1__value_reset_1__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_aea1d0e1__value_reset_1__out_t value;
+    } hyperbus_cfg_regs__range_base_value_aea1d0e1__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound_value_e30f0c3f__value_reset_2__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound_value_e30f0c3f__value_reset_2__out_t value;
+    } hyperbus_cfg_regs__range_bound_value_e30f0c3f__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_aea1d0e1__out_t range_base;
+        hyperbus_cfg_regs__range_bound_value_e30f0c3f__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs_range_base_de2a4636_range_bound_d40fd139__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base_value_e30f0c3f__value_reset_2__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_e30f0c3f__value_reset_2__out_t value;
+    } hyperbus_cfg_regs__range_base_value_e30f0c3f__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound_value_2f629ec9__value_reset_3__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound_value_2f629ec9__value_reset_3__out_t value;
+    } hyperbus_cfg_regs__range_bound_value_2f629ec9__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_e30f0c3f__out_t range_base;
+        hyperbus_cfg_regs__range_bound_value_2f629ec9__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs_range_base_b054dd4c_range_bound_a4d5f83b__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base_value_2f629ec9__value_reset_3__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_2f629ec9__value_reset_3__out_t value;
+    } hyperbus_cfg_regs__range_base_value_2f629ec9__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound_value_a1e733c2__value_reset_4__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound_value_a1e733c2__value_reset_4__out_t value;
+    } hyperbus_cfg_regs__range_bound_value_a1e733c2__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_2f629ec9__out_t range_base;
+        hyperbus_cfg_regs__range_bound_value_a1e733c2__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs_range_base_f7266ded_range_bound_5bf260e9__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base_value_a1e733c2__value_reset_4__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_a1e733c2__value_reset_4__out_t value;
+    } hyperbus_cfg_regs__range_base_value_a1e733c2__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound_value_342915db__value_reset_5__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound_value_342915db__value_reset_5__out_t value;
+    } hyperbus_cfg_regs__range_bound_value_342915db__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_a1e733c2__out_t range_base;
+        hyperbus_cfg_regs__range_bound_value_342915db__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs_range_base_0d543b99_range_bound_1fffc3a2__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base_value_342915db__value_reset_5__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_342915db__value_reset_5__out_t value;
+    } hyperbus_cfg_regs__range_base_value_342915db__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound_value_883c384f__value_reset_6__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound_value_883c384f__value_reset_6__out_t value;
+    } hyperbus_cfg_regs__range_bound_value_883c384f__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_342915db__out_t range_base;
+        hyperbus_cfg_regs__range_bound_value_883c384f__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs_range_base_e068ab2e_range_bound_9afa5911__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base_value_883c384f__value_reset_6__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_883c384f__value_reset_6__out_t value;
+    } hyperbus_cfg_regs__range_base_value_883c384f__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound_value_d0d03147__value_reset_7__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound_value_d0d03147__value_reset_7__out_t value;
+    } hyperbus_cfg_regs__range_bound_value_d0d03147__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_883c384f__out_t range_base;
+        hyperbus_cfg_regs__range_bound_value_d0d03147__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs_range_base_ac4fb754_range_bound_24b9644b__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_base_value_d0d03147__value_reset_7__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_d0d03147__value_reset_7__out_t value;
+    } hyperbus_cfg_regs__range_base_value_d0d03147__out_t;
+
+    typedef struct {
+        logic [9:0] value;
+    } hyperbus_cfg_regs__range_bound_value_971bab53__value_reset_8__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_bound_value_971bab53__value_reset_8__out_t value;
+    } hyperbus_cfg_regs__range_bound_value_971bab53__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__range_base_value_d0d03147__out_t range_base;
+        hyperbus_cfg_regs__range_bound_value_971bab53__out_t range_bound;
+        hyperbus_cfg_regs__address_cfg__out_t address_cfg;
+        hyperbus_cfg_regs__latency_cfg__out_t latency_cfg;
+        hyperbus_cfg_regs__burst_cfg__out_t burst_cfg;
+        hyperbus_cfg_regs__chip_timing__out_t chip_timing;
+        hyperbus_cfg_regs__rx_delay__out_t rx_delay;
+    } hyperbus_cfg_regs__chip_regs_range_base_63c2ba90_range_bound_602aea67__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } hyperbus_cfg_regs__reserved_top__value__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__reserved_top__value__out_t value;
+    } hyperbus_cfg_regs__reserved_top__out_t;
+
+    typedef struct {
+        hyperbus_cfg_regs__global_regs__out_t global_cfg;
+        hyperbus_cfg_regs__frontend_regs__out_t frontend;
+        hyperbus_cfg_regs__backend_regs__out_t backend;
+        hyperbus_cfg_regs__phy_regs__out_t phy_0;
+        hyperbus_cfg_regs__phy_regs__out_t phy_1;
+        hyperbus_cfg_regs__chip_regs__out_t chip_0;
+        hyperbus_cfg_regs__chip_regs_range_base_de2a4636_range_bound_d40fd139__out_t chip_1;
+        hyperbus_cfg_regs__chip_regs_range_base_b054dd4c_range_bound_a4d5f83b__out_t chip_2;
+        hyperbus_cfg_regs__chip_regs_range_base_f7266ded_range_bound_5bf260e9__out_t chip_3;
+        hyperbus_cfg_regs__chip_regs_range_base_0d543b99_range_bound_1fffc3a2__out_t chip_4;
+        hyperbus_cfg_regs__chip_regs_range_base_e068ab2e_range_bound_9afa5911__out_t chip_5;
+        hyperbus_cfg_regs__chip_regs_range_base_ac4fb754_range_bound_24b9644b__out_t chip_6;
+        hyperbus_cfg_regs__chip_regs_range_base_63c2ba90_range_bound_602aea67__out_t chip_7;
+        hyperbus_cfg_regs__reserved_top__out_t reserved_top;
     } hyperbus_cfg_regs__out_t;
 endpackage
