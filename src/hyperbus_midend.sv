@@ -9,8 +9,7 @@ module hyperbus_midend #(
     parameter int unsigned HostAddrWidth         = -1,
     parameter int unsigned HostDataWidth         = -1,
     parameter int unsigned NumPhys               = -1,
-    parameter int unsigned HostCommandDepth      = 8,
-    parameter int unsigned HostWriteBufferBytes = 128,
+    parameter int unsigned HostWriteBufferBytes = 64,
     parameter type         host_cmd_t            = logic,
     parameter type         host_w_t              = logic,
     parameter type         host_r_t              = logic,
@@ -43,6 +42,7 @@ module hyperbus_midend #(
     localparam int unsigned HostBusAddrWidth  = $clog2(HostDataBytes);
     localparam int unsigned PhyDataWidth      = NumPhys * 16;
     localparam int unsigned WriteFifoDepth    = HostWriteBufferBytes / HostDataBytes;
+    localparam int unsigned CommandFifoDepth  = 2;
     localparam int unsigned ReadFifoDepth     = 4;
     localparam int unsigned WriteRspFifoDepth = 4;
     localparam int unsigned ChipSelWidth =
@@ -54,7 +54,6 @@ module hyperbus_midend #(
         HostDataWidth >= PhyDataWidth && HostDataWidth <= 1024 &&
         (HostDataWidth & (HostDataWidth - 1)) == 0 &&
         (HostDataWidth % PhyDataWidth) == 0)
-    `ASSERT_INIT(HostCommandDepthValid, HostCommandDepth >= 1)
     `ASSERT_INIT(HostWriteBufferSizeValid,
         HostWriteBufferBytes >= HostDataBytes &&
         (HostWriteBufferBytes % HostDataBytes) == 0)
@@ -92,8 +91,8 @@ module hyperbus_midend #(
 
     stream_fifo #(
         .FALL_THROUGH ( 1'b0             ),
-        .DEPTH        ( HostCommandDepth ),
-        .T            ( host_cmd_t       )
+        .DEPTH        ( CommandFifoDepth ),
+        .T            ( host_cmd_t        )
     ) i_host_cmd_fifo (
         .clk_i,
         .rst_ni,
