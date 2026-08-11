@@ -948,7 +948,7 @@ module axi_hyper_tb
 
     if (TbDutVariant == 0) begin
       // switch memory address space to register space
-      reg_master.send_write(32'h408, 1'b1, '1, s_reg_error);
+      reg_master.send_write(32'h408, 32'h1_1901, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
 
       // enable variable latency so we can test RWDS sampling
@@ -956,7 +956,7 @@ module axi_hyper_tb
       axi_write_32(32'h8000_0000 + S27KS_CFG0_REG_OFFSET, (s27ks_cfg0 | s27ks_cfg0 << 16));
 
       // switch back to memory address space
-      reg_master.send_write(32'h408, 1'b0, '1, s_reg_error);
+      reg_master.send_write(32'h408, 32'h1_1900, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
     end
 
