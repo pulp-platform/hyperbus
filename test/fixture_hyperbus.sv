@@ -11,16 +11,18 @@
 `include "register_interface/typedef.svh"
 
 module fixture_hyperbus #(
-    parameter int unsigned NumConnectedChips = 2,
-    parameter int unsigned NumPhys = 2,
-    parameter int unsigned DutVariant = 0,
-    parameter bit AnnotateSdf = 1'b1
+    parameter int unsigned NumConnectedChips    = 2,
+    parameter int unsigned NumPhys              = 2,
+    parameter int unsigned DutVariant           = 0,
+    parameter int unsigned HostWriteBufferBytes = 64,
+    parameter time        SysClkPeriod          = 4ns,
+    parameter bit         AnnotateSdf           = 1'b1
 );
 
    
     int unsigned            k, j;
 
-    localparam time SYS_TCK  = 4ns;
+    localparam time SYS_TCK  = SysClkPeriod;
     localparam time SYS_TA   = 2ns;
     localparam time SYS_TT   = SYS_TCK - 1ns;
 
@@ -171,6 +173,7 @@ module fixture_hyperbus #(
     hyperbus_test_dut #(
         .DutVariant     ( DutVariant ),
         .NumPhys        ( NumPhys     ),
+        .HostWriteBufferBytes ( HostWriteBufferBytes ),
         .AxiAddrWidth   ( AxiAw       ),
         .AxiDataWidth   ( AxiDw       ),
         .AxiIdWidth     ( AxiIw       ),

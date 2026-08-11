@@ -79,3 +79,4 @@ sources:
         - test/axi_hyper_tb.sv
         - test/hyperbus_atomic_handler_tb.sv
         - test/hyperbus_cfg_regs_tb.sv
+        - test/axi_pre_aw_drain_tb.sv

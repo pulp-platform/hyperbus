@@ -43,5 +43,6 @@ run_test axi_hyper_tb_asynchronous         sim_run_asynchronous.wlf
 run_test axi_hyper_tb_synchronous_one_phy  sim_run_synchronous_one_phy.wlf
 run_test hyperbus_atomic_handler_tb        sim_run_atomic_handler.wlf
 run_test hyperbus_cfg_regs_tb              sim_run_cfg_regs.wlf
+run_test axi_pre_aw_drain_tb                sim_run_pre_aw_drain.wlf
 
 quit -code $regression_failed -f
