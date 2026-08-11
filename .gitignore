@@ -11,3 +11,4 @@ sim_*.log
 test/pad_delay_matrix/
 models/s27ks0641
 wlft*
+/nonfree/

@@ -7,7 +7,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "${script_dir}/.." && pwd)"
-vsim="${VSIM:-vsim}"
+read -r -a vsim <<< "${VSIM:-vsim}"
 out_dir="${PAD_DELAY_MATRIX_OUT:-${root}/test/pad_delay_matrix}"
 compile_log="${out_dir}/compile.log"
 summary="${out_dir}/summary.csv"
@@ -22,7 +22,7 @@ if ! make scripts/compile_pad_delay.tcl >"${out_dir}/compile_tcl.log" 2>&1; then
   exit 1
 fi
 
-if ! "${vsim}" -c -do \
+if ! "${vsim[@]}" -c -do \
   "if {[file exists work]} {vdel -all -lib work}; vlib work; \
    if {[catch {source scripts/compile_pad_delay.tcl} result]} {puts stderr \$result; quit -code 1}; \
    quit -code 0" >"${compile_log}" 2>&1; then
@@ -41,7 +41,7 @@ run_direct() {
 
   echo "[PAD-MATRIX] direct"
   set +e
-  "${vsim}" -c hyperbus_pad_delay_direct_tb -t 1ps -voptargs=+acc \
+  "${vsim[@]}" -c hyperbus_pad_delay_direct_tb -t 1ps -voptargs=+acc \
     -do "run -all; quit -f" >"${log}" 2>&1
   status=$?
   set -e
@@ -74,7 +74,7 @@ run_case() {
 
   echo "[PAD-MATRIX] ${name}"
   set +e
-  "${vsim}" -c axi_hyper_pad_delay_tb -t 1ps -voptargs=+acc \
+  "${vsim[@]}" -c axi_hyper_pad_delay_tb -t 1ps -voptargs=+acc \
     "$@" -do "run -all; quit -f" >"${log}" 2>&1
   status=$?
   set -e

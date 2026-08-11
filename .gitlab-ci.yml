@@ -1,55 +1,54 @@
-# Copyright 2023 ETH Zurich and University of Bologna.
+# Copyright 2026 ETH Zurich and University of Bologna.
 # Solderpad Hardware License, Version 0.51, see LICENSE for details.
 # SPDX-License-Identifier: SHL-0.51
-#
-# Luca Valente  <luca.valente@unibo.it>
 
-before_script:
-  - export PATH=/home/ci-pulp/:$PATH
-  - cp -r /home/ci-pulp/s27ks0641/ ./models
+default:
+  before_script:
+    - source ./iis-env.sh
+    - export BENDER_NO_PROGRESS=true
+    - >-
+      make
+      HYPER_NONFREE_REMOTE="https://gitlab-ci-token:${CI_JOB_TOKEN}@iis-git.ee.ethz.ch/pulp-restricted/hyperbus-nonfree.git"
+      hyper-nonfree-init
 
 stages:
-  - compile
-  - simulate-simple
-  - simulate-random
+  - validate
+  - test
 
-vsim-compile:
-  stage: compile
+restricted-package:
+  stage: validate
+  timeout: 10 minutes
   script:
-    - make clean
-    - bender update
-    - make scripts/compile.tcl
-    - make build
-    - (! grep -n "Error:" transcript)
-    - (! grep -n "Fatal:" transcript)
+    - bender -d nonfree checkout
+    - make check-targets
+    - >-
+      bender -d nonfree script vsim
+      --vlog-arg="-suppress vlog-2583 -suppress vlog-13314"
+      -t rtl -t asic -t gf22 -t gf22_backend
+      > nonfree_gf22_compile.tcl
+    - >-
+      ${VSIM} -c -l nonfree_gf22_compile.log
+      -do 'if {[catch {source nonfree_gf22_compile.tcl} result]}
+      {puts stderr $result; quit -code 1}; quit -code 0'
+    - make gf22-validate
   artifacts:
-      expire_in: 1 week
-      paths:
-        - work
+    when: always
+    expire_in: 1 week
+    paths:
+      - nonfree_gf22_compile.log
 
-vsim-simple:
-  stage: simulate-simple
-  needs:
-    - vsim-compile
+rtl-regression:
+  stage: test
+  timeout: 60 minutes
   script:
-    - vsim -c hyperbus_tb -t 1ps -voptargs=+acc -classdebug -logfile hyperbus.vsim.log -do "run -all" 
-    - (! grep -n "Error:" hyperbus.vsim.log)
-    - (! grep -n "Fatal:" hyperbus.vsim.log)
-    - (! grep -n "Unexpected" hyperbus.vsim.log)
+    - make models/s27ks0641
+    - make run
+    - make run-pad-delay-matrix
   artifacts:
-      paths:
-        - hyperbus.vsim.log
-
-vsim-random:
-  stage: simulate-random
-  needs:
-    - vsim-compile
-  script:
-    - vsim -c axi_hyper_tb -t 1ps -voptargs=+acc -classdebug -logfile hyperbus-rnd.vsim.log -do "run -all" 
-    - (! grep -n "Error:" hyperbus-rnd.vsim.log)
-    - (! grep -n "Fatal:" hyperbus-rnd.vsim.log)
-    - (! grep -n "Unexpected" hyperbus-rnd.vsim.log)
-  artifacts:
-      paths:
-        - hyperbus-rnd.vsim.log
-        
+    when: always
+    expire_in: 1 week
+    paths:
+      - sim_run*.log
+      - test/pad_delay_matrix/*.log
+      - test/pad_delay_matrix/summary.csv
+      - transcript

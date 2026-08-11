@@ -1,0 +1,23 @@
+# Copyright 2026 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+name: Internal CI
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  gitlab-ci:
+    name: Mirror and check
+    runs-on: ubuntu-latest
+    if: >
+      github.repository == 'pulp-platform/hyperbus' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    steps:
+      - name: Run internal GitLab pipeline
+        uses: pulp-platform/pulp-actions/gitlab-ci@v2
+        with:
+          domain: iis-git.ee.ethz.ch
+          repo: github-mirror/hyperbus
+          token: ${{ secrets.GITLAB_TOKEN }}
