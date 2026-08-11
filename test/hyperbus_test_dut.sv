@@ -3,18 +3,19 @@
 // SPDX-License-Identifier: SHL-0.51
 
 module hyperbus_test_dut #(
-    parameter int unsigned  DutVariant       = 0,
-    parameter int unsigned  NumPhys          = 2,
-    parameter int unsigned  AxiAddrWidth     = -1,
-    parameter int unsigned  AxiDataWidth     = -1,
-    parameter int unsigned  AxiIdWidth       = -1,
-    parameter int unsigned  AxiUserWidth     = -1,
-    parameter type          axi_req_t        = logic,
-    parameter type          axi_rsp_t        = logic,
-    parameter int unsigned  RegDataWidth     = -1,
-    parameter type          reg_req_t        = logic,
-    parameter type          reg_rsp_t        = logic,
-    parameter type          axi_rule_t       = logic
+    parameter int unsigned  DutVariant          = 0,
+    parameter int unsigned  NumPhys             = 2,
+    parameter int unsigned  AxiAddrWidth        = -1,
+    parameter int unsigned  AxiDataWidth        = -1,
+    parameter int unsigned  AxiIdWidth          = -1,
+    parameter int unsigned  AxiUserWidth        = -1,
+    parameter type          axi_req_t           = logic,
+    parameter type          axi_rsp_t           = logic,
+    parameter int unsigned  RegDataWidth        = -1,
+    parameter int unsigned  HostWriteBufferBytes = 64,
+    parameter type          reg_req_t           = logic,
+    parameter type          reg_rsp_t           = logic,
+    parameter type          axi_rule_t           = logic
 ) (
     input  logic                        clk_sys_i,
     input  logic                        rst_sys_ni,
@@ -50,6 +51,7 @@ module hyperbus_test_dut #(
     if (DutVariant == VariantIsochronous) begin : gen_isochronous
         hyperbus_isochronous #(
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -85,6 +87,7 @@ module hyperbus_test_dut #(
     end else if (DutVariant == VariantSynchronous) begin : gen_synchronous
         hyperbus_synchronous #(
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -120,6 +123,7 @@ module hyperbus_test_dut #(
     end else if (DutVariant == VariantAsynchronous) begin : gen_asynchronous
         hyperbus_asynchronous #(
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
