@@ -629,10 +629,10 @@ module axi_hyper_tb
     $display("= Slow AXI backpressure   =");
     $display("===========================");
 
-    reg_drv.send_read(32'h2 << 2, saved_t_burst_max, reg_error);
+    reg_drv.send_read(32'h410, saved_t_burst_max, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
 
-    reg_drv.send_write(32'h2 << 2, TbSlowBurstMax, '1, reg_error);
+    reg_drv.send_write(32'h410, TbSlowBurstMax, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
 
     segment_start_snapshot = segment_start_count;
@@ -657,7 +657,7 @@ module axi_hyper_tb
                read_segment_starts, read_segment_starts - 1);
     end
 
-    reg_drv.send_write(32'h2 << 2, saved_t_burst_max, '1, reg_error);
+    reg_drv.send_write(32'h410, saved_t_burst_max, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
   endtask
 
@@ -1105,21 +1105,21 @@ module axi_hyper_tb
       $display("===========================");
       $display("= Isochronous backpressure =");
       $display("===========================");
-      reg_master.send_read(32'h8, iso_saved_t_burst_max, s_reg_error);
+      reg_master.send_read(32'h410, iso_saved_t_burst_max, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected t_burst_max read error");
       foreach (iso_test_dividers[i]) begin
         // Keep each data phase near 2 us, leaving margin for CA and access latency.
-        reg_master.send_write(32'h8, 400 / iso_test_dividers[i], '1, s_reg_error);
+        reg_master.send_write(32'h410, 400 / iso_test_dividers[i], '1, s_reg_error);
         if (s_reg_error != 1'b0) $error("unexpected t_burst_max update error");
-        reg_master.send_write(32'h78, iso_test_dividers[i], '1, s_reg_error);
+        reg_master.send_write(32'h200, iso_test_dividers[i], '1, s_reg_error);
         if (s_reg_error != 1'b0) $error("unexpected divider update error");
         axi_write_slow(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 0);
         axi_read_slow_check(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 128);
       end
 
-      reg_master.send_write(32'h78, 8'd2, '1, s_reg_error);
+      reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected divider restore error");
-      reg_master.send_write(32'h8, iso_saved_t_burst_max, '1, s_reg_error);
+      reg_master.send_write(32'h410, iso_saved_t_burst_max, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected t_burst_max restore error");
     end
 
