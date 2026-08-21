@@ -5,4 +5,7 @@ work/
 transcript
 modelsim.ini
 vsim.wlf
+sim_run*.wlf
+sim_*.log
 models/s27ks0641
+wlft*

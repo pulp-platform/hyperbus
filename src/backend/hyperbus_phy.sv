@@ -18,7 +18,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     parameter int unsigned StartupCycles    = 300 /*us*/ * 200 /*MHz*/ // Conservative maximum frequency estimate
 )(
     input  logic                clk_i,
-    input  logic                clk_i_90,
+    input  logic                clk_tx_i,
     input  logic                rst_ni,
     input  logic                test_mode_i,
     // Config registers
@@ -59,9 +59,17 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     output logic                hyper_reset_no
 );
 
-    logic [1:0]                  phys_in_use;
+    localparam int unsigned RxFifoDepth = 2 ** RxFifoLogDepth;
+    // r_outstand_q includes samples still crossing the RWDS CDC, so its limit
+    // must not include the synchronizer depth again. Reserve two entries for
+    // stopping CK and the final RWDS capture at the clock-gating boundary.
+    localparam int unsigned RxFifoStopMargin = 2;
+    localparam int unsigned RxOutstandingLimit = (RxFifoDepth > RxFifoStopMargin) ?
+                                                 (RxFifoDepth - RxFifoStopMargin) : 1;
 
-    assign phys_in_use = (NumPhys==2) ? (cfg_i.phys_in_use + 1) : 1;
+    logic [1:0]                  words_per_beat;
+
+    assign words_per_beat = (NumPhys == 2 && cfg_i.dual_phy) ? 2 : 1;
 
     // PHY state
     hyper_phy_state_t       state_d,    state_q;
@@ -92,6 +100,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic ctl_rclk_ena;
     logic ctl_rcnt_ena;
     logic ctl_wclk_ena;
+    logic rx_outstanding_room;
 
     // Command-address
     hyper_phy_ca_t  ca;
@@ -121,7 +130,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .SyncStages     ( SyncStages        )
     ) i_trx (
         .clk_i,
-        .clk_i_90,
+        .clk_tx_i,
         .rst_ni,
         .test_mode_i,
         .cs_i               ( cs_q                        ),
@@ -201,10 +210,12 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     assign trx_rx_ready     = rx_ready_i;
     assign rx_valid_o       = trx_rx_valid & (r_outstand_q != '0);
-    // Suspend clock one cycle for every stall caused by upstream.
-    // This ensures that a sufficiently large RX FIFO will not overflow.
-    assign ctl_rclk_ena     = ~(rx_valid_o & ~rx_ready_i);
-    // Disable incoming RWDS capture once all launched read words have drained.
+    assign rx_outstanding_room = r_outstand_q < RxOutstandingLimit;
+    // Suspend CK for visible downstream stalls and before the RWDS CDC FIFO can
+    // fill with already-launched, not-yet-drained read words.
+    assign ctl_rclk_ena     = rx_outstanding_room & ~(rx_valid_o & ~rx_ready_i);
+    // Keep RWDS sampling enabled until all read words launched before a CS break
+    // have crossed back into the PHY clock domain.
     assign trx_rx_clk_reset = (state_q != Read) & (r_outstand_q == '0);
 
     // Counter for outstanding R responses
@@ -224,7 +235,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // cfg_i.chip.en_latency_additional overwrites the sampled RWDS value.
     assign ctl_add_latency      = trx_rwds_sample | cfg_i.chip.en_latency_additional;
 
-    assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == phys_in_use);
+    assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == words_per_beat);
     assign ctl_tf_burst_done    = (tf_q.burst == 0);
 
     assign ctl_timer_rwr_done   = (timer_q <= 3);
@@ -265,9 +276,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             Idle: begin
                 trx_cs_ena  = 1'b0;
                 timer_d     = timer_q;
-                // Signal ready for, pop next transfer if Write response sent
-                 trans_ready_o   = 1'b1;
-                if (trans_valid_i & ~b_pending_q & r_outstand_q == '0) begin
+                // Accept the next transfer only after pending responses and
+                // read samples from the previous segment have drained.
+                trans_ready_o = ~b_pending_q & (r_outstand_q == '0);
+                if (trans_valid_i & trans_ready_o) begin
                     tf_d    = trans_i;
                     cs_d    = trans_cs_i;
                     add_latency_d = 1'b0;
@@ -373,7 +385,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (ctl_rclk_ena) begin
                     trx_clk_ena     = 1'b1;
                     r_outstand_inc  = 1'b1;
-                    tf_d.burst      = tf_q.burst - phys_in_use;
+                    tf_d.burst      = tf_q.burst - words_per_beat;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         timer_d = cfg_i.chip.t_csh_cycles;
@@ -394,7 +406,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Dataflow handled outside FSM
                 if (ctl_wclk_ena) begin
                     trx_clk_ena = 1'b1;
-                    tf_d.burst  = tf_q.burst - phys_in_use;
+                    tf_d.burst  = tf_q.burst - words_per_beat;
                     tf_d.address    = tf_q.address + 1;
                     if (ctl_tf_burst_last) begin
                         b_pending_set   = 1'b1;
@@ -421,6 +433,10 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (ctl_timer_rwr_done) begin
                     if (ctl_tf_burst_done) begin
                         state_d = Idle;
+                    end else if (!tf_q.write && (r_outstand_q != '0)) begin
+                        // Before starting the next read segment, let all samples
+                        // from the previous segment drain and reset RWDS sampling.
+                        timer_d = timer_q;
                     end else begin
                         state_d = SendCA;
                         // Re-enable the io driver if we immediately start the
@@ -434,7 +450,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     // PHY state registers, including timer and transfer
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_phy
-        if (~rst_ni) begin
+        if (!rst_ni) begin
             state_q <= Startup;
             timer_q <= StartupCycles;
             tf_q    <= hyper_tf_t'{burst_type: 1'b1, default:'0};
