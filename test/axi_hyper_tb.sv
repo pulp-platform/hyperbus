@@ -235,6 +235,10 @@ module axi_hyper_tb
   // Address Ranges //
   ////////////////////
   localparam axi_addr_t MemRegionStart  = axi_addr_t'(32'h8000_0000);
+  localparam logic [31:0] CfgFrontendAddr = 32'h0000_0100;
+  localparam logic [31:0] CfgChip0AddressAddr = 32'h0000_0408;
+  localparam logic [31:0] CfgChip0Memory = 32'h0001_1900;
+  localparam logic [31:0] CfgChip0Register = 32'h0001_1901;
   localparam axi_addr_t MemRegionLength = axi_addr_t'(TbDramDataWidth * TbDramLenWidth);
 
   logic s_error;
@@ -378,7 +382,7 @@ module axi_hyper_tb
     #600350ns;
 
     // switch memory address space to register space
-    reg_master.send_write(32'h7<<2, 1'b1, '1, s_reg_error);
+    reg_master.send_write(CfgChip0AddressAddr, CfgChip0Register, '1, s_reg_error);
     if (s_reg_error != 1'b0) $error("unexpected error");
 
     // enable variable latency so we can test RWDS sampling
@@ -386,7 +390,7 @@ module axi_hyper_tb
     axi_write_32(32'h8000_0000 + S27KS_CFG0_REG_OFFSET, (s27ks_cfg0 | s27ks_cfg0 << 16));
 
     // switch back to memory address space
-    reg_master.send_write(32'h7<<2, 1'b0, '1, s_reg_error);
+    reg_master.send_write(CfgChip0AddressAddr, CfgChip0Memory, '1, s_reg_error);
     if (s_reg_error != 1'b0) $error("unexpected error");
 
     check_consecutive_reads(axi_ctrl_mst);
@@ -411,31 +415,7 @@ module axi_hyper_tb
        $display("= Use only phy 0          =");
        $display("===========================");
 
-       reg_master.send_write(32'h20,1'b0,'1,s_reg_error);
-       reg_master.send_write(32'h24,1'b0,'1,s_reg_error);
-       if (s_reg_error != 1'b0) $error("unexpected error");
-
-       axi_rand_mst.reset();
-       axi_ctrl_mst.reset_master();
-       check_odd_subword_accesses(axi_ctrl_mst);
-
-       $display("===========================");
-       $display("= Random AXI transactions =");
-       $display("===========================");
-
-       axi_rand_mst.run(TbNumReads, TbNumWrites);
-
-       $display("===========================");
-       $display("=      Test finished      =");
-       $display("===========================");
-
-       mst_scoreboard.clear_range(32'h8000_0000, 32'h8000_0000 + ( TbDramDataWidth * TbDramLenWidth ));
-
-       $display("===========================");
-       $display("= Use only phy 1          =");
-       $display("===========================");
-
-       reg_master.send_write(32'h24,1'b1,'1,s_reg_error);
+       reg_master.send_write(CfgFrontendAddr, 32'h0, '1, s_reg_error);
        if (s_reg_error != 1'b0) $error("unexpected error");
 
        axi_rand_mst.reset();
