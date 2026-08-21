@@ -11,7 +11,7 @@ module hyperbus_tb;
 
     localparam NumPhys=2;
    
-    fixture_hyperbus #(.NumChips(2), .NumPhys(NumPhys) ) fix ();
+    fixture_hyperbus #(.NumConnectedChips(2), .NumPhys(NumPhys) ) fix ();
 
     logic error;
 

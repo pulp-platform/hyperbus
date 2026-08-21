@@ -11,16 +11,18 @@
 `include "register_interface/typedef.svh"
 
 module fixture_hyperbus #(
-    parameter int unsigned NumChips = 2,
-    parameter int unsigned NumPhys = 2,
-    parameter int unsigned DutVariant = 0,
-    parameter bit AnnotateSdf = 1'b1
+    parameter int unsigned NumConnectedChips    = 2,
+    parameter int unsigned NumPhys              = 2,
+    parameter int unsigned DutVariant           = 0,
+    parameter int unsigned HostWriteBufferBytes = 64,
+    parameter time        SysClkPeriod          = 4ns,
+    parameter bit         AnnotateSdf           = 1'b1
 );
 
    
     int unsigned            k, j;
 
-    localparam time SYS_TCK  = 4ns;
+    localparam time SYS_TCK  = SysClkPeriod;
     localparam time SYS_TA   = 2ns;
     localparam time SYS_TT   = SYS_TCK - 1ns;
 
@@ -149,7 +151,7 @@ module fixture_hyperbus #(
     assign i_rbus.error = reg_rsp.error;
 
     // -------------------------- DUT --------------------------
-    logic [NumPhys-1:0][NumChips-1:0] hyper_cs_n_wire;
+    logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_wire;
     logic [NumPhys-1:0]               hyper_ck_wire;
     logic [NumPhys-1:0]               hyper_ck_n_wire;
     logic [NumPhys-1:0]               hyper_rwds_o;
@@ -160,7 +162,7 @@ module fixture_hyperbus #(
     logic [NumPhys-1:0]               hyper_dq_oe;
     logic [NumPhys-1:0]               hyper_reset_n_wire;
              
-    wire  [NumPhys-1:0][NumChips-1:0]  pad_hyper_csn;
+    wire  [NumPhys-1:0][NumConnectedChips-1:0] pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
     wire  [NumPhys-1:0]                pad_hyper_ckn;
     wire  [NumPhys-1:0]                pad_hyper_rwds;
@@ -170,8 +172,8 @@ module fixture_hyperbus #(
     // DUT
     hyperbus_test_dut #(
         .DutVariant     ( DutVariant ),
-        .NumChips       ( NumChips    ),
         .NumPhys        ( NumPhys     ),
+        .HostWriteBufferBytes ( HostWriteBufferBytes ),
         .AxiAddrWidth   ( AxiAw       ),
         .AxiDataWidth   ( AxiDw       ),
         .AxiIdWidth     ( AxiIw       ),
@@ -211,7 +213,7 @@ module fixture_hyperbus #(
     
     generate
        for (genvar i=0; i<NumPhys; i++) begin : hyperrams
-          for (genvar j=0; j<NumChips; j++) begin : chips
+          for (genvar j=0; j<NumConnectedChips; j++) begin : chips
 
              s27ks0641 #(
                /*.mem_file_name ( "s27ks0641.mem"    ),*/
@@ -237,7 +239,7 @@ module fixture_hyperbus #(
    
     if (AnnotateSdf) begin : gen_sdf_annotation
        for (genvar p=0; p<NumPhys; p++) begin : sdf_annotation
-          for (genvar l=0; l<NumChips; l++) begin : sdf_annotation
+          for (genvar l=0; l<NumConnectedChips; l++) begin : sdf_annotation
              initial begin
                 automatic string sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
                 $sdf_annotate(sdf_file_path, hyperrams[p].chips[l].dut);
@@ -248,7 +250,7 @@ module fixture_hyperbus #(
     end
 
    for (genvar i = 0 ; i<NumPhys; i++) begin: pad_gen
-    for (genvar j = 0; j<NumChips; j++) begin
+    for (genvar j = 0; j<NumConnectedChips; j++) begin
        pad_functional_pd padinst_hyper_csno   (.OEN( 1'b0            ), .I( hyper_cs_n_wire[i][j] ), .O(                  ), .PAD( pad_hyper_csn[i][j] ), .PEN( 1'b0 ));
     end
     pad_functional_pd padinst_hyper_ck     (.OEN( 1'b0            ), .I( hyper_ck_wire[i]      ), .O(                  ), .PAD( pad_hyper_ck[i]     ), .PEN( 1'b0 ) );

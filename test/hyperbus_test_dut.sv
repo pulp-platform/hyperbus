@@ -3,19 +3,19 @@
 // SPDX-License-Identifier: SHL-0.51
 
 module hyperbus_test_dut #(
-    parameter int unsigned  DutVariant       = 0,
-    parameter int unsigned  NumChips         = -1,
-    parameter int unsigned  NumPhys          = 2,
-    parameter int unsigned  AxiAddrWidth     = -1,
-    parameter int unsigned  AxiDataWidth     = -1,
-    parameter int unsigned  AxiIdWidth       = -1,
-    parameter int unsigned  AxiUserWidth     = -1,
-    parameter type          axi_req_t        = logic,
-    parameter type          axi_rsp_t        = logic,
-    parameter int unsigned  RegDataWidth     = -1,
-    parameter type          reg_req_t        = logic,
-    parameter type          reg_rsp_t        = logic,
-    parameter type          axi_rule_t       = logic
+    parameter int unsigned  DutVariant          = 0,
+    parameter int unsigned  NumPhys             = 2,
+    parameter int unsigned  AxiAddrWidth        = -1,
+    parameter int unsigned  AxiDataWidth        = -1,
+    parameter int unsigned  AxiIdWidth          = -1,
+    parameter int unsigned  AxiUserWidth        = -1,
+    parameter type          axi_req_t           = logic,
+    parameter type          axi_rsp_t           = logic,
+    parameter int unsigned  RegDataWidth        = -1,
+    parameter int unsigned  HostWriteBufferBytes = 64,
+    parameter type          reg_req_t           = logic,
+    parameter type          reg_rsp_t           = logic,
+    parameter type          axi_rule_t           = logic
 ) (
     input  logic                        clk_sys_i,
     input  logic                        rst_sys_ni,
@@ -32,7 +32,7 @@ module hyperbus_test_dut #(
     input  reg_req_t                    reg_req_i,
     output reg_rsp_t                    reg_rsp_o,
 
-    output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
+    output logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_no,
     output logic [NumPhys-1:0]               hyper_ck_o,
     output logic [NumPhys-1:0]               hyper_ck_no,
     output logic [NumPhys-1:0]               hyper_rwds_o,
@@ -50,8 +50,8 @@ module hyperbus_test_dut #(
 
     if (DutVariant == VariantIsochronous) begin : gen_isochronous
         hyperbus_isochronous #(
-            .NumChips       ( NumChips      ),
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -86,8 +86,8 @@ module hyperbus_test_dut #(
         );
     end else if (DutVariant == VariantSynchronous) begin : gen_synchronous
         hyperbus_synchronous #(
-            .NumChips       ( NumChips      ),
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -122,8 +122,8 @@ module hyperbus_test_dut #(
         );
     end else if (DutVariant == VariantAsynchronous) begin : gen_asynchronous
         hyperbus_asynchronous #(
-            .NumChips       ( NumChips      ),
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
