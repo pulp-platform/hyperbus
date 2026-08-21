@@ -15,6 +15,7 @@ module hyperbus_isochronous #(
     parameter type          axi_req_t             = logic,
     parameter type          axi_rsp_t             = logic,
     parameter int unsigned  RegDataWidth          = -1,
+    parameter int unsigned  RegAddrWidth          = 32,
     parameter type          reg_req_t             = logic,
     parameter type          reg_rsp_t             = logic,
     parameter type          axi_rule_t            = logic,
@@ -176,10 +177,9 @@ module hyperbus_isochronous #(
         .reg_req_t     ( reg_req_t     ),
         .reg_rsp_t     ( reg_rsp_t     ),
         .host_rule_t   ( axi_rule_t    ),
-        .RegDataWidth  ( RegDataWidth  ),
-        // Isochronous top implements the backend clock divider; decode-error
-        // status is shared by all top-level clocking variants.
-        .CapabilityFeatures ( 8'b0010_1000 )
+        .RegDataWidth            ( RegDataWidth            ),
+        .RegAddrWidth            ( RegAddrWidth            ),
+        .ClockDividerImplemented ( 1'b1                    )
     ) i_cfg_frontend (
         .clk_i              ( clk_sys_i              ),
         .rst_ni             ( rst_sys_ni             ),
