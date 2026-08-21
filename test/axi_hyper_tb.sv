@@ -506,6 +506,161 @@ module axi_hyper_tb
     end
   endtask
 
+  task automatic run_performance_smoke(input axi_ctrl_master_t axi_drv);
+    localparam int unsigned NumCases = 5;
+    localparam axi_addr_t PerfBaseAddr = axi_addr_t'(32'h8000_8000);
+    int unsigned burst_beats [NumCases] = '{1, 4, 16, 64, 256};
+    int unsigned write_baseline [NumCases];
+    int unsigned read_baseline [NumCases];
+    int unsigned segment_limit [NumCases];
+    logic [63:0] write_cycles [NumCases];
+    logic [63:0] read_cycles [NumCases];
+    logic [63:0] cycle_snapshot;
+    logic [31:0] segment_snapshot;
+    logic [31:0] write_segments;
+    logic [31:0] read_segments;
+    axi_addr_t burst_addr;
+    int unsigned write_cycle_limit;
+    int unsigned read_cycle_limit;
+    real backend_cycles_per_system_cycle;
+    real write_bits_per_phy_cycle;
+    real read_bits_per_phy_cycle;
+
+    backend_cycles_per_system_cycle = 1.0;
+    if (TbDutVariant == 0) begin
+      backend_cycles_per_system_cycle = 0.5;
+    end else if (TbDutVariant == 2) begin
+      backend_cycles_per_system_cycle = real'(TbCyclTime) / real'(TbPhyCyclTime);
+    end
+
+    // Default-configuration baselines in system-clock cycles for each supported top.
+    write_baseline = '{44, 55, 103, 295, 1103};
+    read_baseline = '{59, 71, 119, 311, 1119};
+    segment_limit = '{1, 1, 1, 1, 2};
+    if (TbDutVariant == 1) begin
+      write_baseline = '{22, 28, 52, 148, 552};
+      read_baseline = '{29, 35, 59, 155, 559};
+    end else if (TbDutVariant == 2) begin
+      write_baseline = '{36, 42, 71, 186, 671};
+      read_baseline = '{43, 49, 78, 193, 678};
+    end
+    if (NumPhys == 1) begin
+      write_baseline = '{24, 36, 84, 276, 1084};
+      read_baseline = '{30, 42, 90, 282, 1090};
+      segment_limit = '{1, 1, 1, 1, 3};
+    end
+
+    $display("===========================");
+    $display("= AXI performance smoke   =");
+    $display("===========================");
+
+    for (int unsigned test_idx = 0; test_idx < NumCases; test_idx++) begin
+      burst_addr = PerfBaseAddr + axi_addr_t'(test_idx * 32'h1000);
+
+      cycle_snapshot = cycle_count;
+      segment_snapshot = segment_start_count;
+      axi_write_slow(axi_drv, burst_addr, burst_beats[test_idx], 0);
+      write_cycles[test_idx] = cycle_count - cycle_snapshot;
+      write_segments = segment_start_count - segment_snapshot;
+
+      cycle_snapshot = cycle_count;
+      segment_snapshot = segment_start_count;
+      axi_read_slow_check(axi_drv, burst_addr, burst_beats[test_idx], 0);
+      read_cycles[test_idx] = cycle_count - cycle_snapshot;
+      read_segments = segment_start_count - segment_snapshot;
+
+      $display("[PERF] variant=%0d phys=%0d beats=%0d write_cycles=%0d read_cycles=%0d write_segments=%0d read_segments=%0d",
+               TbDutVariant, NumPhys, burst_beats[test_idx], write_cycles[test_idx],
+               read_cycles[test_idx], write_segments, read_segments);
+
+      if (burst_beats[test_idx] == 256) begin
+        write_bits_per_phy_cycle = real'(burst_beats[test_idx] * TbAxiDataWidthFull) /
+            real'(NumPhys * write_cycles[test_idx]) / backend_cycles_per_system_cycle;
+        read_bits_per_phy_cycle = real'(burst_beats[test_idx] * TbAxiDataWidthFull) /
+            real'(NumPhys * read_cycles[test_idx]) / backend_cycles_per_system_cycle;
+        $display("[PERF-MAX] variant=%0d write_bits_per_phy_cycle=%0.3f read_bits_per_phy_cycle=%0.3f",
+                 TbDutVariant, write_bits_per_phy_cycle, read_bits_per_phy_cycle);
+      end
+
+      write_cycle_limit = write_baseline[test_idx] + write_baseline[test_idx] / 5 + 2;
+      read_cycle_limit = read_baseline[test_idx] + read_baseline[test_idx] / 5 + 2;
+      if (write_cycles[test_idx] > write_cycle_limit) begin
+        $error("[PERF] %0d-beat write took %0d cycles, limit is %0d",
+               burst_beats[test_idx], write_cycles[test_idx], write_cycle_limit);
+      end
+      if (read_cycles[test_idx] > read_cycle_limit) begin
+        $error("[PERF] %0d-beat read took %0d cycles, limit is %0d",
+               burst_beats[test_idx], read_cycles[test_idx], read_cycle_limit);
+      end
+      if ((write_segments != segment_limit[test_idx]) ||
+          (read_segments != segment_limit[test_idx])) begin
+        $error("[PERF] %0d-beat burst used unexpected segments: write=%0d read=%0d limit=%0d",
+               burst_beats[test_idx], write_segments, read_segments,
+               segment_limit[test_idx]);
+      end
+    end
+
+    for (int unsigned test_idx = 1; test_idx < NumCases; test_idx++) begin
+      if ((write_cycles[test_idx] * burst_beats[test_idx-1]) >
+          (write_cycles[test_idx-1] * burst_beats[test_idx])) begin
+        $error("[PERF] Write cycles per beat did not improve from %0d to %0d beats",
+               burst_beats[test_idx-1], burst_beats[test_idx]);
+      end
+      if ((read_cycles[test_idx] * burst_beats[test_idx-1]) >
+          (read_cycles[test_idx-1] * burst_beats[test_idx])) begin
+        $error("[PERF] Read cycles per beat did not improve from %0d to %0d beats",
+               burst_beats[test_idx-1], burst_beats[test_idx]);
+      end
+    end
+  endtask
+
+  task automatic run_slow_backpressure_test(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t SlowBaseAddr = axi_addr_t'(32'h8000_4000);
+    logic [RegBusDW-1:0] saved_t_burst_max;
+    logic [31:0] write_segment_starts;
+    logic [31:0] read_segment_starts;
+    logic [31:0] segment_start_snapshot;
+    logic reg_error;
+
+    $display("===========================");
+    $display("= Slow AXI backpressure   =");
+    $display("===========================");
+
+    reg_drv.send_read(32'h410, saved_t_burst_max, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+
+    reg_drv.send_write(32'h410, TbSlowBurstMax, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+
+    segment_start_snapshot = segment_start_count;
+    axi_write_slow(axi_drv, SlowBaseAddr, TbSlowNumBeats, TbSlowGapCycles);
+    write_segment_starts = segment_start_count - segment_start_snapshot;
+    if (write_segment_starts <= 1) begin
+      $error("[AXI-SLOW] Write observed %0d HyperBus segment start(s), expected at least one restart",
+             write_segment_starts);
+    end else begin
+      $display("[AXI-SLOW] Write observed %0d HyperBus segment starts (%0d restarts)",
+               write_segment_starts, write_segment_starts - 1);
+    end
+
+    segment_start_snapshot = segment_start_count;
+    axi_read_slow_check(axi_drv, SlowBaseAddr, TbSlowNumBeats, TbSlowGapCycles);
+    read_segment_starts = segment_start_count - segment_start_snapshot;
+    if (read_segment_starts <= 1) begin
+      $error("[AXI-SLOW] Read observed %0d HyperBus segment start(s), expected at least one restart",
+             read_segment_starts);
+    end else begin
+      $display("[AXI-SLOW] Read observed %0d HyperBus segment starts (%0d restarts)",
+               read_segment_starts, read_segment_starts - 1);
+    end
+
+    reg_drv.send_write(32'h410, saved_t_burst_max, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+  endtask
+
   task automatic check_config_barrier(
     input axi_ctrl_master_t axi_drv,
     input reg_bus_master_t reg_drv
@@ -866,6 +1021,8 @@ module axi_hyper_tb
     automatic logic [63:0] divider_cycle_snapshot;
     automatic logic [63:0] div2_write_cycles;
     automatic logic [63:0] div4_write_cycles;
+    automatic logic [31:0] iso_saved_t_burst_max;
+    automatic int unsigned iso_test_dividers[4] = '{2, 4, 8, 16};
 
     // Reset the AXI drivers and scoreboards
     end_of_sim = 1'b0;
@@ -934,6 +1091,8 @@ module axi_hyper_tb
       end
     end
 
+    run_performance_smoke(axi_ctrl_mst);
+    run_slow_backpressure_test(axi_ctrl_mst, reg_master);
     check_config_barrier(axi_ctrl_mst, reg_master);
     check_decode_errors(axi_ctrl_mst, reg_master);
     check_cross_chip_burst(axi_ctrl_mst, reg_master);
@@ -941,6 +1100,28 @@ module axi_hyper_tb
     check_range_edges(axi_ctrl_mst, reg_master);
     check_atomic_add(axi_ctrl_mst);
     check_atomic_range_errors(axi_ctrl_mst, reg_master);
+
+    if (TbDutVariant == 0) begin
+      $display("===========================");
+      $display("= Isochronous backpressure =");
+      $display("===========================");
+      reg_master.send_read(32'h410, iso_saved_t_burst_max, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected t_burst_max read error");
+      foreach (iso_test_dividers[i]) begin
+        // Keep each data phase near 2 us, leaving margin for CA and access latency.
+        reg_master.send_write(32'h410, 400 / iso_test_dividers[i], '1, s_reg_error);
+        if (s_reg_error != 1'b0) $error("unexpected t_burst_max update error");
+        reg_master.send_write(32'h200, iso_test_dividers[i], '1, s_reg_error);
+        if (s_reg_error != 1'b0) $error("unexpected divider update error");
+        axi_write_slow(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 0);
+        axi_read_slow_check(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 128);
+      end
+
+      reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected divider restore error");
+      reg_master.send_write(32'h410, iso_saved_t_burst_max, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected t_burst_max restore error");
+    end
 
     if (NumPhys == 1) begin
       check_unaligned_word_access(axi_ctrl_mst);
