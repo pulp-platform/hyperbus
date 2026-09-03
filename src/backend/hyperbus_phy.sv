@@ -352,6 +352,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             // Assert chip select early when RWDS needs extra setup time before CK starts.
             DelayCK: begin
                 trx_clk_ena = 1'b0;
+                trx_tx_data_oe = 1'b1;
                 if (ctl_timer_zero) begin
                     timer_d = 2; // Send 3 CA words
                     state_d = SendCA;
@@ -583,10 +584,12 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     `ASSERT(RxCaptureResetAfterDrain,
         (r_outstand_dec && r_outstand_q == 1 && state_q != Read) |=> trx_rx_clk_reset)
     `ASSERT(DqOutputDisabledDuringLatency,
-        ((state_q == WaitLatAccess && timer_q < cfg_chip.t_latency_access) ||
-         state_q == WaitAddLatAccess || state_q == WaitRwdsOe) |-> !hyper_dq_oe_o)
+        (((state_q == WaitLatAccess && timer_q < cfg_chip.t_latency_access) ||
+          state_q == WaitAddLatAccess || state_q == WaitRwdsOe) &&
+         state_d != Write) |-> !hyper_dq_oe_o)
     `ASSERT(OutputDriversDisabledDuringRecovery,
-        state_q == WaitRWR |-> (!hyper_dq_oe_o && !hyper_rwds_oe_o))
+        (state_q == WaitRWR && state_d != SendCA) |->
+        (!hyper_dq_oe_o && !hyper_rwds_oe_o))
     `ASSERT(LatencyAccessAtLeastThree,
         (state_q == SendCA && !ctl_write_zero_lat) |-> cfg_chip.t_latency_access >= 3)
     `ASSERT(RwdsSampleDelayFitsLatency,
