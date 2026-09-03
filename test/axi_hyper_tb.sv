@@ -1197,8 +1197,11 @@ module axi_hyper_tb
     if (s_reg_error != 1'b0) $error("unexpected error");
     reg_master.send_write(32'h300, TbTxDelayLineTaps, '1, s_reg_error);
     if (s_reg_error != 1'b0) $error("unexpected error");
+    reg_master.send_write(32'h304, 8'd2, '1, s_reg_error);
+    if (s_reg_error != 1'b0) $error("unexpected RWDS OE timing write");
     if (NumPhys == 2) begin
       reg_master.send_write(32'h340, TbTxDelayLineTaps + 1, '1, s_reg_error);
+      reg_master.send_write(32'h344, 8'd3, '1, s_reg_error);
     end
     reg_master.send_read(32'h010, reg_read, s_reg_error);
     if (s_reg_error != 1'b0 || !reg_read[2]) $error("staged configuration did not set STATUS.dirty");
@@ -1374,6 +1377,7 @@ module axi_hyper_tb
     .rst_ni     ( rst_n        ),
     .end_sim_i  ( end_of_sim   ),
     .segment_start_count_o ( segment_start_count ),
+    .pad_delay_cfg_i       ( '0                  ),
     .axi_slv_if ( axi_dut_intf ),
     .reg_slv_if ( reg_bus_mst  )
   );

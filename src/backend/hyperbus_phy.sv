@@ -80,10 +80,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic [TimerWidth-1:0]  timer_d,    timer_q;
     hyper_tf_t              tf_d,       tf_q;
     logic [HyperNumChips-1:0] cs_d, cs_q;
-    logic                   add_latency_d, add_latency_q;
+    logic [3:0]             rwds_sample_countdown_d, rwds_sample_countdown_q;
+    logic [3:0]             rwds_oe_setup_count_d, rwds_oe_setup_count_q;
+
     logic [HyperNumChips-1:0] cfg_select_cs;
     logic [2:0]                cfg_chip_idx;
     chip_phy_cfg_t             cfg_chip;
+    phy_lane_cfg_t             cfg_lane;
 
     // During Idle the incoming command CS is authoritative. Once accepted,
     // retain the registered CS for every subsequent phase of the transfer.
@@ -95,6 +98,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .bin    ( cfg_chip_idx  )
     );
     assign cfg_chip = cfg_i.chip[cfg_chip_idx];
+    assign cfg_lane = cfg_i.phy[PhyIndex];
 
     assign words_per_beat = (NumPhys == 2 && cfg_i.dual_phy) ? 2 : 1;
 
@@ -111,6 +115,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // Auxiliary control signals
     logic ctl_write_zero_lat;
     logic ctl_add_latency;
+    logic ctl_rwds_sample;
     logic ctl_tf_burst_last;
     logic ctl_tf_burst_done;
     logic ctl_timer_two;
@@ -121,6 +126,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic ctl_rcnt_ena;
     logic ctl_wclk_ena;
     logic rx_outstanding_room;
+    logic [4:0] rwds_sample_delay_plus_two;
+    logic rwds_oe_setup_ready;
 
     // Command-address
     hyper_phy_ca_t  ca;
@@ -205,8 +212,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         end else if (state_q == Write) begin
             trx_tx_data     = tx_data_i;
             trx_tx_rwds     = ~tx_strb_i;
-            tx_ready_o      = 1'b1;     // Memory always ready within HyperBus burst
-            ctl_wclk_ena    = tx_valid_i;
+            tx_ready_o      = rwds_oe_setup_ready;
+            ctl_wclk_ena   = tx_valid_i && rwds_oe_setup_ready;
         end
     end
 
@@ -251,8 +258,11 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     // Auxiliary control signals
     assign ctl_write_zero_lat   = tf_q.address_space & tf_q.write;
-    // The selected chip configuration overwrites the sampled RWDS value.
+    // Force additional latency when configured; otherwise use the held RWDS sample.
     assign ctl_add_latency      = trx_rwds_sample | cfg_chip.en_latency_additional;
+    assign ctl_rwds_sample      = ~ctl_write_zero_lat &&
+        ((state_q == SendCA && ctl_timer_zero && (rwds_sample_countdown_q == 4'd0)) ||
+         (state_q == WaitLatAccess && (rwds_sample_countdown_q == 4'd1)));
 
     assign ctl_tf_burst_last    = (tf_q.burst == 1) || (tf_q.burst == words_per_beat);
     assign ctl_tf_burst_done    = (tf_q.burst == 0);
@@ -261,6 +271,16 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     assign ctl_timer_two        = (timer_q == 2);
     assign ctl_timer_one        = (timer_q == 1);
     assign ctl_timer_zero       = (timer_q == 0);
+
+    // Count from the registered, pad-facing RWDS OE boundary. The resumed
+    // clock-enable pipeline guarantees one additional complete PHY cycle
+    // before the first write-data CK edge, so include that cycle in the
+    // minimum setup interval. Saturating the counter avoids wraparound while
+    // a write remains setup-stalled.
+    assign rwds_oe_setup_ready = ctl_write_zero_lat ||
+        (cfg_lane.rwds_oe_setup_cycles == 0) ||
+        ({1'b0, rwds_oe_setup_count_q} + 5'd1 >=
+         {1'b0, cfg_lane.rwds_oe_setup_cycles});
 
     assign busy_o = (state_q != Idle);
 
@@ -279,7 +299,13 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         timer_d = timer_q - 1;
         tf_d    = tf_q;
         cs_d    = cs_q;
-        add_latency_d = add_latency_q;
+        rwds_sample_countdown_d = rwds_sample_countdown_q;
+        rwds_oe_setup_count_d = rwds_oe_setup_count_q;
+        if (!hyper_rwds_oe_o) begin
+            rwds_oe_setup_count_d = '0;
+        end else if (rwds_oe_setup_count_q != '1) begin
+            rwds_oe_setup_count_d = rwds_oe_setup_count_q + 1'b1;
+        end
         // Tri-state control of dq and rwds
         trx_tx_rwds_oe = 1'b0;
         trx_tx_data_oe = 1'b0;
@@ -303,7 +329,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 if (trans_valid_i & trans_ready_o) begin
                     tf_d    = trans_i;
                     cs_d    = trans_cs_i;
-                    add_latency_d = 1'b0;
+                    rwds_sample_countdown_d = cfg_chip.rwds_sample_delay;
 
                     if(cfg_chip.csn_to_ck_cycles != 0) begin
                         // assert CS but delay hyper_ck to allow more time
@@ -326,7 +352,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             // Assert chip select early when RWDS needs extra setup time before CK starts.
             DelayCK: begin
                 trx_clk_ena = 1'b0;
-                trx_rwds_sample_ena = ~ctl_write_zero_lat;
+                trx_tx_data_oe = 1'b1;
                 if (ctl_timer_zero) begin
                     timer_d = 2; // Send 3 CA words
                     state_d = SendCA;
@@ -337,52 +363,65 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Dataflow handled outside FSM
                 trx_clk_ena         = 1'b1;
                 trx_tx_data_oe      = 1'b1;
-                trx_rwds_sample_ena = ~ctl_write_zero_lat;
+                trx_rwds_sample_ena = ctl_rwds_sample;
                 if (ctl_timer_zero) begin
                     if (ctl_write_zero_lat) begin
                         timer_d = cfg_chip.t_burst_max;
                         state_d = Write;
                     end else begin
                         timer_d = TimerWidth'(cfg_chip.t_latency_access);
-                        add_latency_d = ctl_add_latency;
                         state_d = WaitLatAccess;
                     end
                 end
             end
-            // Wait one access-latency interval and sample the additional-latency request.
+            // Wait one access-latency interval and decide on the extra latency.
             WaitLatAccess: begin
                 trx_clk_ena = 1'b1;
-                trx_tx_data_oe = 1'b1;
-                // Keep sampling until the cycle before the normal-latency decision.
-                // The FFed sample is then visible when ctl_timer_two is evaluated.
-                trx_rwds_sample_ena = ~ctl_write_zero_lat & (timer_q > 2);
-                // The additional-latency decision is latched at the end of CA so
-                // later RWDS changes cannot erase it before the FSM decision.
-                if (~add_latency_q) begin
-                    // Substract cycle for last CA and another for state delay
-                    if(ctl_timer_two) begin
-                        timer_d = cfg_chip.t_burst_max;
-                        // Switch to write or read phase and already start
-                        // turnaround of tri-state driver (depending on latency
-                        // config and if read or write transaction).
-                        if (tf_q.write) begin
-                            state_d = Write;
-                            trx_tx_data_oe = 1'b1;
-                            // For zero latency writes, we must not drive the RWDS
-                            // signal (see specs page 9). Depending on the latency
-                            // mode we thus drive only the DQ signals or DQ + RWDS.
-                            trx_tx_rwds_oe = ~ctl_write_zero_lat;
+                // Establish a LOW RWDS preamble as soon as the one-shot
+                // sample has completed; setup time overlaps natural latency.
+                trx_tx_rwds_oe = tf_q.write && !ctl_write_zero_lat &&
+                    (rwds_sample_countdown_q == 0);
+                // The registered DQ OE stays active through the final delayed
+                // CA edge, then releases DQ on the following PHY clock edge.
+                // A valid TX phase keeps the delayed edge within that cycle.
+                trx_rwds_sample_ena = ctl_rwds_sample;
+                if (rwds_sample_countdown_q != '0) begin
+                    rwds_sample_countdown_d = rwds_sample_countdown_q - 1'b1;
+                end
+                // Decide from the final sampled RWDS value at the normal-latency boundary.
+                if (ctl_timer_two) begin
+                    if (ctl_add_latency) begin
+                        // Enter one cycle earlier and compensate the extra-latency timer.
+                        state_d = WaitAddLatAccess;
+                        timer_d = TimerWidth'(cfg_chip.t_latency_access) + 1;
+                    end else begin
+                        if (tf_q.write && !ctl_write_zero_lat && !rwds_oe_setup_ready) begin
+                            // Hold the final natural-latency count while CK is
+                            // stopped until the registered RWDS OE has settled.
+                            state_d = WaitRwdsOe;
+                            timer_d = timer_q;
+                            trx_clk_ena = 1'b0;
+                            trx_tx_rwds_oe = 1'b1;
                         end else begin
-                            state_d = Read;
-                            trx_tx_data_oe = 1'b0;
-                            trx_tx_rwds_oe = 1'b0;
+                            // Substract cycle for last CA and another for state delay
+                            timer_d = cfg_chip.t_burst_max;
+                            // Switch to write or read phase and already start
+                            // turnaround of tri-state driver (depending on latency
+                            // config and if read or write transaction).
+                            if (tf_q.write) begin
+                                state_d = Write;
+                                trx_tx_data_oe = 1'b1;
+                                // For zero latency writes, we must not drive the RWDS
+                                // signal (see specs page 9). Depending on the latency
+                                // mode we thus drive only the DQ signals or DQ + RWDS.
+                                trx_tx_rwds_oe = ~ctl_write_zero_lat;
+                            end else begin
+                                state_d = Read;
+                                trx_tx_data_oe = 1'b0;
+                                trx_tx_rwds_oe = 1'b0;
+                            end
                         end
                     end
-                end else if (ctl_timer_one) begin
-                    // instead of going to 0, add another latency count
-                    state_d = WaitAddLatAccess;
-                    timer_d = TimerWidth'(cfg_chip.t_latency_access);
-                    add_latency_d = 1'b0;
                 end
             end
             // Complete the requested second access-latency interval.
@@ -390,18 +429,42 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 // Same as WaitLatAccess but without possibility
                 // of adding another latency count
                 trx_clk_ena = 1'b1;
-                trx_tx_data_oe = 1'b1;
+                trx_tx_rwds_oe = tf_q.write && !ctl_write_zero_lat;
                 if (ctl_timer_two) begin
                     timer_d = cfg_chip.t_burst_max;
                     if (tf_q.write) begin
-                        state_d = Write;
-                        trx_tx_data_oe = 1'b1;
-                        trx_tx_rwds_oe = ~ctl_write_zero_lat;
+                        if (!ctl_write_zero_lat && !rwds_oe_setup_ready) begin
+                            state_d = WaitRwdsOe;
+                            timer_d = timer_q;
+                            trx_clk_ena = 1'b0;
+                        end else begin
+                            state_d = Write;
+                            trx_tx_data_oe = 1'b1;
+                            trx_tx_rwds_oe = 1'b1;
+                        end
                     end else begin
                         state_d = Read;
                         trx_tx_data_oe = 1'b0;
                         trx_tx_rwds_oe = 1'b0;
                     end
+                end
+            end
+            // Pause CK at the natural data boundary without consuming its
+            // latency count. Once setup is met, resume CK and enter Write;
+            // the resumed clock-enable edge provides the final complete setup
+            // cycle, and Write's normal path then launches data on the next edge.
+            WaitRwdsOe: begin
+                trx_clk_ena = 1'b0;
+                trx_tx_rwds_oe = 1'b1;
+                timer_d = timer_q;
+                if (rwds_oe_setup_ready) begin
+                    // The registered clock-enable pipeline needs one resumed
+                    // CK edge to consume the remaining latency cycle; Write's
+                    // normal path then launches data on the following edge.
+                    state_d = Write;
+                    timer_d = cfg_chip.t_burst_max;
+                    trx_clk_ena = 1'b1;
+                    trx_tx_data_oe = 1'b1;
                 end
             end
             // Capture read data until this segment completes or reaches its time limit.
@@ -467,6 +530,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                         // from the previous segment drain and reset RWDS sampling.
                         timer_d = timer_q;
                     end else begin
+                        rwds_sample_countdown_d = cfg_chip.rwds_sample_delay;
                         state_d = SendCA;
                         // Re-enable the io driver if we immediately start the
                         // next transaction.
@@ -480,7 +544,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                 timer_d       = StartupCycles;
                 tf_d          = hyper_tf_t'{burst_type: 1'b1, default: '0};
                 cs_d          = '0;
-                add_latency_d = 1'b0;
                 trx_cs_ena    = 1'b0;
             end
         endcase
@@ -493,22 +556,46 @@ module hyperbus_phy import hyperbus_pkg::*; #(
             timer_q <= StartupCycles;
             tf_q    <= hyper_tf_t'{burst_type: 1'b1, default:'0};
             cs_q    <= '0;
-            add_latency_q <= 1'b0;
+            rwds_sample_countdown_q <= '0;
+            rwds_oe_setup_count_q <= '0;
         end else begin
             state_q <= state_d;
             timer_q <= timer_d;
             tf_q    <= tf_d;
             cs_q    <= cs_d;
-            add_latency_q <= add_latency_d;
+            rwds_sample_countdown_q <= rwds_sample_countdown_d;
+            rwds_oe_setup_count_q <= rwds_oe_setup_count_d;
         end
     end
+
+    assign rwds_sample_delay_plus_two = {1'b0, cfg_chip.rwds_sample_delay} + 5'd2;
+
+    // At this exact boundary the held RWDS sample controls whether the PHY
+    // uses natural or additional latency. A forced additional-latency
+    // configuration makes the sample irrelevant and intentionally bypasses
+    // this check.
+    `ASSERT_KNOWN_IF(RwdsLatencySampleKnown, trx_rwds_sample,
+        state_q == WaitLatAccess && ctl_timer_two && !ctl_write_zero_lat &&
+        !cfg_chip.en_latency_additional)
 
     `ASSERT(RxCaptureResetOnlyWhenDrained, trx_rx_clk_reset |->
         (state_q != Read && r_outstand_q == '0))
     `ASSERT(RxCaptureActiveDuringRead, state_q == Read |-> !trx_rx_clk_reset)
     `ASSERT(RxCaptureResetAfterDrain,
         (r_outstand_dec && r_outstand_q == 1 && state_q != Read) |=> trx_rx_clk_reset)
+    `ASSERT(DqOutputDisabledDuringLatency,
+        (((state_q == WaitLatAccess && timer_q < cfg_chip.t_latency_access) ||
+          state_q == WaitAddLatAccess || state_q == WaitRwdsOe) &&
+         state_d != Write) |-> !hyper_dq_oe_o)
     `ASSERT(OutputDriversDisabledDuringRecovery,
-        state_q == WaitRWR |-> (!hyper_dq_oe_o && !hyper_rwds_oe_o))
+        (state_q == WaitRWR && state_d != SendCA) |->
+        (!hyper_dq_oe_o && !hyper_rwds_oe_o))
+    `ASSERT(LatencyAccessAtLeastThree,
+        (state_q == SendCA && !ctl_write_zero_lat) |-> cfg_chip.t_latency_access >= 3)
+    `ASSERT(RwdsSampleDelayFitsLatency,
+        (state_q == SendCA && !ctl_write_zero_lat) |->
+        rwds_sample_delay_plus_two <= {1'b0, cfg_chip.t_latency_access})
+    `ASSERT(RwdsOeSetupOnlyMemoryWrite,
+        state_q == WaitRwdsOe |-> tf_q.write && !ctl_write_zero_lat)
 
 endmodule

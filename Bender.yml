@@ -74,9 +74,11 @@ sources:
         - test/hyperbus_test_dut.sv
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb.sv
-        - test/dut_if.sv
         - test/hyperbus_tb_pkg.sv
+        - test/hyperbus_pad_delay.sv
+        - test/dut_if.sv
         - test/axi_hyper_tb.sv
         - test/hyperbus_atomic_handler_tb.sv
         - test/hyperbus_cfg_regs_tb.sv
         - test/axi_pre_aw_drain_tb.sv
+        - test/hyperbus_pad_delay_direct_tb.sv

@@ -97,19 +97,25 @@ module hyperbus_trx #(
         .q_o    ( hyper_rwds_o  )
     );
 
+    logic tx_data_oe_q;
+
     // Delay output, clock enables to be synchronous with DDR-converted data
     // The delayed clock also ensures t_CSS is respected at the start, end of CS
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_tx_delay
         if (!rst_ni) begin
             hyper_rwds_oe_o <= 1'b0;
-            hyper_dq_oe_o   <= 1'b0;
+            tx_data_oe_q    <= 1'b0;
             tx_clk_ena_q    <= 1'b0;
         end else begin
             hyper_rwds_oe_o <= tx_rwds_oe_i;
-            hyper_dq_oe_o   <= tx_data_oe_i;
+            tx_data_oe_q    <= tx_data_oe_i;
             tx_clk_ena_q    <= tx_clk_ena_i;
         end
     end
+
+    // Assert immediately to tolerate pad-enable latency, but retain the registered
+    // release so the final DDR word remains driven for a complete cycle.
+    assign hyper_dq_oe_o = rst_ni && (tx_data_oe_q || tx_data_oe_i);
 
     /////////////////////
     // RX data capture //
