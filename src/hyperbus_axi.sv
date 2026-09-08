@@ -182,7 +182,6 @@ module hyperbus_axi #(
     ) i_axi_fifo (
         .clk_i,
         .rst_ni,
-        .test_i     ( 1'b0          ),
         .slv_req_i  ( axi_req_i     ),
         .slv_resp_o ( axi_rsp_o     ),
         .mst_req_o  ( fifo_out_req  ),

@@ -12,10 +12,10 @@ package:
     - "Luca Valente <luca.valente@unibo.it>"   # current maintainer
 
 dependencies:
-  common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 1.21.0        }
-  axi:                 { git: "https://github.com/pulp-platform/axi.git",                version: 0.39.1        }
+  common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 2.0.0-beta    }
+  axi:                 { git: "https://github.com/pulp-platform/axi.git",                rev: devel             }
   tech_cells_generic:  { git: "https://github.com/pulp-platform/tech_cells_generic.git", rev: gwaihir           }
-  register_interface:  { git: "https://github.com/pulp-platform/register_interface.git", version: 0.3.2         }
+  register_interface:  { git: "https://github.com/pulp-platform/register_interface.git", rev: common-cells-v2   }
 
 sources:
   files:
