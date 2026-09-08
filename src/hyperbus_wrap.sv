@@ -38,6 +38,7 @@ module hyperbus_wrap
   parameter int unsigned PhyStartupCycles = 300 * 200, /* us*MHz */
                                                        // Conservative maximum
                                                        // frequency estimate
+  parameter hyperbus_pkg::hyper_cfg_t RstCfg = hyperbus_pkg::gen_RstCfg(NumPhys, MinFreqMHz),
   parameter int unsigned AxiLogDepth     = 3,
   parameter int unsigned AxiSlaveArWidth = 0,
   parameter int unsigned AxiSlaveAwWidth = 0,
@@ -226,6 +227,7 @@ hyperbus           #(
   .RstChipBase      ( RstChipBase      ),
   .RstChipSpace     ( RstChipSpace     ),
   .PhyStartupCycles ( PhyStartupCycles ),
+  .RstCfg           ( RstCfg           ),
   .SyncStages       ( CdcSyncStages    )
 ) i_hyperbus        (
   .clk_phy_x2_i     ( clk_i              ),
