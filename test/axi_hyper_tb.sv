@@ -228,7 +228,7 @@ module axi_hyper_tb
   ) i_axi_mst_mux (
       .clk_i  ( clk   ),
       .rst_ni ( rst_n ),
-      .test_i ( 1'b0  ),
+      //.test_i ( 1'b0  ), <- AXI mux does not have this signal
       .slv    ( { axi_ctrl_intf, axi_rand_intf } ),
       .mst    ( axi_dut_intf )
   );

@@ -15,6 +15,7 @@ import yaml
       raise SystemExit("missing pad config: pass --var cfg_file=padframe/padrick_rundir/configs/<tech>.yml")
   with open(cfg_file) as f:
       cfg = yaml.safe_load(f)
+  use_pads = int(cfg.get('pads_cfg', 0))
   int_sig = range(cfg['n_int'] + 1)
   ds_w = cfg['ds_w']
   phys = ["phy0", "phy1"]
@@ -52,7 +53,9 @@ pad_hyper_${phy}_${pin}${f"_{chip}" if chip!="" else ""}${f"_b{bit}" if bit!="" 
 `include "register_interface/typedef.svh"
 
 module hyperbus_wrap
+  % if use_pads:
   import pkg_hyperbus_padframe::*;
+  % endif
 #(
   parameter int unsigned NumChips        = -1,
   parameter int unsigned NumPhys         = 2,
@@ -119,13 +122,29 @@ module hyperbus_wrap
   input logic reg_async_mst_ack_i,
   output reg_rsp_t reg_async_mst_data_o,
 
+  % if use_pads:
   // Physical interace: HyperBus PADs
-% for i in int_sig:
-  inout wire logic pad_config_tc_pad_internal_signals_${i},
-% endfor
-% for phy, pin, chip, bit in loop_over(pads):
-  inout wire logic ${pad_conn(phy, pin, chip, bit)}${"," if not loop.last else ""}
-% endfor
+  % for i in int_sig:
+    inout wire logic pad_config_tc_pad_internal_signals_${i},
+  % endfor
+  % for phy, pin, chip, bit in loop_over(pads):
+    inout wire logic ${pad_conn(phy, pin, chip, bit)}${"," if not loop.last else ""}
+  % endfor
+  % else:
+  // Physical interace that connects to hyperbus module
+  // No pads
+  output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
+  output logic [NumPhys-1:0]               hyper_ck_o,
+  output logic [NumPhys-1:0]               hyper_ck_no,
+  output logic [NumPhys-1:0]               hyper_rwds_o,
+  input  logic [NumPhys-1:0]               hyper_rwds_i,
+  output logic [NumPhys-1:0]               hyper_rwds_oe_o,
+  input  logic [NumPhys-1:0][7:0]          hyper_dq_i,
+  output logic [NumPhys-1:0][7:0]          hyper_dq_o,
+  output logic [NumPhys-1:0][7:0]          hyper_dq_oe_o,
+  output logic [NumPhys-1:0]               hyper_reset_no,
+  output logic [NumPhys-1:0][7:0]          hyper_pad_cfg_o
+  % endif
 );
 
 logic rst_n;
@@ -212,9 +231,11 @@ hyperbus_clk_gen i_hyper_clk_gen (
     .ph_phy_o  ( ph_phy )
 );
 
+% if use_pads:
 % for pin in pins:
 logic [NumPhys-1:0]${"[NumChips-1:0]" if len(chips[pin])>1 else ""}${f"[{len(bits[pin])-1}:0]" if len(bits[pin])>1 else ""} hyper_${pin};
 % endfor
+% endif
 
 hyperbus           #(
   .NumChips         ( NumChips         ),
@@ -250,41 +271,58 @@ hyperbus           #(
   .axi_rsp_o        ( hyper_rsp          ),
   .reg_req_i        ( reg_req            ),
   .reg_rsp_o        ( reg_rsp            ),
+% if use_pads:
 % for pin in pins:
   .hyper_${pin}${"," if not loop.last else ""}
 % endfor
+% else:
+  // PHY signals go diectly to the hyperbus interface, same names
+  .hyper_cs_no      ( hyper_cs_no       ),
+  .hyper_ck_o       ( hyper_ck_o         ),
+  .hyper_ck_no      ( hyper_ck_no        ),
+  .hyper_rwds_o     ( hyper_rwds_o       ),
+  .hyper_rwds_i     ( hyper_rwds_i       ),
+  .hyper_rwds_oe_o  ( hyper_rwds_oe_o    ),
+  .hyper_dq_i       ( hyper_dq_i         ),
+  .hyper_dq_o       ( hyper_dq_o         ),
+  .hyper_dq_oe_o    ( hyper_dq_oe_o      ),
+  .hyper_reset_no   ( hyper_reset_no     ),
+  .hyper_pad_cfg_o  ( hyper_pad_cfg_o    )
+% endif
 );
 
-pad_domain_tc_static_connection_signals_pad2soc_t pad2soc; //output
-pad_domain_tc_static_connection_signals_soc2pad_t soc2pad; //input
+% if use_pads:
+  pad_domain_tc_static_connection_signals_pad2soc_t pad2soc; //output
+  pad_domain_tc_static_connection_signals_soc2pad_t soc2pad; //input
 
-hyperbus_padframe_tc_pads i_hyperbus_padframe_tc_pads(
-  .static_connection_signals_pad2soc(pad2soc),
-  .static_connection_signals_soc2pad(soc2pad),
-% for i in int_sig:
-  .pad_config_tc_pad_internal_signals_${i},
-% endfor
-% for phy, pin, chip, bit in loop_over(pads):
-  .${pad_conn(phy, pin, chip, bit)}${"," if not loop.last else ""}
-% endfor
-);
+  hyperbus_padframe_tc_pads i_hyperbus_padframe_tc_pads(
+    .static_connection_signals_pad2soc(pad2soc),
+    .static_connection_signals_soc2pad(soc2pad),
+  % for i in int_sig:
+    .pad_config_tc_pad_internal_signals_${i},
+  % endfor
+  % for phy, pin, chip, bit in loop_over(pads):
+    .${pad_conn(phy, pin, chip, bit)}${"," if not loop.last else ""}
+  % endfor
+  );
 
-// PAD input and output signals assignment
-<% pins_to_slip = [p for p in pins if p != "pad_cfg_o"] %>
-% for phy, pin, chip, bit in loop_over(pins_to_slip):
-  % if pin[-1] == "o":
-assign soc2pad.${pad_name(phy, pin, chip, bit)} = ${hyp_name(phy, pin, chip, bit)};
-  % else:
-assign ${hyp_name(phy, pin, chip, bit)} = pad2soc.${pad_name(phy, pin, chip, bit)};
-  % endif
-% endfor
+  // PAD input and output signals assignment
+  <% pins_to_slip = [p for p in pins if p != "pad_cfg_o"] %>
+  % for phy, pin, chip, bit in loop_over(pins_to_slip):
+    % if pin[-1] == "o":
+  assign soc2pad.${pad_name(phy, pin, chip, bit)} = ${hyp_name(phy, pin, chip, bit)};
+    % else:
+  assign ${hyp_name(phy, pin, chip, bit)} = pad2soc.${pad_name(phy, pin, chip, bit)};
+    % endif
+  % endfor
 
-% for phy in phys:
-assign soc2pad.hyper_${phy}_schmitt_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][7];
-assign soc2pad.hyper_${phy}_pu_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][6];
-assign soc2pad.hyper_${phy}_pd_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][5];
-assign soc2pad.hyper_${phy}_slew_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][3];
-assign soc2pad.hyper_${phy}_drive_strength_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][${ds_w - 1}:0];
-% endfor
+  % for phy in phys:
+  assign soc2pad.hyper_${phy}_schmitt_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][7];
+  assign soc2pad.hyper_${phy}_pu_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][6];
+  assign soc2pad.hyper_${phy}_pd_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][5];
+  assign soc2pad.hyper_${phy}_slew_en_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][3];
+  assign soc2pad.hyper_${phy}_drive_strength_o = hyper_pad_cfg_o[${phy.removeprefix("phy")}][${ds_w - 1}:0];
+  % endfor
+% endif
 
 endmodule: hyperbus_wrap

@@ -50,7 +50,7 @@ module hyperbus #(
     // Reg bus
     input  reg_req_t                    reg_req_i,
     output reg_rsp_t                    reg_rsp_o,
-    // Physical interace: facing HyperBus PADs
+    // Physical interace
     output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
     output logic [NumPhys-1:0]               hyper_ck_o,
     output logic [NumPhys-1:0]               hyper_ck_no,

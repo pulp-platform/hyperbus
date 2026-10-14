@@ -472,3 +472,4 @@
       .drive_strength_i ( ${conn["drive_strength"]} ),
       .int_io           ( `io_pad_internals         )
     );
+

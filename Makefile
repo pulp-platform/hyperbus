@@ -120,8 +120,8 @@ models/s27ks0641:
 scripts/compile.tcl: Bender.yml models/s27ks0641
 	$(call generate_vsim, $@, -t rtl -t test -t hyper_test,..)
 
-build: scripts/compile.tcl
+build: clean scripts/compile.tcl
 	$(VSIM) -c -do "source scripts/compile.tcl; exit"
 
-run: clean build
+run: build
 	$(VSIM) $(VSIM_ARGS) "source scripts/start.tcl"

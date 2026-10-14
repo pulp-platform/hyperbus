@@ -7,7 +7,6 @@
 `include "register_interface/typedef.svh"
 
 module hyperbus_wrap
-  import pkg_hyperbus_padframe::*;
 #(
   parameter int unsigned NumChips        = -1,
   parameter int unsigned NumPhys         = 2,
@@ -74,39 +73,19 @@ module hyperbus_wrap
   input logic reg_async_mst_ack_i,
   output reg_rsp_t reg_async_mst_data_o,
 
-  // Physical interace: HyperBus PADs
-  inout wire logic pad_config_tc_pad_internal_signals_0,
-  inout wire logic pad_config_tc_pad_internal_signals_1,
-  inout wire logic pad_config_tc_pad_internal_signals_2,
-  inout wire logic pad_config_tc_pad_internal_signals_3,
-  inout wire logic pad_hyper_phy0_cs_n_0_pad,
-  inout wire logic pad_hyper_phy0_cs_n_1_pad,
-  inout wire logic pad_hyper_phy0_ck_pad,
-  inout wire logic pad_hyper_phy0_ck_n_pad,
-  inout wire logic pad_hyper_phy0_rwds_pad,
-  inout wire logic pad_hyper_phy0_dq_b0_pad,
-  inout wire logic pad_hyper_phy0_dq_b1_pad,
-  inout wire logic pad_hyper_phy0_dq_b2_pad,
-  inout wire logic pad_hyper_phy0_dq_b3_pad,
-  inout wire logic pad_hyper_phy0_dq_b4_pad,
-  inout wire logic pad_hyper_phy0_dq_b5_pad,
-  inout wire logic pad_hyper_phy0_dq_b6_pad,
-  inout wire logic pad_hyper_phy0_dq_b7_pad,
-  inout wire logic pad_hyper_phy0_reset_n_pad,
-  inout wire logic pad_hyper_phy1_cs_n_0_pad,
-  inout wire logic pad_hyper_phy1_cs_n_1_pad,
-  inout wire logic pad_hyper_phy1_ck_pad,
-  inout wire logic pad_hyper_phy1_ck_n_pad,
-  inout wire logic pad_hyper_phy1_rwds_pad,
-  inout wire logic pad_hyper_phy1_dq_b0_pad,
-  inout wire logic pad_hyper_phy1_dq_b1_pad,
-  inout wire logic pad_hyper_phy1_dq_b2_pad,
-  inout wire logic pad_hyper_phy1_dq_b3_pad,
-  inout wire logic pad_hyper_phy1_dq_b4_pad,
-  inout wire logic pad_hyper_phy1_dq_b5_pad,
-  inout wire logic pad_hyper_phy1_dq_b6_pad,
-  inout wire logic pad_hyper_phy1_dq_b7_pad,
-  inout wire logic pad_hyper_phy1_reset_n_pad
+  // Physical interace that connects to hyperbus module
+  // No pads
+  output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
+  output logic [NumPhys-1:0]               hyper_ck_o,
+  output logic [NumPhys-1:0]               hyper_ck_no,
+  output logic [NumPhys-1:0]               hyper_rwds_o,
+  input  logic [NumPhys-1:0]               hyper_rwds_i,
+  output logic [NumPhys-1:0]               hyper_rwds_oe_o,
+  input  logic [NumPhys-1:0][7:0]          hyper_dq_i,
+  output logic [NumPhys-1:0][7:0]          hyper_dq_o,
+  output logic [NumPhys-1:0][7:0]          hyper_dq_oe_o,
+  output logic [NumPhys-1:0]               hyper_reset_no,
+  output logic [NumPhys-1:0][7:0]          hyper_pad_cfg_o
 );
 
 logic rst_n;
@@ -193,17 +172,6 @@ hyperbus_clk_gen i_hyper_clk_gen (
     .ph_phy_o  ( ph_phy )
 );
 
-logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no;
-logic [NumPhys-1:0] hyper_ck_o;
-logic [NumPhys-1:0] hyper_ck_no;
-logic [NumPhys-1:0] hyper_rwds_o;
-logic [NumPhys-1:0] hyper_rwds_i;
-logic [NumPhys-1:0] hyper_rwds_oe_o;
-logic [NumPhys-1:0][7:0] hyper_dq_i;
-logic [NumPhys-1:0][7:0] hyper_dq_o;
-logic [NumPhys-1:0][7:0] hyper_dq_oe_o;
-logic [NumPhys-1:0] hyper_reset_no;
-logic [NumPhys-1:0][7:0] hyper_pad_cfg_o;
 
 hyperbus           #(
   .NumChips         ( NumChips         ),
@@ -239,135 +207,19 @@ hyperbus           #(
   .axi_rsp_o        ( hyper_rsp          ),
   .reg_req_i        ( reg_req            ),
   .reg_rsp_o        ( reg_rsp            ),
-  .hyper_cs_no,
-  .hyper_ck_o,
-  .hyper_ck_no,
-  .hyper_rwds_o,
-  .hyper_rwds_i,
-  .hyper_rwds_oe_o,
-  .hyper_dq_i,
-  .hyper_dq_o,
-  .hyper_dq_oe_o,
-  .hyper_reset_no,
-  .hyper_pad_cfg_o
+  // PHY signals go diectly to the hyperbus interface, same names
+  .hyper_cs_no      ( hyper_cs_no       ),
+  .hyper_ck_o       ( hyper_ck_o         ),
+  .hyper_ck_no      ( hyper_ck_no        ),
+  .hyper_rwds_o     ( hyper_rwds_o       ),
+  .hyper_rwds_i     ( hyper_rwds_i       ),
+  .hyper_rwds_oe_o  ( hyper_rwds_oe_o    ),
+  .hyper_dq_i       ( hyper_dq_i         ),
+  .hyper_dq_o       ( hyper_dq_o         ),
+  .hyper_dq_oe_o    ( hyper_dq_oe_o      ),
+  .hyper_reset_no   ( hyper_reset_no     ),
+  .hyper_pad_cfg_o  ( hyper_pad_cfg_o    )
 );
 
-pad_domain_tc_static_connection_signals_pad2soc_t pad2soc; //output
-pad_domain_tc_static_connection_signals_soc2pad_t soc2pad; //input
-
-hyperbus_padframe_tc_pads i_hyperbus_padframe_tc_pads(
-  .static_connection_signals_pad2soc(pad2soc),
-  .static_connection_signals_soc2pad(soc2pad),
-  .pad_config_tc_pad_internal_signals_0,
-  .pad_config_tc_pad_internal_signals_1,
-  .pad_config_tc_pad_internal_signals_2,
-  .pad_config_tc_pad_internal_signals_3,
-  .pad_hyper_phy0_cs_n_0_pad,
-  .pad_hyper_phy0_cs_n_1_pad,
-  .pad_hyper_phy0_ck_pad,
-  .pad_hyper_phy0_ck_n_pad,
-  .pad_hyper_phy0_rwds_pad,
-  .pad_hyper_phy0_dq_b0_pad,
-  .pad_hyper_phy0_dq_b1_pad,
-  .pad_hyper_phy0_dq_b2_pad,
-  .pad_hyper_phy0_dq_b3_pad,
-  .pad_hyper_phy0_dq_b4_pad,
-  .pad_hyper_phy0_dq_b5_pad,
-  .pad_hyper_phy0_dq_b6_pad,
-  .pad_hyper_phy0_dq_b7_pad,
-  .pad_hyper_phy0_reset_n_pad,
-  .pad_hyper_phy1_cs_n_0_pad,
-  .pad_hyper_phy1_cs_n_1_pad,
-  .pad_hyper_phy1_ck_pad,
-  .pad_hyper_phy1_ck_n_pad,
-  .pad_hyper_phy1_rwds_pad,
-  .pad_hyper_phy1_dq_b0_pad,
-  .pad_hyper_phy1_dq_b1_pad,
-  .pad_hyper_phy1_dq_b2_pad,
-  .pad_hyper_phy1_dq_b3_pad,
-  .pad_hyper_phy1_dq_b4_pad,
-  .pad_hyper_phy1_dq_b5_pad,
-  .pad_hyper_phy1_dq_b6_pad,
-  .pad_hyper_phy1_dq_b7_pad,
-  .pad_hyper_phy1_reset_n_pad
-);
-
-// PAD input and output signals assignment
-
-assign soc2pad.hyper_phy0_cs_no_0 = hyper_cs_no[0][0];
-assign soc2pad.hyper_phy0_cs_no_1 = hyper_cs_no[0][1];
-assign soc2pad.hyper_phy0_ck_o = hyper_ck_o[0];
-assign soc2pad.hyper_phy0_ck_no = hyper_ck_no[0];
-assign soc2pad.hyper_phy0_rwds_o = hyper_rwds_o[0];
-assign hyper_rwds_i[0] = pad2soc.hyper_phy0_rwds_i;
-assign soc2pad.hyper_phy0_rwds_oe_o = hyper_rwds_oe_o[0];
-assign hyper_dq_i[0][0] = pad2soc.hyper_phy0_dq_i_b0;
-assign hyper_dq_i[0][1] = pad2soc.hyper_phy0_dq_i_b1;
-assign hyper_dq_i[0][2] = pad2soc.hyper_phy0_dq_i_b2;
-assign hyper_dq_i[0][3] = pad2soc.hyper_phy0_dq_i_b3;
-assign hyper_dq_i[0][4] = pad2soc.hyper_phy0_dq_i_b4;
-assign hyper_dq_i[0][5] = pad2soc.hyper_phy0_dq_i_b5;
-assign hyper_dq_i[0][6] = pad2soc.hyper_phy0_dq_i_b6;
-assign hyper_dq_i[0][7] = pad2soc.hyper_phy0_dq_i_b7;
-assign soc2pad.hyper_phy0_dq_o_b0 = hyper_dq_o[0][0];
-assign soc2pad.hyper_phy0_dq_o_b1 = hyper_dq_o[0][1];
-assign soc2pad.hyper_phy0_dq_o_b2 = hyper_dq_o[0][2];
-assign soc2pad.hyper_phy0_dq_o_b3 = hyper_dq_o[0][3];
-assign soc2pad.hyper_phy0_dq_o_b4 = hyper_dq_o[0][4];
-assign soc2pad.hyper_phy0_dq_o_b5 = hyper_dq_o[0][5];
-assign soc2pad.hyper_phy0_dq_o_b6 = hyper_dq_o[0][6];
-assign soc2pad.hyper_phy0_dq_o_b7 = hyper_dq_o[0][7];
-assign soc2pad.hyper_phy0_dq_oe_o_b0 = hyper_dq_oe_o[0][0];
-assign soc2pad.hyper_phy0_dq_oe_o_b1 = hyper_dq_oe_o[0][1];
-assign soc2pad.hyper_phy0_dq_oe_o_b2 = hyper_dq_oe_o[0][2];
-assign soc2pad.hyper_phy0_dq_oe_o_b3 = hyper_dq_oe_o[0][3];
-assign soc2pad.hyper_phy0_dq_oe_o_b4 = hyper_dq_oe_o[0][4];
-assign soc2pad.hyper_phy0_dq_oe_o_b5 = hyper_dq_oe_o[0][5];
-assign soc2pad.hyper_phy0_dq_oe_o_b6 = hyper_dq_oe_o[0][6];
-assign soc2pad.hyper_phy0_dq_oe_o_b7 = hyper_dq_oe_o[0][7];
-assign soc2pad.hyper_phy0_reset_no = hyper_reset_no[0];
-assign soc2pad.hyper_phy1_cs_no_0 = hyper_cs_no[1][0];
-assign soc2pad.hyper_phy1_cs_no_1 = hyper_cs_no[1][1];
-assign soc2pad.hyper_phy1_ck_o = hyper_ck_o[1];
-assign soc2pad.hyper_phy1_ck_no = hyper_ck_no[1];
-assign soc2pad.hyper_phy1_rwds_o = hyper_rwds_o[1];
-assign hyper_rwds_i[1] = pad2soc.hyper_phy1_rwds_i;
-assign soc2pad.hyper_phy1_rwds_oe_o = hyper_rwds_oe_o[1];
-assign hyper_dq_i[1][0] = pad2soc.hyper_phy1_dq_i_b0;
-assign hyper_dq_i[1][1] = pad2soc.hyper_phy1_dq_i_b1;
-assign hyper_dq_i[1][2] = pad2soc.hyper_phy1_dq_i_b2;
-assign hyper_dq_i[1][3] = pad2soc.hyper_phy1_dq_i_b3;
-assign hyper_dq_i[1][4] = pad2soc.hyper_phy1_dq_i_b4;
-assign hyper_dq_i[1][5] = pad2soc.hyper_phy1_dq_i_b5;
-assign hyper_dq_i[1][6] = pad2soc.hyper_phy1_dq_i_b6;
-assign hyper_dq_i[1][7] = pad2soc.hyper_phy1_dq_i_b7;
-assign soc2pad.hyper_phy1_dq_o_b0 = hyper_dq_o[1][0];
-assign soc2pad.hyper_phy1_dq_o_b1 = hyper_dq_o[1][1];
-assign soc2pad.hyper_phy1_dq_o_b2 = hyper_dq_o[1][2];
-assign soc2pad.hyper_phy1_dq_o_b3 = hyper_dq_o[1][3];
-assign soc2pad.hyper_phy1_dq_o_b4 = hyper_dq_o[1][4];
-assign soc2pad.hyper_phy1_dq_o_b5 = hyper_dq_o[1][5];
-assign soc2pad.hyper_phy1_dq_o_b6 = hyper_dq_o[1][6];
-assign soc2pad.hyper_phy1_dq_o_b7 = hyper_dq_o[1][7];
-assign soc2pad.hyper_phy1_dq_oe_o_b0 = hyper_dq_oe_o[1][0];
-assign soc2pad.hyper_phy1_dq_oe_o_b1 = hyper_dq_oe_o[1][1];
-assign soc2pad.hyper_phy1_dq_oe_o_b2 = hyper_dq_oe_o[1][2];
-assign soc2pad.hyper_phy1_dq_oe_o_b3 = hyper_dq_oe_o[1][3];
-assign soc2pad.hyper_phy1_dq_oe_o_b4 = hyper_dq_oe_o[1][4];
-assign soc2pad.hyper_phy1_dq_oe_o_b5 = hyper_dq_oe_o[1][5];
-assign soc2pad.hyper_phy1_dq_oe_o_b6 = hyper_dq_oe_o[1][6];
-assign soc2pad.hyper_phy1_dq_oe_o_b7 = hyper_dq_oe_o[1][7];
-assign soc2pad.hyper_phy1_reset_no = hyper_reset_no[1];
-
-assign soc2pad.hyper_phy0_schmitt_en_o = hyper_pad_cfg_o[0][7];
-assign soc2pad.hyper_phy0_pu_en_o = hyper_pad_cfg_o[0][6];
-assign soc2pad.hyper_phy0_pd_en_o = hyper_pad_cfg_o[0][5];
-assign soc2pad.hyper_phy0_slew_en_o = hyper_pad_cfg_o[0][3];
-assign soc2pad.hyper_phy0_drive_strength_o = hyper_pad_cfg_o[0][1:0];
-assign soc2pad.hyper_phy1_schmitt_en_o = hyper_pad_cfg_o[1][7];
-assign soc2pad.hyper_phy1_pu_en_o = hyper_pad_cfg_o[1][6];
-assign soc2pad.hyper_phy1_pd_en_o = hyper_pad_cfg_o[1][5];
-assign soc2pad.hyper_phy1_slew_en_o = hyper_pad_cfg_o[1][3];
-assign soc2pad.hyper_phy1_drive_strength_o = hyper_pad_cfg_o[1][1:0];
 
 endmodule: hyperbus_wrap

@@ -13,3 +13,4 @@ pu_pd_both_en: 1  # both pull-up and pull-down can be enabled at the same time
 rt_en_ah:      0  # retention enable internal signal active high
 ds_w:          2  # drive strength level signal width (>= 1)
 n_int:         3  # number of internal signals (in addition to retention LSB)
+pads_cfg:      0  # 0 for no pads inside block, 1 for pads
