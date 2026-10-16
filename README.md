@@ -1,3 +1,29 @@
+# HyperBus for Gwaihir Project
+
+### `hyper_pad_cfg_o`
+
+The `hyper_pad_cfg_o` signal is composed of 8 bits for each PHY, mapped as follows.
+
+#### PHY 0 (bits `[7:0]`)
+
+| Bit(s) | Field | Description          |
+|:------:|:-----:|----------------------|
+| 0      | PU    | Pull-up enable       |
+| 1      | PD    | Pull-down enable     |
+| 2      | SL    | Slew rate control    |
+| 6:3    | DS    | Drive strength       |
+| 7      | -     | Not used             |
+
+#### PHY 1 (bits `[15:8]`)
+
+| Bit(s) | Field | Description          |
+|:------:|:-----:|----------------------|
+| 8      | PU    | Pull-up enable       |
+| 9      | PD    | Pull-down enable     |
+| 10     | SL    | Slew rate control    |
+| 14:11  | DS    | Drive strength       |
+| 15     | -     | Not used             |
+
 # HyperBus Controller
  
 HyperBus is a fully synthesizable, AXI4-compliant RTL implementation of a HyperBus controller IP.
