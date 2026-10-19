@@ -47,7 +47,7 @@ sources:
     
     - target: all(not(xilinx),not(hyperbus_exclude_dline))
       files:
-        - src/hyperbus_delay.sv
+        - src/hyperloop_delay.sv
     
     - src/hyperbus_pkg.sv
     - src/hyperbus_clk_gen.sv

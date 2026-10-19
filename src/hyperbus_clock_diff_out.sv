@@ -67,7 +67,7 @@ module hyperbus_clock_diff_out
         .out_o         ( clk_phy_90_by_delay_g)
     );
 `else
-    hyperbus_delay i_delay_tx_clk_90 (
+    hyperloop_delay i_delay_tx_clk_90 (
         .in_i          ( clk_phy_0_g          ),
         .delay_i       ( cfg_tx_clk_delay_i   ),
         .out_o         ( clk_phy_90_by_delay_g )
