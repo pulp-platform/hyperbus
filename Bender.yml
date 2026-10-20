@@ -41,7 +41,7 @@ sources:
         - target/xilinx/hyperbus_clk_delay.sv
         - target/xilinx/hyperbus_rwds_delay.sv
     
-    - target: test
+    - target: all(test,not(asic))
       files:
         - models/configurable_delay.behav.sv
     
