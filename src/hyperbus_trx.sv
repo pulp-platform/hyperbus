@@ -178,7 +178,7 @@ module hyperbus_trx #(
             .out_o   ( rx_rwds_90     )
         );
     `else
-        hyperloop_delay i_delay_rx_rwds_90 (
+        hyperloop_delay i_hyperloop_delay (
             .in_i    ( hyper_rwds_i   ),
             .delay_i ( rx_clk_delay_i ),
             .out_o   ( rx_rwds_90     )
