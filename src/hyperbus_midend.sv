@@ -190,11 +190,16 @@ module hyperbus_midend #(
     assign normal_req = host_cmd_i.atomic_op == hyperbus_pkg::HyperAtomicNone;
     assign atomic_request_valid =
         (host_cmd_i.atomic_op != hyperbus_pkg::HyperAtomicInvalid) &&
+        (host_cmd_i.atomic_op <= hyperbus_pkg::HyperAtomicUnsignedMin) &&
+        host_cmd_i.write &&
         (host_cmd_i.beats == 1) &&
         (host_cmd_i.burst == hyperbus_pkg::HyperBurstIncr) &&
         (host_cmd_i.size <= HostBusAddrWidth) &&
-        ((host_cmd_i.atomic_op != hyperbus_pkg::HyperAtomicCompare) ||
-         (host_cmd_i.size != '0)) &&
+        ((host_cmd_i.atomic_op == hyperbus_pkg::HyperAtomicCompare) ?
+         ((host_cmd_i.size >= 1) && (host_cmd_i.size <= 5) &&
+          ((host_cmd_i.addr & host_addr_t'((1 << (host_cmd_i.size - 1)) - 1)) == '0)) :
+         ((host_cmd_i.size <= 3) &&
+          ((host_cmd_i.addr & host_addr_t'((1 << host_cmd_i.size) - 1)) == '0))) &&
         atomic_range_valid;
     assign cmd_valid_o = atomic_cmd_valid ||
                          segment_pending_q ||
@@ -223,6 +228,11 @@ module hyperbus_midend #(
 
     always_comb begin : proc_cmd_req
         cmd_req = host_cmd_i;
+        // Compare's memory target is half the size of its outbound operand pair.
+        if ((host_cmd_i.atomic_op == hyperbus_pkg::HyperAtomicCompare) &&
+            (host_cmd_i.size != '0)) begin
+            cmd_req.size = host_cmd_i.size - 1'b1;
+        end
         if (segment_pending_q) begin
             cmd_req = segment_req_q;
         end
@@ -545,12 +555,12 @@ module hyperbus_midend #(
 
     `ASSERT_KNOWN_IF(HostReqKnown, host_cmd_i, host_req_accepted)
     `ASSERT(HostReqBeatsNonzero, host_req_accepted |-> (host_cmd_i.beats != '0))
-    `ASSERT(HostReqSizeValid, host_req_accepted |-> (host_cmd_i.size <= HostBusAddrWidth))
-    `ASSERT(HostReqBurstValid, host_req_accepted |->
+    `ASSERT(HostReqSizeValid, (host_req_accepted && normal_req) |->
+        (host_cmd_i.size <= HostBusAddrWidth))
+    `ASSERT(HostReqBurstValid, (host_req_accepted && normal_req) |->
         ((host_cmd_i.burst == hyperbus_pkg::HyperBurstIncr) ||
          ((host_cmd_i.burst == hyperbus_pkg::HyperBurstFixed) && (host_cmd_i.beats == 1))))
-    `ASSERT(HostReqAtomicValid, host_req_accepted |->
-        (host_cmd_i.atomic_op <= hyperbus_pkg::HyperAtomicUnsignedMin))
+    // Invalid atomics are deliberately accepted, drained, and returned as errors.
     `ASSERT(HostReqAtomicWrite, (host_req_accepted &&
         (host_cmd_i.atomic_op != hyperbus_pkg::HyperAtomicNone)) |-> host_cmd_i.write)
     `ASSERT(BackendBurstNonzero, command_accepted |-> (cmd_o.trans.burst != '0))

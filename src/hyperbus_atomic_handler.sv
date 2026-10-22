@@ -132,7 +132,8 @@ module hyperbus_atomic_handler #(
 
             old_value     = read_data_q >> (byte_offset * 8);
             operand_value = operand_q >> (byte_offset * 8);
-            swap_value    = operand_value >> operand_bits;
+            // Compare pairs exchange halves when the target is in the upper half.
+            swap_value    = operand_q >> ((byte_offset ^ operand_bytes) * 8);
             result_value  = old_value;
 
             unique case (request_q.atomic_op)
