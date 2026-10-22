@@ -5,12 +5,14 @@
 // Luca Valente <luca.valente@unibo.it>
 
 `include "common_cells/registers.svh"
+`include "common_cells/assertions.svh"
 
 module hyperbus_read_adapter #(
     parameter int unsigned HostDataWidth = -1,
     parameter int unsigned NumPhys       = -1,
     parameter type         T             = logic,
     parameter int unsigned BurstLength   = -1,
+    parameter int unsigned CounterWidth  = BurstLength + $clog2(HostDataWidth / 8),
     parameter int unsigned AddrWidth     = $clog2(HostDataWidth / 8)
 ) (
     input  logic                   clk_i,
@@ -36,6 +38,9 @@ module hyperbus_read_adapter #(
     localparam int unsigned WordCntWidth     =
         (PhyBeatsPerHost == 1) ? 1 : $clog2(PhyBeatsPerHost);
 
+    `ASSERT_INIT(CounterWidthValid, CounterWidth > AddrWidth)
+    `ASSERT(StartSizeValid, start_i |-> size_i <= $clog2(NumHostBytes))
+
     typedef enum logic [2:0] {
         Idle,
         WaitData,
@@ -44,16 +49,16 @@ module hyperbus_read_adapter #(
     } read_adapter_state_e;
 
     read_adapter_state_e          state_d, state_q;
-    logic [BurstLength-1:0]       byte_host_addr_d, byte_host_addr_q;
-    logic [BurstLength-1:0]       byte_phy_cnt_d, byte_phy_cnt_q;
-    logic [BurstLength-1:0]       last_addr_d, last_addr_q;
+    logic [CounterWidth-1:0]      byte_host_addr_d, byte_host_addr_q;
+    logic [CounterWidth-1:0]      byte_phy_cnt_d, byte_phy_cnt_q;
+    logic [CounterWidth-1:0]      last_addr_d, last_addr_q;
     logic [3:0]                   size_d, size_q;
     T                             data_buffer_d, data_buffer_q;
     logic [WordCntWidth-1:0]      word_cnt;
     logic                         enough_data;
     logic                         enough_data_q;
     logic                         sent_available_data;
-    logic [BurstLength-1:0]       next_host_addr;
+    logic [CounterWidth-1:0]      next_host_addr;
     logic                         host_last;
     logic [16*NumPhys-1:0]        converted_data;
     logic                         converted_last;
@@ -81,9 +86,9 @@ module hyperbus_read_adapter #(
         size_d           = size_q;
 
         if (start_i) begin
-            byte_host_addr_d[BurstLength-1:AddrWidth] = '0;
+            byte_host_addr_d[CounterWidth-1:AddrWidth] = '0;
             byte_host_addr_d[AddrWidth-1:0] = start_addr_i;
-            byte_phy_cnt_d[BurstLength-1:AddrWidth] = '0;
+            byte_phy_cnt_d[CounterWidth-1:AddrWidth] = '0;
             byte_phy_cnt_d[AddrWidth-1:0] = (start_addr_i >> NumPhys) << NumPhys;
             last_addr_d = ((start_addr_i >> size_i) << size_i) + (burst_len_i << size_i);
             size_d = size_i;
@@ -135,7 +140,8 @@ module hyperbus_read_adapter #(
                 end
             end
             Sample: begin
-                converted_ready = 1'b1;
+                // The first physical word may already complete a minimum-width host beat.
+                converted_ready = !enough_data_q;
                 if (enough_data) begin
                     state_d = CntReady;
                 end
