@@ -40,6 +40,10 @@ module hyperbus_midend #(
 
     localparam int unsigned HostDataBytes    = HostDataWidth / 8;
     localparam int unsigned HostBusAddrWidth = $clog2(HostDataBytes);
+    // Include the complete encoded burst span and the carry from its starting address.
+    localparam int unsigned HostExtAddrWidth = 1 +
+        ((HostAddrWidth > hyperbus_pkg::HyperBurstWidth + HostBusAddrWidth) ?
+         HostAddrWidth : hyperbus_pkg::HyperBurstWidth + HostBusAddrWidth);
     localparam int unsigned PhyDataWidth     = NumPhys * 16;
     localparam int unsigned ChipSelWidth     = cf_math_pkg::idx_width(NumChips);
 
@@ -52,7 +56,7 @@ module hyperbus_midend #(
         (HostDataWidth % PhyDataWidth) == 0)
 
     typedef logic [HostAddrWidth-1:0]   host_addr_t;
-    typedef logic [HostAddrWidth:0]     host_ext_addr_t;
+    typedef logic [HostExtAddrWidth-1:0] host_ext_addr_t;
     typedef logic [ChipSelWidth-1:0]    chip_sel_idx_t;
 
     // Unpack the aggregate links at the midend boundary.
@@ -555,6 +559,10 @@ module hyperbus_midend #(
 
     `ASSERT_KNOWN_IF(HostReqKnown, host_cmd_i, host_req_accepted)
     `ASSERT(HostReqBeatsNonzero, host_req_accepted |-> (host_cmd_i.beats != '0))
+    // The total physical word count is encoded before chip segmentation.
+    `ASSERT(HostPhysicalBurstFits,
+        (normal_cmd_accepted && !segment_pending_q) |->
+        req_phy_bytes < (64'd1 << (hyperbus_pkg::HyperBurstWidth + 1)))
     `ASSERT(HostReqSizeValid, (host_req_accepted && normal_req) |->
         (host_cmd_i.size <= HostBusAddrWidth))
     `ASSERT(HostReqBurstValid, (host_req_accepted && normal_req) |->
