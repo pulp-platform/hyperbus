@@ -90,9 +90,22 @@ module hyperbus_isochronous #(
     logic                      clock_div_update_pending_d;
     logic                      clock_div_update_pending_q;
     logic                      clock_alive_ready;
+    logic                      backend_busy;
+    logic                      backend_busy_sys;
+
+    // The frontend drain prevents new work while the PHY finishes recovery timing.
+    sync #(
+        .STAGES     ( 2    ),
+        .ResetValue ( 1'b1 )
+    ) i_backend_busy_sync (
+        .clk_i    ( clk_sys_i                    ),
+        .rst_ni   ( rst_sys_ni                   ),
+        .serial_i ( backend_busy || !rst_backend_n ),
+        .serial_o ( backend_busy_sys             )
+    );
 
     assign clock_div_req_valid = frontend_clock_div_apply_valid &&
-        clock_alive_ready && !clock_div_update_pending_q;
+        clock_alive_ready && !clock_div_update_pending_q && !backend_busy_sys;
     assign frontend_clock_div_apply_ready = clock_div_req_valid &&
         clock_div_update_accepted;
     assign frontend_clock_div_apply_done = clock_div_update_pending_q && clock_alive_ready;
@@ -138,6 +151,9 @@ module hyperbus_isochronous #(
 
     `ASSERT(PhyClockDivValid, frontend_clock_div_apply_valid |->
         (frontend_clock_div_apply >= 2), clk_sys_i, !rst_sys_ni)
+    `ASSERT(PhyClockDivIdle, clock_div_req_valid |->
+        (!backend_busy && rst_backend_n && frontend_drain && host_idle &&
+         !midend_trans_active), clk_sys_i, !rst_sys_ni)
 
     rstgen i_rstgen_backend (
         .clk_i       ( clk_backend    ),
@@ -274,7 +290,7 @@ module hyperbus_isochronous #(
         .cfg_apply_i            ( backend_cfg_apply         ),
         .cfg_apply_valid_i      ( backend_cfg_apply_valid   ),
         .cfg_apply_ready_o      ( backend_cfg_apply_ready   ),
-        .busy_o                 (                           ),
+        .busy_o                 ( backend_busy              ),
         .req_i                  ( backend_req               ),
         .rsp_o                  ( backend_rsp               ),
         .hyper_cs_no            ( hyper_cs_no               ),
