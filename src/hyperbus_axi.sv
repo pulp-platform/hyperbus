@@ -54,6 +54,7 @@ module hyperbus_axi_frontend #(
         axi_pkg::burst_t burst;
         axi_pkg::size_t  size;
         axi_pkg::atop_t  atop;
+        logic           lock;
     } axi_ax_t;
 
     typedef struct packed {
@@ -210,12 +211,14 @@ module hyperbus_axi_frontend #(
     assign ser_out_req_ar.burst = ser_out_req.ar.burst;
     assign ser_out_req_ar.size  = ser_out_req.ar.size;
     assign ser_out_req_ar.atop  = '0;
+    assign ser_out_req_ar.lock  = ser_out_req.ar.lock;
 
     assign ser_out_req_aw.addr  = ser_out_req.aw.addr;
     assign ser_out_req_aw.len   = ser_out_req.aw.len;
     assign ser_out_req_aw.burst = ser_out_req.aw.burst;
     assign ser_out_req_aw.size  = ser_out_req.aw.size;
     assign ser_out_req_aw.atop  = ser_out_req.aw.atop;
+    assign ser_out_req_aw.lock  = ser_out_req.aw.lock;
 
     rr_arb_tree #(
         .NumIn     ( 2        ),
@@ -263,6 +266,38 @@ module hyperbus_axi_frontend #(
     assign host_req_o.cmd.burst = (rr_out_req_ax.burst == axi_pkg::BURST_FIXED) ?
                                   hyperbus_pkg::HyperBurstFixed :
                                   hyperbus_pkg::HyperBurstIncr;
+    logic atomic_encoding_valid, atomic_compare_wrap;
+    int unsigned atomic_operand_bytes;
+
+    // Compare's upper-half operand starts a wrapping pair within the AXI beat.
+    // The neutral command always targets a single address.
+    always_comb begin : proc_atomic_encoding
+        atomic_operand_bytes = 1 << rr_out_req_ax.size;
+        atomic_compare_wrap = 1'b0;
+        atomic_encoding_valid = rr_out_req_write && !rr_out_req_ax.lock &&
+            (rr_out_req_ax.len == '0) &&
+            (rr_out_req_ax.size <= $clog2(AxiDataBytes));
+        if (rr_out_req_ax.atop == axi_pkg::ATOP_ATOMICCMP) begin
+            atomic_operand_bytes = atomic_operand_bytes >> 1;
+            atomic_encoding_valid &= (rr_out_req_ax.size >= 1) &&
+                                     (rr_out_req_ax.size <= 5);
+            if (rr_out_req_ax.size != '0) begin
+                atomic_compare_wrap =
+                    ((rr_out_req_ax.addr >> (rr_out_req_ax.size - 1)) & axi_addr_t'(1)) != '0;
+            end
+            atomic_encoding_valid &= atomic_compare_wrap ?
+                (rr_out_req_ax.burst == axi_pkg::BURST_WRAP) :
+                (rr_out_req_ax.burst == axi_pkg::BURST_INCR);
+        end else begin
+            atomic_encoding_valid &= (rr_out_req_ax.size <= 3) &&
+                                     (rr_out_req_ax.burst == axi_pkg::BURST_INCR);
+        end
+        atomic_encoding_valid &=
+            (rr_out_req_ax.addr & axi_addr_t'(atomic_operand_bytes - 1)) == '0;
+        atomic_compare_wrap &= atomic_encoding_valid &&
+                               (rr_out_req_ax.atop == axi_pkg::ATOP_ATOMICCMP);
+    end
+
     always_comb begin : proc_atomic_decode
         host_req_o.cmd.atomic_op = (rr_out_req_ax.atop == '0) ?
                                    hyperbus_pkg::HyperAtomicNone :
@@ -303,6 +338,9 @@ module hyperbus_axi_frontend #(
                 end
             end
         endcase
+        if ((rr_out_req_ax.atop != '0) && !atomic_encoding_valid) begin
+            host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicInvalid;
+        end
         host_req_o.cmd.atomic_return = rr_out_req_ax.atop[axi_pkg::ATOP_R_RESP];
         host_req_o.cmd.ordered       = rr_out_req_ax.atop != '0;
     end
@@ -367,6 +405,8 @@ module hyperbus_axi_frontend #(
 
     `ASSERT(AxiBurstType, (host_req_o.cmd_valid && host_rsp_i.cmd_ready) |->
         ((rr_out_req_ax.burst == axi_pkg::BURST_INCR) ||
+         atomic_compare_wrap ||
+         (host_req_o.cmd.atomic_op == hyperbus_pkg::HyperAtomicInvalid) ||
          ((rr_out_req_ax.burst == axi_pkg::BURST_FIXED) && (rr_out_req_ax.len == '0))))
     `ASSERT(ReadResponsePending, axi_r_completed |-> (read_pending_q != '0))
     `ASSERT(WriteResponsePending, axi_b_accepted |-> (write_pending_q != '0))
