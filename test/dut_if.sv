@@ -18,6 +18,9 @@ module dut_if
   parameter int  AxiAddrWidth    = -1,
   parameter int  AxiIdWidth      = -1,
   parameter int  AxiUserWidth    = -1,
+  parameter int unsigned AxiMaxReadTxns = 4,
+  parameter int unsigned AxiMaxWriteTxns = 4,
+  parameter int unsigned HostWriteBufferBytes = 64,
                                   
   parameter int  RegAw           = -1,
   parameter int  RegDw           = -1,
@@ -34,7 +37,7 @@ module dut_if
  input logic rst_ni,
  input logic end_sim_i,
  output logic [31:0] segment_start_count_o,
- output logic [NumPhys-1:0][NumChips-1:0][31:0] cs_start_count,
+ output logic [NumPhys-1:0][NumConnectedChips-1:0][31:0] cs_start_count,
 
  AXI_BUS.Slave axi_slv_if,
  REG_BUS.in    reg_slv_if
@@ -286,7 +289,7 @@ module dut_if
                 segment_start_count_o <= segment_start_count_o + 1;
             end
             for (int p = 0; p < NumPhys; p++) begin
-                for (int c = 0; c < NumChips; c++) begin
+                for (int c = 0; c < NumConnectedChips; c++) begin
                     if (hyper_cs_n_q[p][c] && !hyper_cs_n_wire[p][c])
                         cs_start_count[p][c] <= cs_start_count[p][c] + 1'b1;
                 end
@@ -302,9 +305,13 @@ module dut_if
         .AxiDataWidth     ( AxiDataWidth  ),
         .AxiIdWidth       ( AxiIdWidth    ),
         .AxiUserWidth     ( AxiUserWidth  ),
+        .AxiMaxReadTxns   ( AxiMaxReadTxns ),
+        .AxiMaxWriteTxns  ( AxiMaxWriteTxns ),
+        .HostWriteBufferBytes ( HostWriteBufferBytes ),
         .axi_req_t        ( axi_req_t     ),
         .axi_rsp_t        ( axi_resp_t    ),
         .RegDataWidth     ( RegDw         ),
+        .RegAddrWidth     ( RegAw         ),
         .reg_req_t        ( reg_req_t     ),
         .reg_rsp_t        ( reg_rsp_t     ),
         .axi_rule_t       ( axi_rule_t    )

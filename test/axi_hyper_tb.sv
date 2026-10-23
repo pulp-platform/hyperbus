@@ -17,6 +17,9 @@ module axi_hyper_tb
   parameter int unsigned TbAxiAddrWidthFull = 32'd32,
   /// Data width of the full AXI bus
   parameter int unsigned TbAxiDataWidthFull = 32'd64,
+  parameter int unsigned TbAxiMaxReadTxns = 4,
+  parameter int unsigned TbAxiMaxWriteTxns = 4,
+  parameter int unsigned TbHostWriteBufferBytes = 64,
   /// Number of random write transactions in a testblock.
   parameter int unsigned TbNumWrites = 32'd1000,
   /// Number of random read transactions in a testblock.
@@ -74,7 +77,6 @@ module axi_hyper_tb
   typedef axi_pkg::xbar_rule_32_t rule_t;
 
   localparam int unsigned RegBusDW = 32;
-  // The stable register map is a hierarchical 4 KiB window.
   localparam int unsigned RegBusAW = 12;
 
   localparam int unsigned TbDramDataWidth = 8;
@@ -82,7 +84,7 @@ module axi_hyper_tb
 
   logic                  end_of_sim;
   logic [31:0]           segment_start_count;
-  logic [NumPhys-1:0][NumChips-1:0][31:0] cs_start_count;
+  logic [NumPhys-1:0][NumConnectedChips-1:0][31:0] cs_start_count;
   bit performance_only;
   bit functional_only;
   logic [63:0]           cycle_count;
@@ -613,6 +615,26 @@ module axi_hyper_tb
     join
   endtask
 
+  task automatic wait_config_barrier(input reg_bus_master_t reg_drv);
+    logic [31:0] status;
+    logic reg_error;
+    // Allow the generated command pulse to reach the configuration FSM.
+    repeat (2) @(posedge clk);
+    for (int unsigned i = 0; i < 10000; i++) begin
+      reg_drv.send_read(32'h010, status, reg_error);
+      if (reg_error != 1'b0) $error("configuration STATUS read failed");
+      if (!status[1]) return;
+    end
+    $error("configuration barrier did not return idle");
+  endtask
+
+  task automatic apply_config(input reg_bus_master_t reg_drv);
+    logic reg_error;
+    reg_drv.send_write(32'h00c, 32'h2, '1, reg_error);
+    if (reg_error != 1'b0) $error("configuration APPLY write failed");
+    wait_config_barrier(reg_drv);
+  endtask
+
   task automatic run_performance_smoke(input axi_ctrl_master_t axi_drv);
     localparam int unsigned NumCases = 5;
     localparam axi_addr_t PerfBaseAddr = axi_addr_t'(32'h8000_8000);
@@ -719,6 +741,7 @@ module axi_hyper_tb
 
     reg_drv.send_write(32'h410, TbSlowBurstMax, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
 
     segment_start_snapshot = segment_start_count;
     axi_write_slow(axi_drv, SlowBaseAddr, TbSlowNumBeats, TbSlowGapCycles);
@@ -744,6 +767,7 @@ module axi_hyper_tb
 
     reg_drv.send_write(32'h410, saved_t_burst_max, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
   endtask
 
   task automatic check_config_barrier(
@@ -753,12 +777,12 @@ module axi_hyper_tb
     localparam axi_addr_t BarrierAddr = axi_addr_t'(32'h8000_6000);
     logic reg_error;
     time write_done_time;
-    time cfg_done_time;
+    time flush_done_time;
 
     write_done_time = 0;
-    cfg_done_time = 0;
+    flush_done_time = 0;
     $display("===========================");
-    $display("= Config drain/apply       =");
+    $display("= Config flush barrier    =");
     $display("===========================");
 
     fork
@@ -768,19 +792,18 @@ module axi_hyper_tb
       end
       begin
         repeat (32) @(posedge clk);
-        // Any accepted configuration write triggers the automatic drain/apply
-        // sequence; COMMAND remains inert until staged apply is implemented.
-        reg_drv.send_write(32'h410, 32'd350, '1, reg_error);
-        cfg_done_time = $time;
+        reg_drv.send_write(32'h00c, 32'h1, '1, reg_error);
+        wait_config_barrier(reg_drv);
+        flush_done_time = $time;
         if (reg_error != 1'b0) begin
-          $error("[CFG-DRAIN] Configuration write returned an error");
+          $error("[CFG-BARRIER] Flush register write returned an error");
         end
       end
     join
 
-    if ((write_done_time == 0) || (cfg_done_time < write_done_time)) begin
-      $error("[CFG-DRAIN] Configuration completed at %0t before AXI write completed at %0t",
-             cfg_done_time, write_done_time);
+    if ((write_done_time == 0) || (flush_done_time < write_done_time)) begin
+      $error("[CFG-BARRIER] Flush completed at %0t before AXI write completed at %0t",
+             flush_done_time, write_done_time);
     end
   endtask
 
@@ -826,13 +849,13 @@ module axi_hyper_tb
       $error("[DECODE] Invalid write returned response %0d", b.b_resp);
     end
 
-    reg_drv.send_read(32'h010, status, reg_error);
+    reg_drv.send_read(32'h10, status, reg_error);
     if ((reg_error != 1'b0) || !status[0]) begin
       $error("[DECODE] Sticky decode-error status was not set");
     end
-    reg_drv.send_write(32'h010, 32'h1, '1, reg_error);
+    reg_drv.send_write(32'h10, 32'h1, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
-    reg_drv.send_read(32'h010, status, reg_error);
+    reg_drv.send_read(32'h10, status, reg_error);
     if ((reg_error != 1'b0) || status[0]) begin
       $error("[DECODE] Sticky decode-error status did not clear");
     end
@@ -845,7 +868,7 @@ module axi_hyper_tb
     localparam axi_addr_t Boundary = axi_addr_t'(32'h8040_0000);
     localparam axi_addr_t BurstAddr = Boundary - 16;
     logic [31:0] segment_start_snapshot;
-    logic [31:0] cs_count_snapshot [NumPhys][NumChips];
+    logic [31:0] cs_count_snapshot [NumPhys][NumConnectedChips];
     logic reg_error;
 
     if (NumConnectedChips < 2) begin
@@ -860,14 +883,15 @@ module axi_hyper_tb
     if (reg_error != 1'b0) $error("unexpected error");
     reg_drv.send_write(32'h440, Boundary, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
 
     segment_start_snapshot = segment_start_count;
     for (int p = 0; p < NumPhys; p++)
-      for (int c = 0; c < NumChips; c++)
+      for (int c = 0; c < NumConnectedChips; c++)
         cs_count_snapshot[p][c] = cs_start_count[p][c];
     axi_write_slow(axi_drv, BurstAddr, 4, 0);
     axi_read_slow_check(axi_drv, BurstAddr, 4, 0);
-    for (int c = 0; c < NumChips; c++) begin
+    for (int c = 0; c < NumConnectedChips; c++) begin
       int unsigned selected_count;
       selected_count = 0;
       for (int p = 0; p < NumPhys; p++) begin
@@ -877,16 +901,42 @@ module axi_hyper_tb
         $display("[CROSS-CHIP] phy=%0d chip=%0d CS selections=%0d", p, c, observed);
       end
       if (selected_count < 2)
-        $error("[CROSS-CHIP] Chip %0d selected %0d times; expected write and read selections",
-               c, selected_count);
+        $error("[CROSS-CHIP] Chip %0d selected %0d times; expected write and read selections", c, selected_count);
     end
-    $display("[CROSS-CHIP] aggregate segment starts=%0d (statistics only)",
-             segment_start_count - segment_start_snapshot);
+    $display("[CROSS-CHIP] aggregate segment starts=%0d (statistics only)", segment_start_count - segment_start_snapshot);
 
     reg_drv.send_write(32'h440, 32'h8100_0000, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
     reg_drv.send_write(32'h404, 32'h8100_0000, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
+  endtask
+
+  task automatic check_chip_enable(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    axi_ctrl_master_t::ax_beat_t ax = new();
+    axi_ctrl_master_t::r_beat_t r;
+    logic reg_error;
+    if (NumConnectedChips < 2) return;
+    $display("===========================");
+    $display("= Per-chip enable         =");
+    $display("===========================");
+    reg_drv.send_write(32'h448, 32'h1900, '1, reg_error);
+    if (reg_error != 1'b0) $error("chip disable write failed");
+    apply_config(reg_drv);
+    ax.ax_addr = 32'h8100_0000;
+    ax.ax_id = '0;
+    ax.ax_len = 0;
+    ax.ax_size = 3;
+    ax.ax_burst = axi_pkg::BURST_INCR;
+    axi_drv.send_ar(ax);
+    axi_drv.recv_r(r);
+    if (r.r_resp != axi_pkg::RESP_DECERR) $error("disabled chip accepted a request");
+    reg_drv.send_write(32'h448, 32'h11900, '1, reg_error);
+    if (reg_error != 1'b0) $error("chip enable write failed");
+    apply_config(reg_drv);
   endtask
 
   task automatic check_large_rule_distance(input axi_ctrl_master_t axi_drv);
@@ -932,6 +982,7 @@ module axi_hyper_tb
     // A zero bound extends the final rule through the end of the address space.
     reg_drv.send_write(32'h444, '0, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
     axi_write_subword(axi_drv, ValidAddr, TestData, 3);
     axi_check_subword(axi_drv, ValidAddr, TestData, 3);
 
@@ -953,6 +1004,7 @@ module axi_hyper_tb
 
     reg_drv.send_write(32'h444, 32'h8200_0000, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
   endtask
 
   task automatic check_atomic_add(
@@ -1014,11 +1066,11 @@ module axi_hyper_tb
       $error("[ATOMIC] Unsupported operation returned rresp=%0d bresp=%0d",
              r.r_resp, b.b_resp);
     end
-    reg_drv.send_read(32'h010, status, reg_error);
+    reg_drv.send_read(32'h10, status, reg_error);
     if ((reg_error != 1'b0) || !status[0]) begin
       $error("[ATOMIC] Unsupported operation did not set sticky error status");
     end
-    reg_drv.send_write(32'h010, 32'h1, '1, reg_error);
+    reg_drv.send_write(32'h10, 32'h1, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
     axi_check_subword(axi_drv, AtomicAddr, InitialValue + Addend, 2);
 
@@ -1042,11 +1094,11 @@ module axi_hyper_tb
       $error("[ATOMIC] Multi-beat operation returned rresp=%0d bresp=%0d",
              r.r_resp, b.b_resp);
     end
-    reg_drv.send_read(32'h010, status, reg_error);
+    reg_drv.send_read(32'h10, status, reg_error);
     if ((reg_error != 1'b0) || !status[0]) begin
       $error("[ATOMIC] Malformed operation did not set sticky error status");
     end
-    reg_drv.send_write(32'h010, 32'h1, '1, reg_error);
+    reg_drv.send_write(32'h10, 32'h1, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
     axi_write_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
     axi_check_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
@@ -1107,6 +1159,7 @@ module axi_hyper_tb
     // A zero-ended final rule must contain ordinary atomic accesses.
     reg_drv.send_write(32'h444, '0, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
     axi_write_subword(axi_drv, ZeroEndAddr, ZeroEndInitial, 2);
     ax.ax_addr = ZeroEndAddr;
     ax.ax_size = 2;
@@ -1126,6 +1179,7 @@ module axi_hyper_tb
     axi_check_subword(axi_drv, ZeroEndAddr, ZeroEndInitial + ZeroEndAddend, 2);
     reg_drv.send_write(32'h444, 32'h8200_0000, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
+    apply_config(reg_drv);
   endtask
 
   initial begin : proc_sim_crtl
@@ -1176,23 +1230,33 @@ module axi_hyper_tb
     if (s_reg_error != 1'b0) $error("unexpected error");
     reg_master.send_write(32'h300, TbTxDelayLineTaps, '1, s_reg_error);
     if (s_reg_error != 1'b0) $error("unexpected error");
+    if (NumPhys == 2) begin
+      reg_master.send_write(32'h340, TbTxDelayLineTaps + 1, '1, s_reg_error);
+    end
+    reg_master.send_read(32'h010, reg_read, s_reg_error);
+    if (s_reg_error != 1'b0 || !reg_read[2]) $error("staged configuration did not set STATUS.dirty");
+    apply_config(reg_master);
+    reg_master.send_read(32'h010, reg_read, s_reg_error);
+    if (s_reg_error != 1'b0 || reg_read[2] || reg_read[1]) $error("APPLY did not clear STATUS.dirty/busy");
 
+    if (!performance_only) begin
     if (TbDutVariant == 0) begin
       reg_master.send_read(32'h200, reg_read, s_reg_error);
       if ((s_reg_error != 1'b0) || (reg_read != 8)) $error("unexpected divider reset value");
       reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
+      apply_config(reg_master);
     end
 
     #600350ns;
     // Align time-based waits with the AXI driver's clock phase.
     @(posedge clk);
 
-    if (!performance_only) begin
     if (TbDutVariant == 0) begin
       // The configuration barrier completes only after the divided clock resumes.
       reg_master.send_write(32'h200, 8'd4, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
+      apply_config(reg_master);
       reg_master.send_read(32'h200, reg_read, s_reg_error);
       if ((s_reg_error != 1'b0) || (reg_read != 4)) $error("divider update failed");
 
@@ -1202,6 +1266,7 @@ module axi_hyper_tb
 
       reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
+      apply_config(reg_master);
       reg_master.send_read(32'h200, reg_read, s_reg_error);
       if ((s_reg_error != 1'b0) || (reg_read != 2)) $error("divider restore failed");
 
@@ -1220,6 +1285,7 @@ module axi_hyper_tb
     run_slow_backpressure_test(axi_ctrl_mst, reg_master);
     check_config_barrier(axi_ctrl_mst, reg_master);
     check_decode_errors(axi_ctrl_mst, reg_master);
+    check_chip_enable(axi_ctrl_mst, reg_master);
     check_cross_chip_burst(axi_ctrl_mst, reg_master);
     check_large_rule_distance(axi_ctrl_mst);
     check_range_edges(axi_ctrl_mst, reg_master);
@@ -1236,16 +1302,20 @@ module axi_hyper_tb
         // Keep each data phase near 2 us, leaving margin for CA and access latency.
         reg_master.send_write(32'h410, 400 / iso_test_dividers[i], '1, s_reg_error);
         if (s_reg_error != 1'b0) $error("unexpected t_burst_max update error");
+        apply_config(reg_master);
         reg_master.send_write(32'h200, iso_test_dividers[i], '1, s_reg_error);
         if (s_reg_error != 1'b0) $error("unexpected divider update error");
+        apply_config(reg_master);
         axi_write_slow(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 0);
         axi_read_slow_check(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 128);
       end
 
       reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected divider restore error");
+      apply_config(reg_master);
       reg_master.send_write(32'h410, iso_saved_t_burst_max, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected t_burst_max restore error");
+      apply_config(reg_master);
     end
 
     if (NumPhys == 1) begin
@@ -1254,16 +1324,18 @@ module axi_hyper_tb
 
     if (TbDutVariant == 0) begin
       // switch memory address space to register space
-      reg_master.send_write(32'h408, 32'h1_1901, '1, s_reg_error);
+      reg_master.send_write(32'h408, 32'h11901, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
+      apply_config(reg_master);
 
       // enable variable latency so we can test RWDS sampling
       s27ks_cfg0.fixed_latency_enable = 1'b0;
       axi_write_32(32'h8000_0000 + S27KS_CFG0_REG_OFFSET, (s27ks_cfg0 | s27ks_cfg0 << 16));
 
       // switch back to memory address space
-      reg_master.send_write(32'h408, 32'h1_1900, '1, s_reg_error);
+      reg_master.send_write(32'h408, 32'h11900, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
+      apply_config(reg_master);
     end
 
     check_consecutive_reads(axi_ctrl_mst);
@@ -1290,6 +1362,7 @@ module axi_hyper_tb
        $display("===========================");
 
        reg_master.send_write(32'h100,1'b0,'1,s_reg_error);
+       apply_config(reg_master);
        if (s_reg_error != 1'b0) $error("unexpected error");
 
        axi_rand_mst.reset();
@@ -1308,9 +1381,12 @@ module axi_hyper_tb
 
     end // if (NumPhys==2)
     end else begin
+      #600350ns;
+      @(posedge clk);
       if (TbDutVariant == 0) begin
         reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
         if (s_reg_error != 1'b0) $error("performance divider setup failed");
+        apply_config(reg_master);
       end
       run_performance_smoke(axi_ctrl_mst);
     end
@@ -1332,6 +1408,9 @@ module axi_hyper_tb
     .AxiAddrWidth    ( TbAxiAddrWidthFull ),
     .AxiIdWidth      ( TbAxiIdWidthFull+1 ),
     .AxiUserWidth    ( TbAxiUserWidthFull ),
+    .AxiMaxReadTxns  ( TbAxiMaxReadTxns ),
+    .AxiMaxWriteTxns ( TbAxiMaxWriteTxns ),
+    .HostWriteBufferBytes ( TbHostWriteBufferBytes ),
 
     .RegAw           ( RegBusAW           ),
     .RegDw           ( RegBusDW           ),
@@ -1356,8 +1435,15 @@ module axi_hyper_tb
 
 endmodule
 
-module axi_hyper_tb_isochronous;
+module axi_hyper_tb_isochronous #(
+  parameter int unsigned TbAxiMaxReadTxns = 4,
+  parameter int unsigned TbAxiMaxWriteTxns = 4,
+  parameter int unsigned TbHostWriteBufferBytes = 64
+);
   axi_hyper_tb #(
+    .TbAxiMaxReadTxns  ( TbAxiMaxReadTxns ),
+    .TbAxiMaxWriteTxns ( TbAxiMaxWriteTxns ),
+    .TbHostWriteBufferBytes ( TbHostWriteBufferBytes ),
     .TbDutVariant      ( 0    ),
     .TbCyclTime        ( 5ns  ),
     .TbPhyCyclTime     ( 6ns  ),
@@ -1365,8 +1451,15 @@ module axi_hyper_tb_isochronous;
   ) i_axi_hyper_tb ();
 endmodule
 
-module axi_hyper_tb_synchronous;
+module axi_hyper_tb_synchronous #(
+  parameter int unsigned TbAxiMaxReadTxns = 4,
+  parameter int unsigned TbAxiMaxWriteTxns = 4,
+  parameter int unsigned TbHostWriteBufferBytes = 64
+);
   axi_hyper_tb #(
+    .TbAxiMaxReadTxns  ( TbAxiMaxReadTxns ),
+    .TbAxiMaxWriteTxns ( TbAxiMaxWriteTxns ),
+    .TbHostWriteBufferBytes ( TbHostWriteBufferBytes ),
     .TbDutVariant      ( 1    ),
     .TbCyclTime        ( 10ns ),
     .TbPhyCyclTime     ( 10ns ),
@@ -1375,8 +1468,15 @@ module axi_hyper_tb_synchronous;
   ) i_axi_hyper_tb ();
 endmodule
 
-module axi_hyper_tb_asynchronous;
+module axi_hyper_tb_asynchronous #(
+  parameter int unsigned TbAxiMaxReadTxns = 4,
+  parameter int unsigned TbAxiMaxWriteTxns = 4,
+  parameter int unsigned TbHostWriteBufferBytes = 64
+);
   axi_hyper_tb #(
+    .TbAxiMaxReadTxns  ( TbAxiMaxReadTxns ),
+    .TbAxiMaxWriteTxns ( TbAxiMaxWriteTxns ),
+    .TbHostWriteBufferBytes ( TbHostWriteBufferBytes ),
     .TbDutVariant      ( 2   ),
     .TbCyclTime        ( 5ns ),
     .TbPhyCyclTime     ( 6ns ),
@@ -1385,8 +1485,15 @@ module axi_hyper_tb_asynchronous;
   ) i_axi_hyper_tb ();
 endmodule
 
-module axi_hyper_tb_synchronous_one_phy;
+module axi_hyper_tb_synchronous_one_phy #(
+  parameter int unsigned TbAxiMaxReadTxns = 4,
+  parameter int unsigned TbAxiMaxWriteTxns = 4,
+  parameter int unsigned TbHostWriteBufferBytes = 64
+);
   axi_hyper_tb #(
+    .TbAxiMaxReadTxns  ( TbAxiMaxReadTxns ),
+    .TbAxiMaxWriteTxns ( TbAxiMaxWriteTxns ),
+    .TbHostWriteBufferBytes ( TbHostWriteBufferBytes ),
     .NumPhys          ( 1    ),
     .TbNumWrites      ( 0    ),
     .TbNumReads       ( 0    ),

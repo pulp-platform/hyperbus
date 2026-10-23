@@ -16,7 +16,6 @@ unit_sources=(src/regs/hyperbus_cfg_regblock_pkg.sv src/hyperbus_pkg.sv
 integration_sources=("$cc/src/cf_math_pkg.sv" "$axi/src/axi_pkg.sv"
     "$cc/src/fifo_v3.sv" "$cc/src/stream_fifo.sv" "$cc/src/spill_register.sv"
     "$cc/src/spill_register_flushable.sv" "$cc/src/stream_register.sv"
-    "$cc/src/addr_decode.sv" "$cc/src/addr_decode_dync.sv"
     "$cc/src/lzc.sv" "$cc/src/rr_arb_tree.sv" "$axi/src/axi_serializer.sv"
     src/regs/hyperbus_cfg_regblock_pkg.sv src/hyperbus_pkg.sv
     src/hyperbus_atomic_handler.sv src/hyperbus_axi_frontend.sv

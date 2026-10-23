@@ -3,19 +3,22 @@
 // SPDX-License-Identifier: SHL-0.51
 
 module hyperbus_test_dut #(
-    parameter int unsigned  DutVariant          = 0,
-    parameter int unsigned  NumPhys             = 2,
-    parameter int unsigned  AxiAddrWidth        = -1,
-    parameter int unsigned  AxiDataWidth        = -1,
-    parameter int unsigned  AxiIdWidth          = -1,
-    parameter int unsigned  AxiUserWidth        = -1,
-    parameter type          axi_req_t           = logic,
-    parameter type          axi_rsp_t           = logic,
-    parameter int unsigned  RegDataWidth        = -1,
-    parameter int unsigned  HostWriteBufferBytes = 64,
-    parameter type          reg_req_t           = logic,
-    parameter type          reg_rsp_t           = logic,
-    parameter type          axi_rule_t           = logic
+    parameter int unsigned  DutVariant           = 0,
+    parameter int unsigned  NumPhys              = 2,
+    parameter int unsigned  AxiAddrWidth          = -1,
+    parameter int unsigned  AxiDataWidth          = -1,
+    parameter int unsigned  AxiIdWidth            = -1,
+    parameter int unsigned  AxiUserWidth          = -1,
+    parameter type          axi_req_t             = logic,
+    parameter type          axi_rsp_t             = logic,
+    parameter int unsigned  RegDataWidth          = -1,
+    parameter int unsigned  RegAddrWidth          = 32,
+    parameter int unsigned  HostWriteBufferBytes  = 64,
+    parameter int unsigned  AxiMaxReadTxns        = 4,
+    parameter int unsigned  AxiMaxWriteTxns       = 4,
+    parameter type          reg_req_t             = logic,
+    parameter type          reg_rsp_t             = logic,
+    parameter type          axi_rule_t            = logic
 ) (
     input  logic                        clk_sys_i,
     input  logic                        rst_sys_ni,
@@ -52,6 +55,8 @@ module hyperbus_test_dut #(
         hyperbus_isochronous #(
             .NumPhys        ( NumPhys       ),
             .HostWriteBufferBytes ( HostWriteBufferBytes ),
+            .AxiMaxReadTxns  ( AxiMaxReadTxns ),
+            .AxiMaxWriteTxns ( AxiMaxWriteTxns ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -59,6 +64,7 @@ module hyperbus_test_dut #(
             .axi_req_t      ( axi_req_t     ),
             .axi_rsp_t      ( axi_rsp_t     ),
             .RegDataWidth   ( RegDataWidth  ),
+            .RegAddrWidth   ( RegAddrWidth  ),
             .reg_req_t      ( reg_req_t     ),
             .reg_rsp_t      ( reg_rsp_t     ),
             .axi_rule_t     ( axi_rule_t    )
@@ -88,6 +94,8 @@ module hyperbus_test_dut #(
         hyperbus_synchronous #(
             .NumPhys        ( NumPhys       ),
             .HostWriteBufferBytes ( HostWriteBufferBytes ),
+            .AxiMaxReadTxns  ( AxiMaxReadTxns ),
+            .AxiMaxWriteTxns ( AxiMaxWriteTxns ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -95,6 +103,7 @@ module hyperbus_test_dut #(
             .axi_req_t      ( axi_req_t     ),
             .axi_rsp_t      ( axi_rsp_t     ),
             .RegDataWidth   ( RegDataWidth  ),
+            .RegAddrWidth   ( RegAddrWidth  ),
             .reg_req_t      ( reg_req_t     ),
             .reg_rsp_t      ( reg_rsp_t     ),
             .axi_rule_t     ( axi_rule_t    )
@@ -124,6 +133,8 @@ module hyperbus_test_dut #(
         hyperbus_asynchronous #(
             .NumPhys        ( NumPhys       ),
             .HostWriteBufferBytes ( HostWriteBufferBytes ),
+            .AxiMaxReadTxns  ( AxiMaxReadTxns ),
+            .AxiMaxWriteTxns ( AxiMaxWriteTxns ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -131,6 +142,7 @@ module hyperbus_test_dut #(
             .axi_req_t      ( axi_req_t     ),
             .axi_rsp_t      ( axi_rsp_t     ),
             .RegDataWidth   ( RegDataWidth  ),
+            .RegAddrWidth   ( RegAddrWidth  ),
             .reg_req_t      ( reg_req_t     ),
             .reg_rsp_t      ( reg_rsp_t     ),
             .axi_rule_t     ( axi_rule_t    )

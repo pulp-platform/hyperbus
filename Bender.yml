@@ -81,4 +81,7 @@ sources:
         - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
         - test/hyperbus_cfg_regs_tb.sv
+        - test/hyperbus_axi_barrier_tb.sv
+        - test/hyperbus_phy_reset_cfg_tb.sv
+        - test/hyperbus_iso_clock_div_tb.sv
         - test/axi_pre_aw_drain_tb.sv

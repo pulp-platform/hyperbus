@@ -14,6 +14,7 @@ module hyperbus_asynchronous #(
     parameter type          axi_req_t             = logic,
     parameter type          axi_rsp_t             = logic,
     parameter int unsigned  RegDataWidth          = -1,
+    parameter int unsigned  RegAddrWidth          = 32,
     parameter type          reg_req_t             = logic,
     parameter type          reg_rsp_t             = logic,
     parameter type          axi_rule_t            = logic,
@@ -71,6 +72,8 @@ module hyperbus_asynchronous #(
     logic clk_backend;
     logic rst_backend_n;
     logic rst_phy_async_n;
+    logic phy_reset_sys_n;
+    logic backend_busy;
 
     ////////////////////////
     // Configuration path //
@@ -104,8 +107,9 @@ module hyperbus_asynchronous #(
     hyper_rsp_t               backend_rsp;
 
     // Clearable CDCs permit an independent PHY reset without creating phantom
-    // transfers. Such a reset can discard a pending transfer and is therefore
-    // only a supported software operation while the controller is idle.
+    // transfers. PHY-only reset is supported only while the complete controller
+    // is quiescent, including configuration barriers and backend recovery.
+    // Functional resets require test_mode_i == 0; scan mode bypasses rstgen.
     assign rst_phy_async_n = rst_sys_ni & rst_phy_ni;
 
     assign clk_backend = clk_phy_i;
@@ -118,6 +122,14 @@ module hyperbus_asynchronous #(
         .init_no     (                 )
     );
 
+    rstgen i_rstgen_phy_sys (
+        .clk_i       ( clk_sys_i       ),
+        .rst_ni      ( rst_phy_async_n ),
+        .test_mode_i ( test_mode_i     ),
+        .rst_no      ( phy_reset_sys_n ),
+        .init_no     (                 )
+    );
+
     ////////////////////////////
     // Configuration frontend //
     ////////////////////////////
@@ -127,10 +139,12 @@ module hyperbus_asynchronous #(
         .reg_req_t     ( reg_req_t     ),
         .reg_rsp_t     ( reg_rsp_t     ),
         .host_rule_t   ( axi_rule_t    ),
-        .RegDataWidth  ( RegDataWidth  )
+        .RegDataWidth  ( RegDataWidth  ),
+        .RegAddrWidth  ( RegAddrWidth  )
     ) i_cfg_frontend (
         .clk_i              ( clk_sys_i              ),
         .rst_ni             ( rst_sys_ni             ),
+        .phy_reset_ni       ( phy_reset_sys_n        ),
         .reg_req_i          ( reg_req_i              ),
         .reg_rsp_o          ( reg_rsp_o              ),
         .drain_o            ( frontend_drain         ),
@@ -265,7 +279,7 @@ module hyperbus_asynchronous #(
         .cfg_apply_i            ( backend_cfg_apply         ),
         .cfg_apply_valid_i      ( backend_cfg_apply_valid   ),
         .cfg_apply_ready_o      ( backend_cfg_apply_ready   ),
-        .busy_o                 (                           ),
+        .busy_o                 ( backend_busy              ),
         .req_i                  ( backend_req               ),
         .rsp_o                  ( backend_rsp               ),
         .hyper_cs_no            ( hyper_cs_no               ),
@@ -280,7 +294,13 @@ module hyperbus_asynchronous #(
         .hyper_reset_no         ( hyper_reset_no            )
     );
 
-    `ASSERT(PhyResetOnlyWhenIdle, !rst_phy_ni |-> !midend_trans_active,
+    // Sample before the raw reset edge clears backend busy or asserts drain.
+    `ASSERT(PhyResetOnlyWhenQuiescent,
+        host_idle && !midend_trans_active && !frontend_drain && !backend_busy &&
+        !reg_req_i.valid,
+        !rst_phy_ni, !rst_sys_ni)
+
+    `ASSERT(PhyResetOnlyWhenIdle, !phy_reset_sys_n |-> !midend_trans_active,
         clk_sys_i, !rst_sys_ni)
 
 endmodule
