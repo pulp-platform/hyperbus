@@ -1188,6 +1188,10 @@ module axi_hyper_tb
 
     end // if (NumPhys==2)
     end else begin
+      if (TbDutVariant == 0) begin
+        reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
+        if (s_reg_error != 1'b0) $error("performance divider setup failed");
+      end
       run_performance_smoke(axi_ctrl_mst);
     end
 
