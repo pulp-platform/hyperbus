@@ -47,7 +47,7 @@ module hyperbus_phy_timing_tb;
         .b_valid_o(), .b_ready_i(1'b1), .b_error_o(),
         .hyper_cs_no(cs_n), .hyper_ck_o(ck), .hyper_ck_no(),
         .hyper_rwds_o(), .hyper_rwds_i(rwds_in), .hyper_rwds_oe_o(rwds_oe),
-        .hyper_dq_i(dq_in), .hyper_dq_o(dq_out), .hyper_dq_oe_o(dq_oe), .hyper_reset_no()
+        .hyper_dq_i(dq_in), .hyper_dq_o(dq_out), .hyper_dq_oe_o(dq_oe)
     );
 
     always @(negedge cs_n[0]) if (rst_n) begin

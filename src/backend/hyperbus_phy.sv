@@ -56,8 +56,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     output logic                hyper_rwds_oe_o,
     input  logic [7:0]          hyper_dq_i,
     output logic [7:0]          hyper_dq_o,
-    output logic                hyper_dq_oe_o,
-    output logic                hyper_reset_no
+    output logic                hyper_dq_oe_o
 );
 
     localparam int unsigned RxFifoDepth = 2 ** RxFifoLogDepth;
@@ -182,8 +181,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .hyper_rwds_oe_o,
         .hyper_dq_i,
         .hyper_dq_o,
-        .hyper_dq_oe_o,
-        .hyper_reset_no
+        .hyper_dq_oe_o
     );
 
     //////////////

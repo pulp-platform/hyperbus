@@ -160,7 +160,6 @@ module fixture_hyperbus #(
     logic [NumPhys-1:0][7:0]          hyper_dq_i;
     logic [NumPhys-1:0][7:0]          hyper_dq_o;
     logic [NumPhys-1:0]               hyper_dq_oe;
-    logic [NumPhys-1:0]               hyper_reset_n_wire;
              
     wire  [NumPhys-1:0][NumConnectedChips-1:0] pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
@@ -205,8 +204,7 @@ module fixture_hyperbus #(
         .hyper_rwds_oe_o        ( hyper_rwds_oe      ),
         .hyper_dq_i             ( hyper_dq_i         ),
         .hyper_dq_o             ( hyper_dq_o         ),
-        .hyper_dq_oe_o          ( hyper_dq_oe        ),
-        .hyper_reset_no         ( hyper_reset_n_wire )
+        .hyper_dq_oe_o          ( hyper_dq_oe        )
 
     );
 
@@ -256,7 +254,8 @@ module fixture_hyperbus #(
     pad_functional_pd padinst_hyper_ck     (.OEN( 1'b0            ), .I( hyper_ck_wire[i]      ), .O(                  ), .PAD( pad_hyper_ck[i]     ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_ckno   (.OEN( 1'b0            ), .I( hyper_ck_n_wire[i]    ), .O(                  ), .PAD( pad_hyper_ckn[i]    ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_rwds   (.OEN(~hyper_rwds_oe[i]), .I( hyper_rwds_o[i]       ), .O( hyper_rwds_i[i]  ), .PAD( pad_hyper_rwds[i]   ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_resetn (.OEN( 1'b0            ), .I( hyper_reset_n_wire[i] ), .O(                  ), .PAD( pad_hyper_reset[i]  ), .PEN( 1'b0 ) );
+    // Memory reset is external testbench stimulus, independent of the DUT outputs.
+    assign pad_hyper_reset[i] = rst_n;
     pad_functional_pd padinst_hyper_dqio0  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][0]      ), .O( hyper_dq_i[i][0] ), .PAD( pad_hyper_dq[i][0]  ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_dqio1  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][1]      ), .O( hyper_dq_i[i][1] ), .PAD( pad_hyper_dq[i][1]  ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_dqio2  (.OEN(~hyper_dq_oe[i]  ), .I( hyper_dq_o[i][2]      ), .O( hyper_dq_i[i][2] ), .PAD( pad_hyper_dq[i][2]  ), .PEN( 1'b0 ) );

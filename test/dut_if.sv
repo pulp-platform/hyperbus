@@ -224,7 +224,6 @@ module dut_if
     logic [NumPhys-1:0][7:0]          hyper_dq_i;
     logic [NumPhys-1:0][7:0]          hyper_dq_o;
     logic [NumPhys-1:0]               hyper_dq_oe;
-    logic [NumPhys-1:0]               hyper_reset_n_wire;
     logic                             phy_clk;
     logic                             pad_delay_tick_clk;
     logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_q;
@@ -237,7 +236,6 @@ module dut_if
     logic [NumPhys-1:0]               hyper_rwds_oe_pad;
     logic [NumPhys-1:0][7:0]          hyper_dq_o_pad;
     logic [NumPhys-1:0]               hyper_dq_oe_pad;
-    logic [NumPhys-1:0]               hyper_reset_n_pad;
     logic [NumPhys-1:0]               hyper_rwds_i_pad;
     logic [NumPhys-1:0][7:0]          hyper_dq_i_pad;
              
@@ -261,7 +259,7 @@ module dut_if
       .ck_n_i       ( hyper_ck_n_wire       ),
       .rwds_o_i     ( hyper_rwds_o          ),
       .dq_o_i       ( hyper_dq_o            ),
-      .reset_n_i    ( hyper_reset_n_wire    ),
+      .reset_n_i    ( '1                    ),
       .dq_oe_i      ( hyper_dq_oe           ),
       .rwds_oe_i    ( hyper_rwds_oe         ),
       .cs_n_o       ( hyper_cs_n_pad        ),
@@ -269,7 +267,7 @@ module dut_if
       .ck_n_o       ( hyper_ck_n_pad        ),
       .rwds_o_o     ( hyper_rwds_o_pad      ),
       .dq_o_o       ( hyper_dq_o_pad        ),
-      .reset_n_o    ( hyper_reset_n_pad     ),
+      .reset_n_o    (                       ),
       .dq_oe_o      ( hyper_dq_oe_pad       ),
       .rwds_oe_o    ( hyper_rwds_oe_pad     ),
       .rwds_i_pad   ( hyper_rwds_i_pad      ),
@@ -390,8 +388,7 @@ module dut_if
         .hyper_rwds_oe_o        ( hyper_rwds_oe      ),
         .hyper_dq_i             ( hyper_dq_i         ),
         .hyper_dq_o             ( hyper_dq_o         ),
-        .hyper_dq_oe_o          ( hyper_dq_oe        ),
-        .hyper_reset_no         ( hyper_reset_n_wire )
+        .hyper_dq_oe_o          ( hyper_dq_oe        )
 
     );
 
@@ -437,6 +434,9 @@ module dut_if
        end
     end
 
+   // The board/platform owns memory reset independently of the controller.
+   assign pad_hyper_reset = {NumPhys{rst_ni}};
+
    for (genvar i = 0 ; i<NumPhys; i++) begin: pad_gen
     for (genvar j = 0; j<NumConnectedChips; j++) begin
        pad_functional_pd padinst_hyper_csno   (.OEN( 1'b0            ), .I( hyper_cs_n_pad[i][j] ), .O(                  ), .PAD( pad_hyper_csn[i][j] ), .PEN( 1'b0 ));
@@ -444,7 +444,6 @@ module dut_if
     pad_functional_pd padinst_hyper_ck     (.OEN( 1'b0            ), .I( hyper_ck_pad[i]      ), .O(                  ), .PAD( pad_hyper_ck[i]     ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_ckno   (.OEN( 1'b0            ), .I( hyper_ck_n_pad[i]    ), .O(                  ), .PAD( pad_hyper_ckn[i]    ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_rwds   (.OEN(~hyper_rwds_oe_pad[i]), .I( hyper_rwds_o_pad[i] ), .O( hyper_rwds_i_pad[i] ), .PAD( pad_hyper_rwds[i] ), .PEN( 1'b0 ) );
-    pad_functional_pd padinst_hyper_resetn (.OEN( 1'b0            ), .I( hyper_reset_n_pad[i] ), .O(                  ), .PAD( pad_hyper_reset[i]  ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_dqio0  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][0] ), .O( hyper_dq_i_pad[i][0] ), .PAD( pad_hyper_dq[i][0] ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_dqio1  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][1] ), .O( hyper_dq_i_pad[i][1] ), .PAD( pad_hyper_dq[i][1] ), .PEN( 1'b0 ) );
     pad_functional_pd padinst_hyper_dqio2  (.OEN(~hyper_dq_oe_pad[i]), .I( hyper_dq_o_pad[i][2] ), .O( hyper_dq_i_pad[i][2] ), .PAD( pad_hyper_dq[i][2] ), .PEN( 1'b0 ) );

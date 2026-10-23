@@ -50,8 +50,7 @@ module hyperbus_asynchronous #(
     output logic [NumPhys-1:0]               hyper_rwds_oe_o,
     input  logic [NumPhys-1:0][7:0]          hyper_dq_i,
     output logic [NumPhys-1:0][7:0]          hyper_dq_o,
-    output logic [NumPhys-1:0]               hyper_dq_oe_o,
-    output logic [NumPhys-1:0]               hyper_reset_no
+    output logic [NumPhys-1:0]               hyper_dq_oe_o
 );
 
     `ASSERT_INIT(AxiAddrWidthValid, AxiAddrWidth >= $clog2(AxiDataWidth / 8))
@@ -290,8 +289,7 @@ module hyperbus_asynchronous #(
         .hyper_rwds_oe_o        ( hyper_rwds_oe_o           ),
         .hyper_dq_i             ( hyper_dq_i                ),
         .hyper_dq_o             ( hyper_dq_o                ),
-        .hyper_dq_oe_o          ( hyper_dq_oe_o             ),
-        .hyper_reset_no         ( hyper_reset_no            )
+        .hyper_dq_oe_o          ( hyper_dq_oe_o             )
     );
 
     // Sample before the raw reset edge clears backend busy or asserts drain.

@@ -43,8 +43,7 @@ module hyperbus_test_dut #(
     output logic [NumPhys-1:0]               hyper_rwds_oe_o,
     input  logic [NumPhys-1:0][7:0]          hyper_dq_i,
     output logic [NumPhys-1:0][7:0]          hyper_dq_o,
-    output logic [NumPhys-1:0]               hyper_dq_oe_o,
-    output logic [NumPhys-1:0]               hyper_reset_no
+    output logic [NumPhys-1:0]               hyper_dq_oe_o
 );
 
     localparam int unsigned VariantIsochronous  = 0;
@@ -87,8 +86,7 @@ module hyperbus_test_dut #(
             .hyper_rwds_oe_o        ( hyper_rwds_oe_o   ),
             .hyper_dq_i             ( hyper_dq_i        ),
             .hyper_dq_o             ( hyper_dq_o        ),
-            .hyper_dq_oe_o          ( hyper_dq_oe_o     ),
-            .hyper_reset_no         ( hyper_reset_no    )
+            .hyper_dq_oe_o          ( hyper_dq_oe_o     )
         );
     end else if (DutVariant == VariantSynchronous) begin : gen_synchronous
         hyperbus_synchronous #(
@@ -126,8 +124,7 @@ module hyperbus_test_dut #(
             .hyper_rwds_oe_o        ( hyper_rwds_oe_o   ),
             .hyper_dq_i             ( hyper_dq_i        ),
             .hyper_dq_o             ( hyper_dq_o        ),
-            .hyper_dq_oe_o          ( hyper_dq_oe_o     ),
-            .hyper_reset_no         ( hyper_reset_no    )
+            .hyper_dq_oe_o          ( hyper_dq_oe_o     )
         );
     end else if (DutVariant == VariantAsynchronous) begin : gen_asynchronous
         hyperbus_asynchronous #(
@@ -167,8 +164,7 @@ module hyperbus_test_dut #(
             .hyper_rwds_oe_o        ( hyper_rwds_oe_o   ),
             .hyper_dq_i             ( hyper_dq_i        ),
             .hyper_dq_o             ( hyper_dq_o        ),
-            .hyper_dq_oe_o          ( hyper_dq_oe_o     ),
-            .hyper_reset_no         ( hyper_reset_no    )
+            .hyper_dq_oe_o          ( hyper_dq_oe_o     )
         );
     end else begin : gen_invalid_variant
         initial begin
