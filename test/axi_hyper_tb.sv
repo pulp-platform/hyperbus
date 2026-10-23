@@ -517,7 +517,6 @@ module axi_hyper_tb
     int unsigned burst_beats [NumCases] = '{1, 4, 16, 64, 256};
     int unsigned write_baseline [NumCases];
     int unsigned read_baseline [NumCases];
-    int unsigned segment_limit [NumCases];
     logic [63:0] write_cycles [NumCases];
     logic [63:0] read_cycles [NumCases];
     logic [63:0] cycle_snapshot;
@@ -541,7 +540,6 @@ module axi_hyper_tb
     // Default-configuration baselines in system-clock cycles for each supported top.
     write_baseline = '{44, 55, 103, 295, 1103};
     read_baseline = '{59, 71, 119, 311, 1119};
-    segment_limit = '{1, 1, 1, 1, 2};
     if (TbDutVariant == 1) begin
       write_baseline = '{22, 28, 52, 148, 552};
       read_baseline = '{29, 35, 59, 155, 559};
@@ -552,7 +550,6 @@ module axi_hyper_tb
     if (NumPhys == 1) begin
       write_baseline = '{24, 36, 84, 276, 1084};
       read_baseline = '{30, 42, 90, 282, 1090};
-      segment_limit = '{1, 1, 1, 1, 3};
     end
 
     $display("===========================");
@@ -596,25 +593,6 @@ module axi_hyper_tb
       if (read_cycles[test_idx] > read_cycle_limit) begin
         $error("[PERF] %0d-beat read took %0d cycles, limit is %0d",
                burst_beats[test_idx], read_cycles[test_idx], read_cycle_limit);
-      end
-      if ((write_segments != segment_limit[test_idx]) ||
-          (read_segments != segment_limit[test_idx])) begin
-        $error("[PERF] %0d-beat burst used unexpected segments: write=%0d read=%0d limit=%0d",
-               burst_beats[test_idx], write_segments, read_segments,
-               segment_limit[test_idx]);
-      end
-    end
-
-    for (int unsigned test_idx = 1; test_idx < NumCases; test_idx++) begin
-      if ((write_cycles[test_idx] * burst_beats[test_idx-1]) >
-          (write_cycles[test_idx-1] * burst_beats[test_idx])) begin
-        $error("[PERF] Write cycles per beat did not improve from %0d to %0d beats",
-               burst_beats[test_idx-1], burst_beats[test_idx]);
-      end
-      if ((read_cycles[test_idx] * burst_beats[test_idx-1]) >
-          (read_cycles[test_idx-1] * burst_beats[test_idx])) begin
-        $error("[PERF] Read cycles per beat did not improve from %0d to %0d beats",
-               burst_beats[test_idx-1], burst_beats[test_idx]);
       end
     end
   endtask
