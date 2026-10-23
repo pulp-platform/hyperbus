@@ -3,6 +3,7 @@
 ### `hyper_pad_cfg_o`
 
 The `hyper_pad_cfg_o` signal is composed of 8 bits for each PHY, mapped as follows.
+In Gwaihir all HyperBus pads have three drive-strength pins (DS0..DS2): the DS field is therefore 3 bits wide.
 
 #### PHY 0 (bits `[7:0]`)
 
@@ -11,8 +12,8 @@ The `hyper_pad_cfg_o` signal is composed of 8 bits for each PHY, mapped as follo
 | 0      | PU    | Pull-up enable       |
 | 1      | PD    | Pull-down enable     |
 | 2      | SL    | Slew rate control    |
-| 6:3    | DS    | Drive strength       |
-| 7      | -     | Not used             |
+| 5:3    | DS    | Drive strength       |
+| 7:6    | -     | Not used             |
 
 #### PHY 1 (bits `[15:8]`)
 
@@ -21,8 +22,17 @@ The `hyper_pad_cfg_o` signal is composed of 8 bits for each PHY, mapped as follo
 | 8      | PU    | Pull-up enable       |
 | 9      | PD    | Pull-down enable     |
 | 10     | SL    | Slew rate control    |
-| 14:11  | DS    | Drive strength       |
-| 15     | -     | Not used             |
+| 13:11  | DS    | Drive strength       |
+| 15:14  | -     | Not used             |
+
+Notes:
+
+- `{PD, PU}`: `2'b00` no pull, `2'b01` pull-up, `2'b10` pull-down, `2'b11` bus keeper (the pad keeps
+  its previous state when not driven).
+- `SL = 1` enables the slew-rate control (slower edge).
+- `DS = 3'b000` is the weakest drive, `3'b111` the strongest
+- The reset value `0x0303` (bus keeper, `SL = 0`, `DS = 3'b000`) must be reprogrammed by software
+  before running at full speed, e.g. `0x3B3B` (bus keeper, `SL = 0`, `DS = 3'b111`) for both PHYs.
 
 # HyperBus Controller
  
