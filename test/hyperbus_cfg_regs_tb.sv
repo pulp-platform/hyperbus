@@ -183,6 +183,7 @@ module hyperbus_cfg_regs_tb;
             $error("Decode error did not clear without a new hardware event");
         end
 
+        $display("[CFG-REGS] all checks completed");
         $finish;
     end
 

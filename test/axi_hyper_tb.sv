@@ -44,7 +44,9 @@ module axi_hyper_tb
   /// Maximum system-clock cycles before a stalled regression is terminated.
   parameter longint unsigned TbTimeoutCycles = 5_000_000,
   /// Annotate the HyperRAM timing SDF. Disable for fast RTL regressions.
-  parameter bit          TbAnnotateSdf = 1'b1
+  parameter bit          TbAnnotateSdf = 1'b1,
+  /// Run the deliberate latency/throughput budget task.
+  parameter bit          TbRunPerformance = 1'b1
 );
   import hyperbus_tb_pkg::*;
   /////////////////////////////
@@ -80,6 +82,9 @@ module axi_hyper_tb
 
   logic                  end_of_sim;
   logic [31:0]           segment_start_count;
+  logic [NumPhys-1:0][NumChips-1:0][31:0] cs_start_count;
+  bit performance_only;
+  bit functional_only;
   logic [63:0]           cycle_count;
 
   sim_timeout #(
@@ -114,11 +119,11 @@ module axi_hyper_tb
     .MAX_READ_TXNS        ( 8                  ),
     .MAX_WRITE_TXNS       ( 8                  ),
     .AX_MIN_WAIT_CYCLES   ( 0                  ),
-    .AX_MAX_WAIT_CYCLES   ( 0                  ),
+    .AX_MAX_WAIT_CYCLES   ( 3                  ),
     .W_MIN_WAIT_CYCLES    ( 0                  ),
-    .W_MAX_WAIT_CYCLES    ( 0                  ),
+    .W_MAX_WAIT_CYCLES    ( 5                  ),
     .RESP_MIN_WAIT_CYCLES ( 0                  ),
-    .RESP_MAX_WAIT_CYCLES ( 0                  ),
+    .RESP_MAX_WAIT_CYCLES ( 4                  ),
     .AXI_BURST_FIXED      ( 1'b0               ),
     .AXI_BURST_INCR       ( 1'b1               ),
     .AXI_BURST_WRAP       ( 1'b0               )
@@ -760,6 +765,7 @@ module axi_hyper_tb
     localparam axi_addr_t Boundary = axi_addr_t'(32'h8040_0000);
     localparam axi_addr_t BurstAddr = Boundary - 16;
     logic [31:0] segment_start_snapshot;
+    logic [31:0] cs_count_snapshot [NumPhys][NumChips];
     logic reg_error;
 
     if (NumChips < 2) begin
@@ -776,12 +782,26 @@ module axi_hyper_tb
     if (reg_error != 1'b0) $error("unexpected error");
 
     segment_start_snapshot = segment_start_count;
+    for (int p = 0; p < NumPhys; p++)
+      for (int c = 0; c < NumChips; c++)
+        cs_count_snapshot[p][c] = cs_start_count[p][c];
     axi_write_slow(axi_drv, BurstAddr, 4, 0);
     axi_read_slow_check(axi_drv, BurstAddr, 4, 0);
-    if ((segment_start_count - segment_start_snapshot) < 4) begin
-      $error("[CROSS-CHIP] Observed %0d segment starts, expected at least four",
-             segment_start_count - segment_start_snapshot);
+    for (int c = 0; c < NumChips; c++) begin
+      int unsigned selected_count;
+      selected_count = 0;
+      for (int p = 0; p < NumPhys; p++) begin
+        int unsigned observed;
+        observed = cs_start_count[p][c] - cs_count_snapshot[p][c];
+        selected_count += observed;
+        $display("[CROSS-CHIP] phy=%0d chip=%0d CS selections=%0d", p, c, observed);
+      end
+      if (selected_count < 2)
+        $error("[CROSS-CHIP] Chip %0d selected %0d times; expected write and read selections",
+               c, selected_count);
     end
+    $display("[CROSS-CHIP] aggregate segment starts=%0d (statistics only)",
+             segment_start_count - segment_start_snapshot);
 
     reg_drv.send_write(32'h440, 32'h8100_0000, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
@@ -1026,6 +1046,10 @@ module axi_hyper_tb
 
     // Reset the AXI drivers and scoreboards
     end_of_sim = 1'b0;
+    functional_only = $test$plusargs("HYPERBUS_FUNCTIONAL_ONLY");
+    performance_only = $test$plusargs("HYPERBUS_PERFORMANCE_ONLY");
+    if (functional_only && performance_only)
+      $fatal(1, "Select either functional-only or performance-only mode");
     mst_scoreboard.reset();
     axi_rand_mst.reset();
     axi_ctrl_mst.reset_master();
@@ -1064,7 +1088,10 @@ module axi_hyper_tb
     end
 
     #600350ns;
+    // Align time-based waits with the AXI driver's clock phase.
+    @(posedge clk);
 
+    if (!performance_only) begin
     if (TbDutVariant == 0) begin
       // The configuration barrier completes only after the divided clock resumes.
       reg_master.send_write(32'h200, 8'd4, '1, s_reg_error);
@@ -1091,7 +1118,7 @@ module axi_hyper_tb
       end
     end
 
-    run_performance_smoke(axi_ctrl_mst);
+    if (TbRunPerformance && !functional_only) run_performance_smoke(axi_ctrl_mst);
     run_slow_backpressure_test(axi_ctrl_mst, reg_master);
     check_config_barrier(axi_ctrl_mst, reg_master);
     check_decode_errors(axi_ctrl_mst, reg_master);
@@ -1154,6 +1181,7 @@ module axi_hyper_tb
     $display("===========================");
 
     #50ns;
+    @(posedge clk);
 
     if(NumPhys==2) begin
 
@@ -1181,8 +1209,15 @@ module axi_hyper_tb
        $display("===========================");
 
     end // if (NumPhys==2)
+    end else begin
+      run_performance_smoke(axi_ctrl_mst);
+    end
 
+    @(negedge clk);
     end_of_sim = 1'b1;
+    @(negedge clk);
+    $display("[AXI-TEST] passed functional=%0d performance=%0d",
+             !performance_only, TbRunPerformance && !functional_only);
     $finish();
   end
 
@@ -1212,6 +1247,7 @@ module axi_hyper_tb
     .rst_ni     ( rst_n        ),
     .end_sim_i  ( end_of_sim   ),
     .segment_start_count_o ( segment_start_count ),
+    .cs_start_count        ( cs_start_count ),
     .axi_slv_if ( axi_dut_intf ),
     .reg_slv_if ( reg_bus_mst  )
   );

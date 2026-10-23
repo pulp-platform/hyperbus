@@ -92,3 +92,9 @@ build: scripts/compile.tcl
 
 run: clean build
 	$(VSIM) $(VSIM_ARGS) "source scripts/start.tcl"
+
+.PHONY: regression regression-fast regression-integration regression-performance regression-pad
+regression:
+	BENDER="$(BENDER)" VSIM="$(VSIM)" bash scripts/run_regression.sh all
+regression-fast regression-integration regression-performance regression-pad: regression-%:
+	BENDER="$(BENDER)" VSIM="$(VSIM)" bash scripts/run_regression.sh $*
