@@ -226,7 +226,7 @@ module fixture_hyperbus #(
                .DQ1           ( pad_hyper_dq[i][1]  ),
                .DQ0           ( pad_hyper_dq[i][0]  ),
                .RWDS          ( pad_hyper_rwds[i]   ),
-               .CSNeg         ( pad_hyper_csn[i][0] ),
+               .CSNeg         ( pad_hyper_csn[i][j] ),
                .CK            ( pad_hyper_ck[i]     ),
                .CKNeg         ( pad_hyper_ckn[i]    ),
                .RESETNeg      ( pad_hyper_reset[i]  )

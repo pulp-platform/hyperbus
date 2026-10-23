@@ -92,3 +92,10 @@ build: scripts/compile.tcl
 
 run: clean build
 	$(VSIM) $(VSIM_ARGS) "source scripts/start.tcl"
+
+.PHONY: test test-fast test-integration test-performance test-pad
+test:
+	BENDER="$(BENDER)" VSIM="$(VSIM)" bash scripts/run_regression.sh all
+
+test-fast test-integration test-performance test-pad:
+	BENDER="$(BENDER)" VSIM="$(VSIM)" bash scripts/run_regression.sh $(patsubst test-%,%,$@)

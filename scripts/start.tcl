@@ -3,44 +3,69 @@
 # SPDX-License-Identifier: SHL-0.51
 
 set regression_failed 0
+set suite all
+if {[info exists ::env(HYPERBUS_TEST_SUITE)]} {
+    set suite $::env(HYPERBUS_TEST_SUITE)
+}
+if {$suite ni {all fast integration performance pad}} {
+    puts stderr "Unknown HYPERBUS_TEST_SUITE: $suite"
+    quit -code 1 -f
+}
+if {$suite eq "pad"} {
+    puts stderr "The pad-delay suite is not available in this revision."
+    quit -code 1 -f
+}
 
-proc run_test {top_name wlf_name} {
+proc run_test {top_name name completion_marker args} {
     global regression_failed
 
     puts "=============================="
     puts "= Running $top_name"
     puts "=============================="
 
-    set transcript_name "[file rootname $wlf_name].log"
+    set transcript_name "${name}.log"
     file delete -force $transcript_name
     transcript file $transcript_name
 
     # Questa 10.7 rejects enum assignments in common_cells clearable CDC models.
-    vsim $top_name -wlf $wlf_name -t 1ps -voptargs=+acc -classdebug -suppress 8386
-
-    onfinish stop
-    set StdArithNoWarnings 1
-    set NumericStdNoWarnings 1
-    log -r /*
-    catch {delete wave *}
-
-    run -all
-    quit -sim
+    if {[catch {
+        vsim $top_name -wlf "${name}.wlf" -t 1ps -voptargs=+acc -suppress 8386 {*}$args
+        onfinish stop
+        set StdArithNoWarnings 1
+        set NumericStdNoWarnings 1
+        run -all
+    } detail]} {
+        puts "Simulation command failed: $detail"
+        set regression_failed 1
+    }
+    catch {quit -sim}
 
     transcript file {}
     set transcript_fd [open $transcript_name r]
     set transcript_data [read $transcript_fd]
     close $transcript_fd
-    if {[regexp -line {^# \*\* (Error|Fatal)( \([^)]*\))?:} $transcript_data]} {
-        puts "Regression errors detected in $transcript_name"
+    # Questa writes the previous design's summary when loading the next one.
+    # Count diagnostic messages here, not that stale Errors summary.
+    if {[regexp -line {^#\s+\*\* (Error|Fatal)( \([^)]*\))?:} $transcript_data] ||
+        [string first $completion_marker $transcript_data] < 0} {
+        puts "Regression failed or completion marker missing: $transcript_name"
         set regression_failed 1
     }
 }
 
-run_test axi_hyper_tb_isochronous          sim_run_isochronous.wlf
-run_test axi_hyper_tb_synchronous          sim_run_synchronous.wlf
-run_test axi_hyper_tb_asynchronous         sim_run_asynchronous.wlf
-run_test axi_hyper_tb_synchronous_one_phy  sim_run_synchronous_one_phy.wlf
-run_test hyperbus_cfg_regs_tb              sim_run_cfg_regs.wlf
+if {$suite in {all fast}} {
+    run_test hyperbus_atomic_handler_tb atomic_handler {Atomic handler operation and protocol tests passed}
+    run_test hyperbus_cfg_regs_tb cfg_regs {[CFG-REGS] all checks completed}
+}
+if {$suite in {all integration}} {
+    foreach variant {isochronous synchronous asynchronous synchronous_one_phy} {
+        run_test axi_hyper_tb_$variant functional_$variant {[AXI-TEST] passed} +HYPERBUS_FUNCTIONAL_ONLY
+    }
+}
+if {$suite in {all performance}} {
+    foreach variant {isochronous synchronous asynchronous synchronous_one_phy} {
+        run_test axi_hyper_tb_$variant performance_$variant {[AXI-TEST] passed} +HYPERBUS_PERFORMANCE_ONLY
+    }
+}
 
 quit -code $regression_failed -f
