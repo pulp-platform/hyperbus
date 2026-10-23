@@ -38,6 +38,8 @@ module axi_hyper_tb
   parameter int unsigned TbRxDelayLineTaps = 16,
   /// TX delay-line tap value.
   parameter int unsigned TbTxDelayLineTaps = 19,
+  /// Keep the second PHY on a distinct TX tap for RTL timing regressions.
+  parameter bit          TbDistinctPhyDelays = 1'b1,
   /// Number of AXI beats in the directed slow read/write stress transactions.
   parameter int unsigned TbSlowNumBeats = 64,
   /// Idle cycles inserted between each accepted AXI beat in the slow stress transactions.
@@ -49,7 +51,9 @@ module axi_hyper_tb
   /// Annotate the HyperRAM timing SDF. Disable for fast RTL regressions.
   parameter bit          TbAnnotateSdf = 1'b1,
   /// Run the deliberate latency/throughput budget task.
-  parameter bit          TbRunPerformance = 1'b1
+  parameter bit          TbRunPerformance = 1'b1,
+  /// Apply a small, nonzero behavioral pad delay to directed integration traffic.
+  parameter bit          TbPadDelayIntegration = 1'b0
 );
   import hyperbus_tb_pkg::*;
   /////////////////////////////
@@ -85,6 +89,7 @@ module axi_hyper_tb
   logic                  end_of_sim;
   logic [31:0]           segment_start_count;
   logic [NumPhys-1:0][NumConnectedChips-1:0][31:0] cs_start_count;
+  hyperbus_tb_pkg::pad_delay_cfg_t pad_delay_cfg;
   bit performance_only;
   bit functional_only;
   logic [63:0]           cycle_count;
@@ -770,6 +775,35 @@ module axi_hyper_tb
     apply_config(reg_drv);
   endtask
 
+  task automatic check_pad_timing_config(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    logic [RegBusDW-1:0] saved_latency, saved_timing;
+    logic reg_error;
+    reg_drv.send_read(32'h40c, saved_latency, reg_error);
+    if (reg_error) $fatal(1, "Pad timing latency read failed");
+    reg_drv.send_read(32'h414, saved_timing, reg_error);
+    if (reg_error) $fatal(1, "Pad timing configuration read failed");
+    // Extend both CS setup and final-read hold, including restarted segments.
+    reg_drv.send_write(32'h414, (saved_timing & 32'hff00_00ff) | 32'h0003_0400,
+                       '1, reg_error);
+    if (reg_error) $fatal(1, "Pad timing configuration write failed");
+    for (int keep = 0; keep < 2; keep++) begin
+      reg_drv.send_write(32'h40c, (saved_latency & 32'hfeff_ffff) | (32'(keep) << 24),
+                         '1, reg_error);
+      if (reg_error) $fatal(1, "DQ mode configuration write failed");
+      apply_config(reg_drv);
+      run_slow_backpressure_test(axi_drv, reg_drv);
+      $display("[PAD-CONFIG] keep_dq_driven=%0d segmented write/readback passed", keep);
+    end
+    reg_drv.send_write(32'h40c, saved_latency, '1, reg_error);
+    if (reg_error) $fatal(1, "Pad timing latency restore failed");
+    reg_drv.send_write(32'h414, saved_timing, '1, reg_error);
+    if (reg_error) $fatal(1, "Pad timing configuration restore failed");
+    apply_config(reg_drv);
+  endtask
+
   task automatic check_config_barrier(
     input axi_ctrl_master_t axi_drv,
     input reg_bus_master_t reg_drv
@@ -1194,6 +1228,7 @@ module axi_hyper_tb
     automatic logic [63:0] div4_write_cycles;
     automatic logic [31:0] iso_saved_t_burst_max;
     automatic int unsigned iso_test_dividers[4] = '{2, 4, 8, 16};
+    int unsigned pad_steps;
 
     // Reset the AXI drivers and scoreboards
     end_of_sim = 1'b0;
@@ -1201,6 +1236,20 @@ module axi_hyper_tb
     performance_only = $test$plusargs("HYPERBUS_PERFORMANCE_ONLY");
     if (functional_only && performance_only)
       $fatal(1, "Select either functional-only or performance-only mode");
+    pad_delay_cfg = '0;
+    if (TbPadDelayIntegration) begin
+      pad_delay_cfg.output_delay_steps = 1;
+      pad_delay_cfg.input_delay_steps = 1;
+    end
+    if ($value$plusargs("HYPERBUS_PAD_DELAY=%d", pad_steps)) begin
+      if (pad_steps == 0 || pad_steps > 63)
+        $fatal(1, "HYPERBUS_PAD_DELAY must be between 1 and 63 ticks");
+      pad_delay_cfg.output_delay_steps = 6'(pad_steps);
+      pad_delay_cfg.input_delay_steps = 6'(pad_steps);
+    end else if ($test$plusargs("HYPERBUS_PAD_DELAY")) begin
+      pad_delay_cfg.output_delay_steps = 1;
+      pad_delay_cfg.input_delay_steps = 1;
+    end
     mst_scoreboard.reset();
     axi_rand_mst.reset();
     axi_ctrl_mst.reset_master();
@@ -1230,8 +1279,13 @@ module axi_hyper_tb
     if (s_reg_error != 1'b0) $error("unexpected error");
     reg_master.send_write(32'h300, TbTxDelayLineTaps, '1, s_reg_error);
     if (s_reg_error != 1'b0) $error("unexpected error");
+    reg_master.send_write(32'h304, 8'd2, '1, s_reg_error);
+    if (s_reg_error != 1'b0) $error("unexpected RWDS OE timing write");
     if (NumPhys == 2) begin
-      reg_master.send_write(32'h340, TbTxDelayLineTaps + 1, '1, s_reg_error);
+      reg_master.send_write(32'h340,
+                            TbTxDelayLineTaps + (TbDistinctPhyDelays ? 1 : 0),
+                            '1, s_reg_error);
+      reg_master.send_write(32'h344, 8'd3, '1, s_reg_error);
     end
     reg_master.send_read(32'h010, reg_read, s_reg_error);
     if (s_reg_error != 1'b0 || !reg_read[2]) $error("staged configuration did not set STATUS.dirty");
@@ -1283,6 +1337,7 @@ module axi_hyper_tb
     check_midend_buffering(axi_ctrl_mst);
     if (TbRunPerformance && !functional_only) run_performance_smoke(axi_ctrl_mst);
     run_slow_backpressure_test(axi_ctrl_mst, reg_master);
+    if (TbDutVariant == 1) check_pad_timing_config(axi_ctrl_mst, reg_master);
     check_config_barrier(axi_ctrl_mst, reg_master);
     check_decode_errors(axi_ctrl_mst, reg_master);
     check_chip_enable(axi_ctrl_mst, reg_master);
@@ -1394,8 +1449,8 @@ module axi_hyper_tb
     @(negedge clk);
     end_of_sim = 1'b1;
     @(negedge clk);
-    $display("[AXI-TEST] passed functional=%0d performance=%0d",
-             !performance_only, TbRunPerformance && !functional_only);
+    $display("[AXI-TEST] passed functional=%0d performance=%0d pad_delay_ticks=%0d",
+             !performance_only, TbRunPerformance && !functional_only, pad_delay_cfg.output_delay_steps);
     $finish();
   end
 
@@ -1429,6 +1484,7 @@ module axi_hyper_tb
     .end_sim_i  ( end_of_sim   ),
     .segment_start_count_o ( segment_start_count ),
     .cs_start_count        ( cs_start_count ),
+    .pad_delay_cfg_i       ( pad_delay_cfg ),
     .axi_slv_if ( axi_dut_intf ),
     .reg_slv_if ( reg_bus_mst  )
   );

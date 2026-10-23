@@ -9,10 +9,6 @@ case "$suite" in all|fast|integration|performance|pad) ;; *)
     printf 'Usage: %s [all|fast|integration|performance|pad] [build-directory]\n' "$0" >&2
     exit 2 ;;
 esac
-if [[ "$suite" == pad ]]; then
-    printf 'The pad-delay suite is not available in this revision.\n' >&2
-    exit 2
-fi
 build=${2:-"$root/build/regression-$suite"}
 mkdir -p "$build"
 build=$(realpath "$build")

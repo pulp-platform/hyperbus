@@ -1,77 +1,61 @@
 # HyperBus v2
 
-AXI4 controller for the [HyperBus protocol](https://www.cypress.com/file/213356/download),
+AXI4 controller for [HyperBus](https://www.cypress.com/file/213356/download),
 part of the [PULP platform](https://pulp-platform.org/). Tested with HyperRAM.
-
-`v0.0.10` is the final legacy release with the `hyperbus` top. This branch contains
-the redesigned controller; see [CHANGELOG.md](CHANGELOG.md) for release history.
+`v0.0.10` is the final legacy release; see [CHANGELOG.md](CHANGELOG.md).
 
 ## Features
 
 - 16-1024-bit AXI data; two PHYs require at least 32 bits.
-- One or two PHYs, with four chip-select ranks each. Dual-PHY interleaving pairs
-  devices at each rank, doubling data bandwidth: four ranks, up to eight devices.
-- Per-chip address ranges and timing, staged configuration, and runtime PHY selection.
+- One or two PHYs, four chip-select ranks each. Dual-PHY mode interleaves paired
+  devices per rank: up to eight devices and twice the data bandwidth.
+- Per-chip address ranges/timing, staged configuration and runtime PHY selection.
 - Subword transfers, byte strobes and single-beat atomics.
-- Clock stopping and transaction segmentation for backpressure and chip boundaries.
+- Clock stopping and segmentation for backpressure and chip boundaries.
 
 ## Clocking Options
 
-All three tops keep the AXI frontend, configuration frontend and midend on the
-system clock. They share the same physical backend.
+All tops keep the AXI frontend, configuration frontend and midend on `clk_sys_i`.
 
 ### Synchronous
 
-[`hyperbus_synchronous`](src/hyperbus_synchronous.sv) runs the frontend and backend
-on `clk_sys_i`, without a system-to-PHY bridge. Choose it when the backend can
-share the system clock.
+[`hyperbus_synchronous`](src/hyperbus_synchronous.sv) also runs the backend on
+`clk_sys_i`, without a system-to-PHY bridge. Use it for a shared clock.
 
 ### Isochronous
 
-[`hyperbus_isochronous`](src/hyperbus_isochronous.sv) derives the backend clock from
-`clk_sys_i` using a programmable integer divider (minimum 2). It uses isochronous
-handshakes for control and spill registers for data, rather than asynchronous
-data FIFOs. Choose it for a slower, related PHY clock without a separate clock input.
-Divider changes wait for idle and completed backend recovery.
+[`hyperbus_isochronous`](src/hyperbus_isochronous.sv) derives the backend clock
+through a programmable integer divider (minimum 2). Control uses isochronous
+handshakes; data uses spill registers. Use it for a slower, related PHY clock.
+Divider updates wait for idle and backend recovery.
 
 ### Asynchronous
 
-[`hyperbus_asynchronous`](src/hyperbus_asynchronous.sv) accepts independent
-`clk_sys_i` and `clk_phy_i` clocks. CDC FIFOs carry data; synchronized handshakes
-carry commands, configuration and write responses. Choose it for unrelated
-system and PHY clock domains.
+[`hyperbus_asynchronous`](src/hyperbus_asynchronous.sv) takes independent system
+and PHY clocks. CDC FIFOs carry data; synchronized handshakes carry commands,
+configuration and write responses. Use it for unrelated clocks.
 
-All variants capture incoming read data using delayed RWDS, so the synchronous
-option still contains that source-synchronous clock crossing. TX clock and RX RWDS
-delays are programmable. Xilinx delay-line builds require `clk_ref200_i` at 200 MHz.
+All variants capture read data using delayed RWDS, including a source-synchronous
+crossing in the synchronous top. TX CK and RX RWDS delays are programmable.
+Xilinx delay-line builds require `clk_ref200_i` at 200 MHz.
 
-The [legacy block diagram](docs/axi_hyper.svg) predates this split.
+## Configuration and Limits
 
-## Configuration
+The [register map](docs/regs/hyperbus_cfg_regs.md) uses a 4 KiB, 32-bit Regbus
+window. Writes are staged: APPLY drains traffic and activates settings; FLUSH
+drains without applying them. AXI offers remain stable until accepted.
 
-The [register map](docs/regs/hyperbus_cfg_regs.md) occupies a 4 KiB window on a
-32-bit Regbus interface. Writes are staged: APPLY drains traffic and activates
-the new values; FLUSH drains without applying them. AXI offers must remain stable
-until accepted, including during a barrier.
+- Ordinary bursts support INCR and single-beat FIXED, not WRAP.
+- Atomics require naturally aligned operands in one beat. AtomicCompare uses WRAP
+  only for operand ordering; see [integration requirements](docs/integration.md).
+- Devices must tolerate clock stopping, or sufficient buffering must prevent it.
+- Only the asynchronous top supports quiescent PHY-only reset and configuration replay.
 
-The asynchronous top can replay the last-applied settings after a quiescent
-PHY-only reset. See [integration requirements](docs/integration.md) for the reset
-conditions and atomic operand encoding.
-
-## Limits
-
-- Ordinary AXI traffic supports INCR and single-beat FIXED requests, not WRAP.
-- Atomics require naturally aligned operands and one write-data beat. AtomicCompare
-  permits WRAP only to encode operand order; see the integration note.
-- Devices must tolerate clock stopping, or the system must provide enough buffering
-  to avoid it. The controller does not buffer complete bursts for such devices.
-- Unaligned-access coverage is incomplete (see TODOs).
+See [pad timing](docs/pad_timing_integration.md) for electrical margins.
 
 ## Simulation
 
-Install Bender and QuestaSim, then obtain Infineon's proprietary model archive
-using a vendor login. See [model setup](models/README.md) for licensing and the
-optional `make hyper-nonfree-init` helper.
+Install Bender and QuestaSim, then obtain the [vendor memory model](models/README.md):
 
 ```bash
 bender checkout
@@ -79,17 +63,7 @@ make models/s27ks0641 CACHED_MODEL_PATH=/path/to/model-archives
 bash scripts/run_regression.sh all build/regression
 ```
 
-Suites: `all`, `fast`, `integration`, `performance`. Performance tests enforce
-latency budgets; logs and work libraries stay in the chosen build directory.
-
-Focused control tests need no vendor model. They use Verilator; the divider/reset
-runners select OSEDA 2026.09:
-
-```bash
-bash scripts/run_atomic_tests.sh build/atomic
-bash scripts/run_iso_clock_div_test.sh build/iso_clock_div
-bash scripts/run_phy_reset_cfg_test.sh
-```
+See [Verification](docs/verification.md) for suites and vendor-free Verilator tests.
 
 ## TODOs
 

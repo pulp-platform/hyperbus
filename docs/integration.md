@@ -2,40 +2,47 @@
 
 ## Atomic Operands
 
-AtomicStore, AtomicLoad and AtomicSwap support naturally aligned 1-, 2-, 4- and
-8-byte operands that fit the AXI data width. Arithmetic operands are little-endian;
-bitwise operations do not depend on the endianness bit.
+AtomicStore, AtomicLoad and AtomicSwap accept naturally aligned 1/2/4/8-byte
+operands fitting one AXI beat. Arithmetic is little-endian; bitwise operations
+ignore the endianness bit.
 
-AtomicCompare carries a combined compare/swap payload of 2, 4, 8, 16 or 32 bytes
-within one AXI beat. Its memory operand is half that size and naturally aligned.
-The addressed half of the payload contains the compare operand; the other half
-contains the swap operand. Use INCR when it occupies the lower half and WRAP when
-it occupies the upper half. This does not enable ordinary WRAP bursts.
-Multi-beat atomics are unsupported.
+AtomicCompare carries 2/4/8/16/32 bytes of compare/swap payload in one beat. Its
+memory operand is half that size and naturally aligned. The addressed half holds
+compare; the other holds swap. Use INCR for compare in the lower half, WRAP for
+the upper half. Ordinary WRAP bursts and multi-beat atomics are unsupported.
 
-## Configuration Barriers
+## Configuration and Queues
 
-Configuration writes update staged registers. APPLY drains accepted transactions
-before activating those settings. FLUSH drains without applying staged edits.
-Both barriers also finish AXI channel offers already exposed to the serializer,
-even if their external handshake is pending. New offers wait; producers must
-retain valid and payload until acceptance.
+Writes are staged. APPLY drains traffic before activating settings; FLUSH drains
+without applying them. Both finish already-exposed AXI offers, even before their
+external handshake. New offers wait; producers retain valid/payload until accepted.
+Apply changes to `phys_in_use`/`which_phy` before traffic using the new mapping.
 
-Changing `phys_in_use` or `which_phy` changes data packing and addressing. Apply
-the change before issuing traffic that depends on the new mapping.
+`AxiMaxReadTxns` and `AxiMaxWriteTxns` must be at least 1. `HostWriteBufferBytes`
+must hold at least one host beat and be a multiple of its byte width. The command
+queue is fixed at two entries.
 
 ## PHY-Only Reset
 
-Only the asynchronous top supports an independent PHY reset. Assert it in
-functional mode (`test_mode_i=0`) while the complete controller is quiescent:
-no outstanding AXI transaction, unfinished or concurrently offered CSR access,
-configuration barrier, or backend recovery interval.
+Only the asynchronous top supports independent PHY reset. Assert it with
+`test_mode_i=0` and no outstanding AXI transaction, unfinished/offered CSR access,
+barrier or backend recovery. In-flight reset is not a recovery mechanism.
 
-System-side staged and applied configuration survives. After reset, the controller
-restores the last-applied PHY settings before accepting new AXI requests; staged
-edits remain unapplied. Wait for replay to finish before another PHY-only reset.
-Reset during traffic or a configuration barrier is not a recovery mechanism.
+System-side configuration survives. Replay restores applied settings before AXI
+admission; staged edits remain unapplied. Wait for replay before another reset.
+New AXI/CSR offers after reset is stable must remain valid until acknowledged.
+STATUS briefly stalls on reset entry, then stays accessible during replay;
+other CSRs wait for replay to finish.
 
-New AXI requests may be presented after reset is stably asserted, but must remain
-stable until acknowledged. STATUS is accessible during replay after the short
-reset-entry guard; other CSR accesses wait for replay to complete.
+## Generic Clients and Errors
+
+Generic clients must fit both the encoded host-beat span and the rounded physical
+span before chip segmentation. The latter is limited by a 15-bit count of 16-bit
+words: 65534 bytes for one PHY, 65532 for two (also in single-PHY mode).
+`HostPhysicalBurstFits` checks this; supported 256-beat AXI bursts fit the bound.
+
+An accepted errored physical word must cause at least one host response to report
+AccessError. Per-byte or per-beat attribution is unspecified. The current PHY
+ties its error output low; alternate backends must honor this contract.
+
+See [pad timing](pad_timing_integration.md) for electrical integration.

@@ -100,6 +100,8 @@ if {$suite in {all fast}} {
     run_test hyperbus_cfg_regs_tb cfg_regs {[CFG-REGS] all checks completed}
     run_test hyperbus_phy_reset_cfg_tb phy_reset_cfg {PASS:}
     run_test hyperbus_iso_clock_div_tb iso_clock_div {[ISO-DIV] all checks passed}
+    run_test hyperbus_pad_delay_direct_tb pad_delay_direct {[PAD-LATENCY] direct pad delay check passed}
+    run_test hyperbus_phy_timing_tb phy_timing {[PHY-TIMING] all checks passed}
 }
 if {$suite in {all integration}} {
     foreach variant {isochronous synchronous asynchronous synchronous_one_phy} {
@@ -112,6 +114,11 @@ if {$suite in {all integration}} {
 if {$suite in {all performance}} {
     foreach variant {isochronous synchronous asynchronous synchronous_one_phy} {
         run_test axi_hyper_tb_$variant performance_$variant {[AXI-TEST] passed} +HYPERBUS_PERFORMANCE_ONLY
+    }
+}
+if {$suite in {all pad}} {
+    foreach variant {synchronous synchronous_one_phy} {
+        run_test axi_hyper_tb_$variant pad_$variant {[AXI-TEST] passed} +HYPERBUS_FUNCTIONAL_ONLY +HYPERBUS_PAD_DELAY
     }
 }
 
