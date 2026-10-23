@@ -11,6 +11,9 @@ package:
     - "Paul Scheffler <paulsc@iis.ee.ethz.ch>"
     - "Luca Valente <luca.valente@unibo.it>"   # current maintainer
 
+export_include_dirs:
+  - include
+
 dependencies:
   common_cells:        { git: "https://github.com/pulp-platform/common_cells.git",       version: 1.21.0        }
   axi:                 { git: "https://github.com/pulp-platform/axi.git",                version: 0.39.1        }
@@ -39,31 +42,39 @@ sources:
 
     - target: any(test,all(not(hyperbus_exclude_dline),not(all(xilinx,hyperbus_dline))))
       files:
-        - src/hyperbus_delay.sv
+        - src/backend/hyperbus_delay.sv
 
     - src/regs/hyperbus_cfg_regblock_pkg.sv
     - src/hyperbus_pkg.sv
-    - src/hyperbus_clk_gen.sv
-    - src/hyperbus_clock_diff_out.sv
-    - src/hyperbus_w2phy.sv
-    - src/hyperbus_phy2r.sv
-    - src/hyperbus_ddr_out.sv
-    - src/hyperbus_trx.sv
+    - src/backend/hyperbus_tx_clk_delay.sv
+    - src/backend/hyperbus_clock_diff_out.sv
+    - src/hyperbus_write_adapter.sv
+    - src/hyperbus_read_adapter.sv
+    - src/backend/hyperbus_ddr_out.sv
+    - src/backend/hyperbus_trx.sv
     - src/regs/hyperbus_cfg_regblock.sv
     - src/hyperbus_cfg_regs.sv
-    - src/hyperbus_phy.sv
-    - src/hyperbus_phy_if.sv
+    - src/backend/hyperbus_phy.sv
     - src/hyperbus_axi.sv
+    - src/hyperbus_atomic_handler.sv
+    - src/hyperbus_midend.sv
+    - src/hyperbus_cfg_frontend.sv
+    - src/hyperbus_async_bridge.sv
+    - src/hyperbus_iso_bridge.sv
+    - src/backend/hyperbus_backend.sv
+    - src/hyperbus_synchronous.sv
+    - src/hyperbus_asynchronous.sv
+    - src/hyperbus_isochronous.sv
 
     - target: hyper_test
       files:
         # Device models. TODO: extend
         - models/s27ks0641/s27ks0641.v
         # Testbench
+        - test/hyperbus_test_dut.sv
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb.sv
         - test/dut_if.sv
         - test/hyperbus_tb_pkg.sv
         - test/axi_hyper_tb.sv
         - test/hyperbus_cfg_regs_tb.sv
-    - src/hyperbus.sv
