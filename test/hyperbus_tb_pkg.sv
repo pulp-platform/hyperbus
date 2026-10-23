@@ -4,6 +4,18 @@
 
 package hyperbus_tb_pkg;
 
+    // Test-only delay counts in tick_i rising edges, not PHY clock cycles.
+    // dut_if currently supplies a 2.5 ns tick period by default; direct model
+    // tests choose their own tick clock. Zero bypasses the corresponding delay.
+    typedef struct packed {
+        bit [5:0] output_delay_steps;
+        bit [5:0] input_delay_steps;
+        bit [5:0] dq_oe_assert_steps;
+        bit [5:0] dq_oe_release_steps;
+        bit [5:0] rwds_oe_assert_steps;
+        bit [5:0] rwds_oe_release_steps;
+    } pad_delay_cfg_t;
+
     parameter int unsigned S27KS_ID0_REG_OFFSET  = 32'h0000_0000;
     parameter int unsigned S27KS_ID1_REG_OFFSET  = 32'h0000_0002;
     parameter int unsigned S27KS_CFG0_REG_OFFSET = 32'h0000_2000;

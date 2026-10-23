@@ -73,16 +73,19 @@ sources:
         # Testbench
         - test/hyperbus_test_dut.sv
         - test/fixture_hyperbus.sv
+        - test/hyperbus_tb_pkg.sv
+        - test/hyperbus_pad_delay.sv
+        - test/dut_if.sv
+        - test/axi_hyper_tb.sv
         - test/hyperbus_atomic_handler_tb.sv
         - test/hyperbus_link_mem.sv
         - test/hyperbus_axi_atomic_tb.sv
+        - test/hyperbus_axi_barrier_tb.sv
         - test/hyperbus_read_counter_tb.sv
         - test/hyperbus_burst_bound_tb.sv
-        - test/dut_if.sv
-        - test/hyperbus_tb_pkg.sv
-        - test/axi_hyper_tb.sv
         - test/hyperbus_cfg_regs_tb.sv
-        - test/hyperbus_axi_barrier_tb.sv
         - test/hyperbus_phy_reset_cfg_tb.sv
         - test/hyperbus_iso_clock_div_tb.sv
         - test/axi_pre_aw_drain_tb.sv
+        - test/hyperbus_pad_delay_direct_tb.sv
+        - test/hyperbus_phy_timing_tb.sv
