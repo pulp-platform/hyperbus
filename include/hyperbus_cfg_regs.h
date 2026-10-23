@@ -142,9 +142,9 @@ typedef struct __attribute__ ((__packed__)) {
 #define HYPERBUS_CFG_REGS__TX_DELAY__VALUE_reset 0x10
 
 // reg - hyperbus_cfg_regs::rwds_timing
-#define HYPERBUS_CFG_REGS__RWDS_TIMING__RWDS_OE_SETUP_CYCLES_bm 0xff
+#define HYPERBUS_CFG_REGS__RWDS_TIMING__RWDS_OE_SETUP_CYCLES_bm 0xf
 #define HYPERBUS_CFG_REGS__RWDS_TIMING__RWDS_OE_SETUP_CYCLES_bp 0
-#define HYPERBUS_CFG_REGS__RWDS_TIMING__RWDS_OE_SETUP_CYCLES_bw 8
+#define HYPERBUS_CFG_REGS__RWDS_TIMING__RWDS_OE_SETUP_CYCLES_bw 4
 #define HYPERBUS_CFG_REGS__RWDS_TIMING__RWDS_OE_SETUP_CYCLES_reset 0x1
 
 // regfile - hyperbus_cfg_regs::phy_regs
@@ -166,13 +166,13 @@ typedef struct __attribute__ ((__packed__)) {
 #define HYPERBUS_CFG_REGS__RANGE_BOUND__VALUE_reset 0x1
 
 // reg - hyperbus_cfg_regs::address_cfg
-#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_SPACE_bm 0xff
+#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_SPACE_bm 0x1
 #define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_SPACE_bp 0
-#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_SPACE_bw 8
+#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_SPACE_bw 1
 #define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_SPACE_reset 0x0
-#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_MASK_MSB_bm 0xff00
+#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_MASK_MSB_bm 0x1f00
 #define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_MASK_MSB_bp 8
-#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_MASK_MSB_bw 8
+#define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_MASK_MSB_bw 5
 #define HYPERBUS_CFG_REGS__ADDRESS_CFG__ADDRESS_MASK_MSB_reset 0x19
 #define HYPERBUS_CFG_REGS__ADDRESS_CFG__ENABLE_bm 0x10000
 #define HYPERBUS_CFG_REGS__ADDRESS_CFG__ENABLE_bp 16
@@ -180,13 +180,13 @@ typedef struct __attribute__ ((__packed__)) {
 #define HYPERBUS_CFG_REGS__ADDRESS_CFG__ENABLE_reset 0x1
 
 // reg - hyperbus_cfg_regs::latency_cfg
-#define HYPERBUS_CFG_REGS__LATENCY_CFG__T_LATENCY_ACCESS_bm 0xff
+#define HYPERBUS_CFG_REGS__LATENCY_CFG__T_LATENCY_ACCESS_bm 0xf
 #define HYPERBUS_CFG_REGS__LATENCY_CFG__T_LATENCY_ACCESS_bp 0
-#define HYPERBUS_CFG_REGS__LATENCY_CFG__T_LATENCY_ACCESS_bw 8
+#define HYPERBUS_CFG_REGS__LATENCY_CFG__T_LATENCY_ACCESS_bw 4
 #define HYPERBUS_CFG_REGS__LATENCY_CFG__T_LATENCY_ACCESS_reset 0x6
-#define HYPERBUS_CFG_REGS__LATENCY_CFG__RWDS_SAMPLE_DELAY_bm 0xff00
+#define HYPERBUS_CFG_REGS__LATENCY_CFG__RWDS_SAMPLE_DELAY_bm 0xf00
 #define HYPERBUS_CFG_REGS__LATENCY_CFG__RWDS_SAMPLE_DELAY_bp 8
-#define HYPERBUS_CFG_REGS__LATENCY_CFG__RWDS_SAMPLE_DELAY_bw 8
+#define HYPERBUS_CFG_REGS__LATENCY_CFG__RWDS_SAMPLE_DELAY_bw 4
 #define HYPERBUS_CFG_REGS__LATENCY_CFG__RWDS_SAMPLE_DELAY_reset 0x0
 #define HYPERBUS_CFG_REGS__LATENCY_CFG__EN_LATENCY_ADDITIONAL_bm 0x10000
 #define HYPERBUS_CFG_REGS__LATENCY_CFG__EN_LATENCY_ADDITIONAL_bp 16
@@ -200,17 +200,17 @@ typedef struct __attribute__ ((__packed__)) {
 #define HYPERBUS_CFG_REGS__BURST_CFG__T_BURST_MAX_reset 0x15e
 
 // reg - hyperbus_cfg_regs::chip_timing
-#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_READ_WRITE_RECOVERY_bm 0xff
+#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_READ_WRITE_RECOVERY_bm 0xf
 #define HYPERBUS_CFG_REGS__CHIP_TIMING__T_READ_WRITE_RECOVERY_bp 0
-#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_READ_WRITE_RECOVERY_bw 8
+#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_READ_WRITE_RECOVERY_bw 4
 #define HYPERBUS_CFG_REGS__CHIP_TIMING__T_READ_WRITE_RECOVERY_reset 0x6
-#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_CSH_CYCLES_bm 0xff00
+#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_CSH_CYCLES_bm 0xf00
 #define HYPERBUS_CFG_REGS__CHIP_TIMING__T_CSH_CYCLES_bp 8
-#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_CSH_CYCLES_bw 8
+#define HYPERBUS_CFG_REGS__CHIP_TIMING__T_CSH_CYCLES_bw 4
 #define HYPERBUS_CFG_REGS__CHIP_TIMING__T_CSH_CYCLES_reset 0x1
-#define HYPERBUS_CFG_REGS__CHIP_TIMING__CSN_TO_CK_CYCLES_bm 0xff0000
+#define HYPERBUS_CFG_REGS__CHIP_TIMING__CSN_TO_CK_CYCLES_bm 0xf0000
 #define HYPERBUS_CFG_REGS__CHIP_TIMING__CSN_TO_CK_CYCLES_bp 16
-#define HYPERBUS_CFG_REGS__CHIP_TIMING__CSN_TO_CK_CYCLES_bw 8
+#define HYPERBUS_CFG_REGS__CHIP_TIMING__CSN_TO_CK_CYCLES_bw 4
 #define HYPERBUS_CFG_REGS__CHIP_TIMING__CSN_TO_CK_CYCLES_reset 0x0
 
 // reg - hyperbus_cfg_regs::rx_delay
@@ -299,98 +299,6 @@ typedef struct __attribute__ ((__packed__)) {
     uint32_t rx_delay;
 } hyperbus_cfg_regs__chip_regs_range_base_f7266ded_range_bound_5bf260e9_t;
 
-// reg - hyperbus_cfg_regs::range_base_value_a1e733c2
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_A1E733C2__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_A1E733C2__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_A1E733C2__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_A1E733C2__VALUE_reset 0x4
-
-// reg - hyperbus_cfg_regs::range_bound_value_342915db
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_342915DB__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_342915DB__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_342915DB__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_342915DB__VALUE_reset 0x5
-
-// regfile - hyperbus_cfg_regs::chip_regs_range_base_0d543b99_range_bound_1fffc3a2
-typedef struct __attribute__ ((__packed__)) {
-    uint32_t range_base;
-    uint32_t range_bound;
-    uint32_t address_cfg;
-    uint32_t latency_cfg;
-    uint32_t burst_cfg;
-    uint32_t chip_timing;
-    uint32_t rx_delay;
-} hyperbus_cfg_regs__chip_regs_range_base_0d543b99_range_bound_1fffc3a2_t;
-
-// reg - hyperbus_cfg_regs::range_base_value_342915db
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_342915DB__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_342915DB__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_342915DB__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_342915DB__VALUE_reset 0x5
-
-// reg - hyperbus_cfg_regs::range_bound_value_883c384f
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_883C384F__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_883C384F__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_883C384F__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_883C384F__VALUE_reset 0x6
-
-// regfile - hyperbus_cfg_regs::chip_regs_range_base_e068ab2e_range_bound_9afa5911
-typedef struct __attribute__ ((__packed__)) {
-    uint32_t range_base;
-    uint32_t range_bound;
-    uint32_t address_cfg;
-    uint32_t latency_cfg;
-    uint32_t burst_cfg;
-    uint32_t chip_timing;
-    uint32_t rx_delay;
-} hyperbus_cfg_regs__chip_regs_range_base_e068ab2e_range_bound_9afa5911_t;
-
-// reg - hyperbus_cfg_regs::range_base_value_883c384f
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_883C384F__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_883C384F__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_883C384F__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_883C384F__VALUE_reset 0x6
-
-// reg - hyperbus_cfg_regs::range_bound_value_d0d03147
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_D0D03147__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_D0D03147__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_D0D03147__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_D0D03147__VALUE_reset 0x7
-
-// regfile - hyperbus_cfg_regs::chip_regs_range_base_ac4fb754_range_bound_24b9644b
-typedef struct __attribute__ ((__packed__)) {
-    uint32_t range_base;
-    uint32_t range_bound;
-    uint32_t address_cfg;
-    uint32_t latency_cfg;
-    uint32_t burst_cfg;
-    uint32_t chip_timing;
-    uint32_t rx_delay;
-} hyperbus_cfg_regs__chip_regs_range_base_ac4fb754_range_bound_24b9644b_t;
-
-// reg - hyperbus_cfg_regs::range_base_value_d0d03147
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_D0D03147__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_D0D03147__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_D0D03147__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BASE_VALUE_D0D03147__VALUE_reset 0x7
-
-// reg - hyperbus_cfg_regs::range_bound_value_971bab53
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_971BAB53__VALUE_bm 0xffc00000
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_971BAB53__VALUE_bp 22
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_971BAB53__VALUE_bw 10
-#define HYPERBUS_CFG_REGS__RANGE_BOUND_VALUE_971BAB53__VALUE_reset 0x8
-
-// regfile - hyperbus_cfg_regs::chip_regs_range_base_63c2ba90_range_bound_602aea67
-typedef struct __attribute__ ((__packed__)) {
-    uint32_t range_base;
-    uint32_t range_bound;
-    uint32_t address_cfg;
-    uint32_t latency_cfg;
-    uint32_t burst_cfg;
-    uint32_t chip_timing;
-    uint32_t rx_delay;
-} hyperbus_cfg_regs__chip_regs_range_base_63c2ba90_range_bound_602aea67_t;
-
 // reg - hyperbus_cfg_regs::reserved_top
 #define HYPERBUS_CFG_REGS__RESERVED_TOP__VALUE_bm 0xffffffff
 #define HYPERBUS_CFG_REGS__RESERVED_TOP__VALUE_bp 0
@@ -416,15 +324,7 @@ typedef struct __attribute__ ((__packed__)) {
     hyperbus_cfg_regs__chip_regs_range_base_b054dd4c_range_bound_a4d5f83b_t chip_2;
     uint8_t RESERVED_49c_4bf[0x24];
     hyperbus_cfg_regs__chip_regs_range_base_f7266ded_range_bound_5bf260e9_t chip_3;
-    uint8_t RESERVED_4dc_4ff[0x24];
-    hyperbus_cfg_regs__chip_regs_range_base_0d543b99_range_bound_1fffc3a2_t chip_4;
-    uint8_t RESERVED_51c_53f[0x24];
-    hyperbus_cfg_regs__chip_regs_range_base_e068ab2e_range_bound_9afa5911_t chip_5;
-    uint8_t RESERVED_55c_57f[0x24];
-    hyperbus_cfg_regs__chip_regs_range_base_ac4fb754_range_bound_24b9644b_t chip_6;
-    uint8_t RESERVED_59c_5bf[0x24];
-    hyperbus_cfg_regs__chip_regs_range_base_63c2ba90_range_bound_602aea67_t chip_7;
-    uint8_t RESERVED_5dc_ffb[0xa20];
+    uint8_t RESERVED_4dc_ffb[0xb20];
     uint32_t reserved_top;
 } hyperbus_cfg_regs_t;
 

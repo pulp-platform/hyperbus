@@ -51,7 +51,7 @@ addrmap hyperbus_cfg_regs {
     };
     reg rwds_timing {
         desc = "PHY RWDS output-enable timing. rwds_oe_setup_cycles must be at most 15 and is active when capability.rwds_oe_timing is set.";
-        field { sw = rw; hw = r; reset = 8'd1; } rwds_oe_setup_cycles[7:0];
+        field { sw = rw; hw = r; reset = 4'd1; } rwds_oe_setup_cycles[3:0];
     };
     reg range_base {
         desc = "Inclusive 4 MiB-aligned chip address range base.";
@@ -63,14 +63,14 @@ addrmap hyperbus_cfg_regs {
     };
     reg address_cfg {
         desc = "Chip address-space interpretation and enable. address_space and enable must be 0 or 1, and address_mask_msb must be at most 31. Chip 0 is shared when capability.per_chip_cfg is clear; enable is active when capability.chip_enable is set.";
-        field { sw = rw; hw = r; reset = 8'd0; } address_space[7:0];
-        field { sw = rw; hw = r; reset = 8'd25; } address_mask_msb[15:8];
+        field { sw = rw; hw = r; reset = 1'b0; } address_space[0:0];
+        field { sw = rw; hw = r; reset = 5'd25; } address_mask_msb[12:8];
         field { sw = rw; hw = r; reset = 1'b1; } enable[16:16];
     };
     reg latency_cfg {
         desc = "Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.";
-        field { sw = rw; hw = r; reset = 8'd6; } t_latency_access[7:0];
-        field { sw = rw; hw = r; reset = 8'd0; } rwds_sample_delay[15:8];
+        field { sw = rw; hw = r; reset = 4'd6; } t_latency_access[3:0];
+        field { sw = rw; hw = r; reset = 4'd0; } rwds_sample_delay[11:8];
         field { sw = rw; hw = r; reset = 1'b0; } en_latency_additional[16:16];
     };
     reg burst_cfg {
@@ -79,9 +79,9 @@ addrmap hyperbus_cfg_regs {
     };
     reg chip_timing {
         desc = "Chip-select and read/write timing; byte-backed timing values must be at most 15. Chip 0 is shared when capability.per_chip_cfg is clear.";
-        field { sw = rw; hw = r; reset = 8'd6; } t_read_write_recovery[7:0];
-        field { sw = rw; hw = r; reset = 8'd1; } t_csh_cycles[15:8];
-        field { sw = rw; hw = r; reset = 8'd0; } csn_to_ck_cycles[23:16];
+        field { sw = rw; hw = r; reset = 4'd6; } t_read_write_recovery[3:0];
+        field { sw = rw; hw = r; reset = 4'd1; } t_csh_cycles[11:8];
+        field { sw = rw; hw = r; reset = 4'd0; } csn_to_ck_cycles[19:16];
     };
     reg rx_delay {
         desc = "Chip receive delay. Chip 0 is shared when capability.per_chip_cfg is clear.";
@@ -126,23 +126,11 @@ addrmap hyperbus_cfg_regs {
     chip_regs chip_1 @0x440;
     chip_regs chip_2 @0x480;
     chip_regs chip_3 @0x4c0;
-    chip_regs chip_4 @0x500;
-    chip_regs chip_5 @0x540;
-    chip_regs chip_6 @0x580;
-    chip_regs chip_7 @0x5c0;
     chip_1.range_base.value->reset = 10'd1;
     chip_1.range_bound.value->reset = 10'd2;
     chip_2.range_base.value->reset = 10'd2;
     chip_2.range_bound.value->reset = 10'd3;
     chip_3.range_base.value->reset = 10'd3;
     chip_3.range_bound.value->reset = 10'd4;
-    chip_4.range_base.value->reset = 10'd4;
-    chip_4.range_bound.value->reset = 10'd5;
-    chip_5.range_base.value->reset = 10'd5;
-    chip_5.range_bound.value->reset = 10'd6;
-    chip_6.range_base.value->reset = 10'd6;
-    chip_6.range_bound.value->reset = 10'd7;
-    chip_7.range_base.value->reset = 10'd7;
-    chip_7.range_bound.value->reset = 10'd8;
     reserved_top reserved_top @0xffc;
 };

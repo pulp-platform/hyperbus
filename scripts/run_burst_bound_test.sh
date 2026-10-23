@@ -9,7 +9,7 @@ build_root=${1:-$(mktemp -d /tmp/hyperbus-burst-bound.XXXXXX)}
 mkdir -p "$build_root"
 build_root=$(realpath "$build_root")
 cc=$(bender --local path common_cells)
-for config in 256:32:1 0:32:1; do
+for config in 256:32:1 0:32:1 0:12:1 0:12:2; do
   IFS=: read -r max_beats addr_width phys <<< "$config"
   name="max-$max_beats"
   if [[ $addr_width != 32 ]]; then name="addr-$addr_width-phys-$phys"; fi
@@ -18,7 +18,6 @@ for config in 256:32:1 0:32:1; do
     "-GHostAddrWidth=$addr_width" "-GNumPhys=$phys" \
     --Mdir "$build_root/$name" -j 2 \
     -Iinclude "-I$cc/include" "$cc/src/cf_math_pkg.sv" \
-    "$cc/src/addr_decode.sv" "$cc/src/addr_decode_dync.sv" \
     "$cc/src/fifo_v3.sv" "$cc/src/stream_fifo.sv" \
     "$cc/src/spill_register.sv" "$cc/src/spill_register_flushable.sv" \
     "$cc/src/stream_register.sv" src/hyperbus_pkg.sv \
@@ -51,4 +50,12 @@ if [[ $status == 0 || $status == 124 ]] ||
     printf 'Oversized physical span did not trigger its assertion\n' >&2
     exit 1
 fi
-printf 'PASS: host/physical bounds and mapped reads. Logs: %s\n' "$build_root"
+for phys in 1 2; do
+  for scenario in address-overflow address-overflow-write end-overflow near-address-end; do
+    log="$build_root/$scenario-phys-$phys.log"
+    timeout 30s oseda -2026.09 "$build_root/addr-12-phys-$phys/Vhyperbus_burst_bound_tb" \
+        "+$scenario" > "$log" 2>&1
+    grep -Fq 'PASS:' "$log"
+  done
+done
+printf 'PASS: host/physical/address bounds and mapped reads. Logs: %s\n' "$build_root"
