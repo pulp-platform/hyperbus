@@ -122,11 +122,28 @@ module hyperbus_cfg_regs_tb;
         reg_read(32'h004, data);
         if (data != 32'h0001_0000) $error("REG_IF version reset mismatch: %h", data);
         reg_read(32'h008, data);
-        if (data != 32'h003f_0204) $error("capability fields mismatch: %h", data);
+        if (data != 32'h00ff_0204) $error("capability fields mismatch: %h", data);
         reg_read(32'h400, data);
         if (data != 32'h0000_0000) $fatal(1, "chip0 base reset mismatch");
         reg_read(32'h418, data);
         if (data != 32'h0000_0010) $fatal(1, "chip0 rx delay reset mismatch");
+        for (int i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
+            reg_read(32'h40c + i * 32'h40, data);
+            if (data[24] || phy_cfg.chip[i].keep_dq_driven)
+                $fatal(1, "keep_dq_driven must reset disabled on chip %0d", i);
+            reg_write(32'h40c + i * 32'h40, 32'h0100_0006);
+            reg_read(32'h40c + i * 32'h40, data);
+            if (data != 32'h0100_0006 || !phy_cfg.chip[i].keep_dq_driven)
+                $fatal(1, "keep_dq_driven mapping mismatch on chip %0d", i);
+            for (int j = 0; j < hyperbus_pkg::HyperNumChips; j++) begin
+                if (j != i && phy_cfg.chip[j].keep_dq_driven)
+                    $fatal(1, "keep_dq_driven changed unselected chip %0d", j);
+            end
+            reg_write_error(32'h40c + i * 32'h40, 32'h0200_0000, 4'b1000);
+            if (!phy_cfg.chip[i].keep_dq_driven)
+                $fatal(1, "invalid write changed keep_dq_driven");
+            reg_write(32'h40c + i * 32'h40, 32'h0000_0006);
+        end
         if ((chip_rules[3].start_addr != 32'h00c0_0000) ||
             (chip_rules[3].end_addr != 32'h0100_0000)) begin
             $error("chip3 reset range mismatch");
@@ -155,6 +172,8 @@ module hyperbus_cfg_regs_tb;
         reg_write_error(32'h44c, 32'h0000_0002, 4'b0001);
         reg_read(32'h44c, data);
         if (data != 32'h0001_0307) $error("invalid latency write changed the register: %h", data);
+        reg_write_error(32'h44c, 32'h0000_0004, 4'b0001);
+        reg_write_error(32'h44c, 32'h0000_0600, 4'b0010);
         reg_write_error(32'h304, 32'h0000_0010, 4'b0001);
         reg_write_error(32'h408, 32'h0000_2000, 4'b0010);
         reg_write_error(32'h44c, 32'h0000_0010, 4'b0001);
@@ -163,8 +182,7 @@ module hyperbus_cfg_regs_tb;
         reg_write_error(32'h454, 32'h0000_1000, 4'b0010);
         reg_write_error(32'h454, 32'h0010_0000, 4'b0100);
         reg_read(32'h44c, data);
-        if (data != 32'h0001_0307) $error("invalid narrow-field write changed the register: %h", data);
-        reg_read_error(32'h500);
+        if (data != 32'h0001_0307) $error("inconsistent sample timing changed the register: %h", data);
         reg_read_error(32'h104);
         reg_read_error(32'h7fc);
         reg_read_error(32'h1000);

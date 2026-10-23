@@ -90,15 +90,17 @@ Bender and Verilator from OSEDA 2026.09:
 bash scripts/run_atomic_tests.sh build/atomic
 bash scripts/run_iso_clock_div_test.sh build/iso_clock_div
 bash scripts/run_phy_reset_cfg_test.sh
+bash scripts/run_phy_timing_test.sh build/phy_timing
 ```
 
 The atomic tests cover the handler and AXI frontend/midend with a byte-addressed
 backend test model. The reset and divider tests instantiate the real top-level
 control path, bridges and PHY. They check configuration replay and recovery timing,
-not external-memory read timing. Compile and simulation logs are retained in each
+not external-memory read timing. The PHY timing test supplies a delayed read return
+and checks its data and completion. Compile and simulation logs are retained in each
 build directory; the reset test defaults to `build/phy_reset_cfg`.
 
-The Questa regression has separate functional and performance suites.
+The Questa regression has separate functional, performance and pad-delay suites.
 `all` runs every suite; a completion marker and an error-free transcript are both
 required for each test. Builds and logs are isolated from the source directory:
 
@@ -107,9 +109,10 @@ bash scripts/run_regression.sh all build/regression
 bash scripts/run_regression.sh performance build/performance
 ```
 
-The other suite names are `fast` and `integration`. Performance tests enforce
+The other suite names are `fast`, `integration` and `pad`. Performance tests enforce
 latency budgets; segment counts are diagnostic, not a required splitting policy.
 Use the site's resource limiter only when a run meets its resource thresholds.
+See [Verification](docs/verification.md) for coverage and requirements.
 
 ## ToDos
 

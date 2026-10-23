@@ -60,6 +60,7 @@ package hyperbus_pkg;
     typedef struct packed {
         logic [3:0]  t_latency_access;
         logic        en_latency_additional;
+        logic        keep_dq_driven;
         logic [3:0]  rwds_sample_delay;
         logic [15:0] t_burst_max;
         logic [3:0]  t_read_write_recovery;
@@ -112,6 +113,7 @@ package hyperbus_pkg;
         WaitAddLatAccess,
         Read,
         Write,
+        WaitRwdsOe,
         WaitXfer,
         WaitRWR
     } hyper_phy_state_t;
