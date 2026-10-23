@@ -38,8 +38,7 @@ module hyperbus_backend #(
     output logic [NumPhys-1:0]               hyper_rwds_oe_o,
     input  logic [NumPhys-1:0][7:0]          hyper_dq_i,
     output logic [NumPhys-1:0][7:0]          hyper_dq_o,
-    output logic [NumPhys-1:0]               hyper_dq_oe_o,
-    output logic [NumPhys-1:0]               hyper_reset_no
+    output logic [NumPhys-1:0]               hyper_dq_oe_o
 );
 
     /////////////////////////////
@@ -213,8 +212,7 @@ module hyperbus_backend #(
                 .hyper_rwds_oe_o( hyper_rwds_oe_o[i] ),
                 .hyper_dq_i     ( hyper_dq_i[i]      ),
                 .hyper_dq_o     ( hyper_dq_o[i]      ),
-                .hyper_dq_oe_o  ( hyper_dq_oe_o[i]   ),
-                .hyper_reset_no ( hyper_reset_no[i]  )
+                .hyper_dq_oe_o  ( hyper_dq_oe_o[i]   )
             );
         end
     end else begin : gen_single_phy
@@ -255,8 +253,7 @@ module hyperbus_backend #(
             .hyper_rwds_oe_o( hyper_rwds_oe_o    ),
             .hyper_dq_i     ( hyper_dq_i         ),
             .hyper_dq_o     ( hyper_dq_o         ),
-            .hyper_dq_oe_o  ( hyper_dq_oe_o      ),
-            .hyper_reset_no ( hyper_reset_no     )
+            .hyper_dq_oe_o  ( hyper_dq_oe_o      )
         );
     end
 

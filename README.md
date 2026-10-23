@@ -50,6 +50,8 @@ drains without applying them. AXI offers remain stable until accepted.
   only for operand ordering; see [integration requirements](docs/integration.md).
 - Devices must tolerate clock stopping, or sufficient buffering must prevent it.
 - Only the asynchronous top supports quiescent PHY-only reset and configuration replay.
+- Memory reset is platform-owned: replace the removed `hyper_reset_no` connection
+  with a GPIO/reset manager; see [reset sequencing](docs/external_memory_reset.md).
 
 See [pad timing](docs/pad_timing_integration.md) for electrical margins.
 

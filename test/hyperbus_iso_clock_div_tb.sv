@@ -52,7 +52,7 @@ module hyperbus_iso_clock_div_tb #(
         .reg_req_i(reg_req), .reg_rsp_o(reg_rsp),
         .hyper_cs_no(hyper_cs_n), .hyper_ck_o(hyper_ck), .hyper_ck_no(),
         .hyper_rwds_o(), .hyper_rwds_i('0), .hyper_rwds_oe_o(),
-        .hyper_dq_i('0), .hyper_dq_o(), .hyper_dq_oe_o(), .hyper_reset_no()
+        .hyper_dq_i('0), .hyper_dq_o(), .hyper_dq_oe_o()
     );
 
     // Sample before the accepting edge, independently of the RTL SVA macros.

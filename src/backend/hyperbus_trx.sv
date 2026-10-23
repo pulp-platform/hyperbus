@@ -45,12 +45,8 @@ module hyperbus_trx #(
     output logic                   hyper_rwds_oe_o,
     input  logic [7:0]             hyper_dq_i,
     output logic [7:0]             hyper_dq_o,
-    output logic                   hyper_dq_oe_o,
-    output logic                   hyper_reset_no
+    output logic                   hyper_dq_oe_o
 );
-
-    // Feed through async reset
-    assign hyper_reset_no = rst_ni;
 
     //////////////////
     // TX and control //
