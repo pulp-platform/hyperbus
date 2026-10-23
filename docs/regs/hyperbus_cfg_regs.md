@@ -330,13 +330,18 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
 | 3:0|   t_latency_access  |  rw  | 0x6 |  — |
 |11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
+| 24 |    keep_dq_driven   |  rw  | 0x0 |  — |
+
+#### keep_dq_driven field
+
+<p>Keep host DQ driven through write initial latency, avoiding pad output-enable turnaround. Enable only for devices permitting driven DQ during this interval; the generic HyperBus interface-state table specifies high-Z. Does not affect reads, RWDS ownership, or recovery.</p>
 
 ### burst_cfg register
 
@@ -436,13 +441,18 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
 | 3:0|   t_latency_access  |  rw  | 0x6 |  — |
 |11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
+| 24 |    keep_dq_driven   |  rw  | 0x0 |  — |
+
+#### keep_dq_driven field
+
+<p>Keep host DQ driven through write initial latency, avoiding pad output-enable turnaround. Enable only for devices permitting driven DQ during this interval; the generic HyperBus interface-state table specifies high-Z. Does not affect reads, RWDS ownership, or recovery.</p>
 
 ### burst_cfg register
 
@@ -542,13 +552,18 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
 | 3:0|   t_latency_access  |  rw  | 0x6 |  — |
 |11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
+| 24 |    keep_dq_driven   |  rw  | 0x0 |  — |
+
+#### keep_dq_driven field
+
+<p>Keep host DQ driven through write initial latency, avoiding pad output-enable turnaround. Enable only for devices permitting driven DQ during this interval; the generic HyperBus interface-state table specifies high-Z. Does not affect reads, RWDS ownership, or recovery.</p>
 
 ### burst_cfg register
 
@@ -648,13 +663,18 @@ Don't override. Generated from: hyperbus_cfg_regs
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
+<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
 | 3:0|   t_latency_access  |  rw  | 0x6 |  — |
 |11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
+| 24 |    keep_dq_driven   |  rw  | 0x0 |  — |
+
+#### keep_dq_driven field
+
+<p>Keep host DQ driven through write initial latency, avoiding pad output-enable turnaround. Enable only for devices permitting driven DQ during this interval; the generic HyperBus interface-state table specifies high-Z. Does not affect reads, RWDS ownership, or recovery.</p>
 
 ### burst_cfg register
 
