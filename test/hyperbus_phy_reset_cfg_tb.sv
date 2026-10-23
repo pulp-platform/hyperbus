@@ -379,17 +379,17 @@ module hyperbus_phy_reset_cfg_tb #(
             $fatal(1, "combined-reset default initialization mismatch");
 
         reg_access(1, 32'h300, 32'h12, data);
-        reg_access(1, 32'h40c, 32'h0001_0307, data);
+        reg_access(1, 32'h40c, 32'h0101_0307, data);
         reg_access(1, 32'h400, 32'h0040_0000, data);
         reg_access(1, 32'h00c, 32'h2, data);
         wait_idle();
         applied_phy = dut.i_backend.cfg_q;
         applied_frontend = dut.frontend_cfg;
         if (applied_phy.phy[0].tx_delay != 8'h12 ||
-            !applied_phy.chip[0].en_latency_additional ||
+            !applied_phy.chip[0].keep_dq_driven ||
             applied_frontend.chip[0].range_base != 32'h0040_0000)
-            $fatal(1, "nondefault APPLY mismatch tx=%h additional_latency=%b base=%h applies=%0d state=%0d",
-                applied_phy.phy[0].tx_delay, applied_phy.chip[0].en_latency_additional,
+            $fatal(1, "nondefault APPLY mismatch tx=%h keep=%b base=%h applies=%0d state=%0d",
+                applied_phy.phy[0].tx_delay, applied_phy.chip[0].keep_dq_driven,
                 applied_frontend.chip[0].range_base, backend_apply_count,
                 dut.i_cfg_frontend.cfg_state_q);
 

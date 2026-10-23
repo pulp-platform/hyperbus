@@ -308,9 +308,14 @@ package hyperbus_cfg_regblock_pkg;
     } hyperbus_cfg_regs__latency_cfg__en_latency_additional__out_t;
 
     typedef struct {
+        logic value;
+    } hyperbus_cfg_regs__latency_cfg__keep_dq_driven__out_t;
+
+    typedef struct {
         hyperbus_cfg_regs__latency_cfg__t_latency_access__out_t t_latency_access;
         hyperbus_cfg_regs__latency_cfg__rwds_sample_delay__out_t rwds_sample_delay;
         hyperbus_cfg_regs__latency_cfg__en_latency_additional__out_t en_latency_additional;
+        hyperbus_cfg_regs__latency_cfg__keep_dq_driven__out_t keep_dq_driven;
     } hyperbus_cfg_regs__latency_cfg__out_t;
 
     typedef struct {

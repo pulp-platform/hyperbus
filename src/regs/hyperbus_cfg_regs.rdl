@@ -68,10 +68,14 @@ addrmap hyperbus_cfg_regs {
         field { sw = rw; hw = r; reset = 1'b1; } enable[16:16];
     };
     reg latency_cfg {
-        desc = "Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.";
+        desc = "Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most t_latency_access minus 2 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.";
         field { sw = rw; hw = r; reset = 4'd6; } t_latency_access[3:0];
         field { sw = rw; hw = r; reset = 4'd0; } rwds_sample_delay[11:8];
         field { sw = rw; hw = r; reset = 1'b0; } en_latency_additional[16:16];
+        field {
+            desc = "Keep host DQ driven through write initial latency, avoiding pad output-enable turnaround. Enable only for devices permitting driven DQ during this interval; the generic HyperBus interface-state table specifies high-Z. Does not affect reads, RWDS ownership, or recovery.";
+            sw = rw; hw = r; reset = 1'b0;
+        } keep_dq_driven[24:24];
     };
     reg burst_cfg {
         desc = "Chip burst configuration. Chip 0 is shared when capability.per_chip_cfg is clear.";
