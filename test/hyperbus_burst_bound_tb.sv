@@ -15,7 +15,7 @@ module hyperbus_burst_bound_tb #(
     typedef logic [HostAddrWidth-1:0] addr_t;
     typedef logic [63:0] data_t;
     typedef logic [7:0] strb_t;
-    typedef struct packed { addr_t start_addr; addr_t end_addr; logic [2:0] idx; } rule_t;
+    typedef struct packed { addr_t start_addr; addr_t end_addr; } rule_t;
     `HYPERBUS_TYPEDEF_HOST_ALL_CT(host, addr_t, data_t, strb_t)
     `HYPERBUS_TYPEDEF_LINK_ALL_CT(link, NumPhys)
 
@@ -113,17 +113,10 @@ module hyperbus_burst_bound_tb #(
         req = '0;
         cfg = '0;
         rules = '0;
-        if (HostAddrWidth <= 20)
-            $fatal(1, "Focused decoder fixture requires at least 21 address bits");
-        for (int i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
-            rules[i].idx = 3'(i);
-            rules[i].start_addr = addr_t'('1) - 32 + 2*i;
-            rules[i].end_addr = rules[i].start_addr + 1;
-        end
         if (mapped_read) begin
-            rules[0].start_addr = '0;
             cfg.dual_phy = NumPhys == 2;
-            cfg.address_mask_msb = 20;
+            cfg.chip[0].enable = 1;
+            cfg.chip[0].address_mask_msb = 20;
             // Zero is the full-address-space endpoint on a small address bus.
             rules[0].end_addr = HostAddrWidth <= 20 ? '0 : addr_t'(32'h0010_0000);
         end

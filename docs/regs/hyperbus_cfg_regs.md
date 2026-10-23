@@ -24,10 +24,6 @@ Don't override. Generated from: hyperbus_cfg_regs
 | 0x440|   chip_1   |  — |
 | 0x480|   chip_2   |  — |
 | 0x4C0|   chip_3   |  — |
-| 0x500|   chip_4   |  — |
-| 0x540|   chip_5   |  — |
-| 0x580|   chip_6   |  — |
-| 0x5C0|   chip_7   |  — |
 | 0xFFC|reserved_top|  — |
 
 ## global_cfg register file
@@ -237,7 +233,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|     Identifier     |Access|Reset|Name|
 |----|--------------------|------|-----|----|
-| 7:0|rwds_oe_setup_cycles|  rw  | 0x1 |  — |
+| 3:0|rwds_oe_setup_cycles|  rw  | 0x1 |  — |
 
 ## phy_1 register file
 
@@ -272,7 +268,7 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|     Identifier     |Access|Reset|Name|
 |----|--------------------|------|-----|----|
-| 7:0|rwds_oe_setup_cycles|  rw  | 0x1 |  — |
+| 3:0|rwds_oe_setup_cycles|  rw  | 0x1 |  — |
 
 ## chip_0 register file
 
@@ -324,8 +320,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|   Identifier   |Access|Reset|Name|
 |----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
+|  0 |  address_space |  rw  | 0x0 |  — |
+|12:8|address_mask_msb|  rw  | 0x19|  — |
 | 16 |     enable     |  rw  | 0x1 |  — |
 
 ### latency_cfg register
@@ -338,8 +334,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
+| 3:0|   t_latency_access  |  rw  | 0x6 |  — |
+|11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
 
 ### burst_cfg register
@@ -364,9 +360,9 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 | Bits|      Identifier     |Access|Reset|Name|
 |-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
+| 3:0 |t_read_write_recovery|  rw  | 0x6 |  — |
+| 11:8|     t_csh_cycles    |  rw  | 0x1 |  — |
+|19:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
 
 ### rx_delay register
 
@@ -430,8 +426,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|   Identifier   |Access|Reset|Name|
 |----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
+|  0 |  address_space |  rw  | 0x0 |  — |
+|12:8|address_mask_msb|  rw  | 0x19|  — |
 | 16 |     enable     |  rw  | 0x1 |  — |
 
 ### latency_cfg register
@@ -444,8 +440,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
+| 3:0|   t_latency_access  |  rw  | 0x6 |  — |
+|11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
 
 ### burst_cfg register
@@ -470,9 +466,9 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 | Bits|      Identifier     |Access|Reset|Name|
 |-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
+| 3:0 |t_read_write_recovery|  rw  | 0x6 |  — |
+| 11:8|     t_csh_cycles    |  rw  | 0x1 |  — |
+|19:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
 
 ### rx_delay register
 
@@ -536,8 +532,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|   Identifier   |Access|Reset|Name|
 |----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
+|  0 |  address_space |  rw  | 0x0 |  — |
+|12:8|address_mask_msb|  rw  | 0x19|  — |
 | 16 |     enable     |  rw  | 0x1 |  — |
 
 ### latency_cfg register
@@ -550,8 +546,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
+| 3:0|   t_latency_access  |  rw  | 0x6 |  — |
+|11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
 
 ### burst_cfg register
@@ -576,9 +572,9 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 | Bits|      Identifier     |Access|Reset|Name|
 |-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
+| 3:0 |t_read_write_recovery|  rw  | 0x6 |  — |
+| 11:8|     t_csh_cycles    |  rw  | 0x1 |  — |
+|19:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
 
 ### rx_delay register
 
@@ -642,8 +638,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|   Identifier   |Access|Reset|Name|
 |----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
+|  0 |  address_space |  rw  | 0x0 |  — |
+|12:8|address_mask_msb|  rw  | 0x19|  — |
 | 16 |     enable     |  rw  | 0x1 |  — |
 
 ### latency_cfg register
@@ -656,8 +652,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 |Bits|      Identifier     |Access|Reset|Name|
 |----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
+| 3:0|   t_latency_access  |  rw  | 0x6 |  — |
+|11:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
 | 16 |en_latency_additional|  rw  | 0x0 |  — |
 
 ### burst_cfg register
@@ -682,437 +678,13 @@ Don't override. Generated from: hyperbus_cfg_regs
 
 | Bits|      Identifier     |Access|Reset|Name|
 |-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
+| 3:0 |t_read_write_recovery|  rw  | 0x6 |  — |
+| 11:8|     t_csh_cycles    |  rw  | 0x1 |  — |
+|19:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
 
 ### rx_delay register
 
 - Absolute Address: 0x4D8
-- Base Offset: 0x18
-- Size: 0x4
-
-<p>Chip receive delay. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 7:0|   value  |  rw  | 0x10|  — |
-
-## chip_4 register file
-
-- Absolute Address: 0x500
-- Base Offset: 0x500
-- Size: 0x1C
-
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | range_base|  — |
-| 0x04 |range_bound|  — |
-| 0x08 |address_cfg|  — |
-| 0x0C |latency_cfg|  — |
-| 0x10 | burst_cfg |  — |
-| 0x14 |chip_timing|  — |
-| 0x18 |  rx_delay |  — |
-
-### range_base register
-
-- Absolute Address: 0x500
-- Base Offset: 0x0
-- Size: 0x4
-
-<p>Inclusive 4 MiB-aligned chip address range base.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x4 |  — |
-
-### range_bound register
-
-- Absolute Address: 0x504
-- Base Offset: 0x4
-- Size: 0x4
-
-<p>Exclusive 4 MiB-aligned chip address range bound.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x5 |  — |
-
-### address_cfg register
-
-- Absolute Address: 0x508
-- Base Offset: 0x8
-- Size: 0x4
-
-<p>Chip address-space interpretation and enable. address_space and enable must be 0 or 1, and address_mask_msb must be at most 31. Chip 0 is shared when capability.per_chip_cfg is clear; enable is active when capability.chip_enable is set.</p>
-
-|Bits|   Identifier   |Access|Reset|Name|
-|----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
-| 16 |     enable     |  rw  | 0x1 |  — |
-
-### latency_cfg register
-
-- Absolute Address: 0x50C
-- Base Offset: 0xC
-- Size: 0x4
-
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|      Identifier     |Access|Reset|Name|
-|----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
-| 16 |en_latency_additional|  rw  | 0x0 |  — |
-
-### burst_cfg register
-
-- Absolute Address: 0x510
-- Base Offset: 0x10
-- Size: 0x4
-
-<p>Chip burst configuration. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits| Identifier|Access|Reset|Name|
-|----|-----------|------|-----|----|
-|15:0|t_burst_max|  rw  |0x15E|  — |
-
-### chip_timing register
-
-- Absolute Address: 0x514
-- Base Offset: 0x14
-- Size: 0x4
-
-<p>Chip-select and read/write timing; byte-backed timing values must be at most 15. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-| Bits|      Identifier     |Access|Reset|Name|
-|-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
-
-### rx_delay register
-
-- Absolute Address: 0x518
-- Base Offset: 0x18
-- Size: 0x4
-
-<p>Chip receive delay. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 7:0|   value  |  rw  | 0x10|  — |
-
-## chip_5 register file
-
-- Absolute Address: 0x540
-- Base Offset: 0x540
-- Size: 0x1C
-
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | range_base|  — |
-| 0x04 |range_bound|  — |
-| 0x08 |address_cfg|  — |
-| 0x0C |latency_cfg|  — |
-| 0x10 | burst_cfg |  — |
-| 0x14 |chip_timing|  — |
-| 0x18 |  rx_delay |  — |
-
-### range_base register
-
-- Absolute Address: 0x540
-- Base Offset: 0x0
-- Size: 0x4
-
-<p>Inclusive 4 MiB-aligned chip address range base.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x5 |  — |
-
-### range_bound register
-
-- Absolute Address: 0x544
-- Base Offset: 0x4
-- Size: 0x4
-
-<p>Exclusive 4 MiB-aligned chip address range bound.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x6 |  — |
-
-### address_cfg register
-
-- Absolute Address: 0x548
-- Base Offset: 0x8
-- Size: 0x4
-
-<p>Chip address-space interpretation and enable. address_space and enable must be 0 or 1, and address_mask_msb must be at most 31. Chip 0 is shared when capability.per_chip_cfg is clear; enable is active when capability.chip_enable is set.</p>
-
-|Bits|   Identifier   |Access|Reset|Name|
-|----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
-| 16 |     enable     |  rw  | 0x1 |  — |
-
-### latency_cfg register
-
-- Absolute Address: 0x54C
-- Base Offset: 0xC
-- Size: 0x4
-
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|      Identifier     |Access|Reset|Name|
-|----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
-| 16 |en_latency_additional|  rw  | 0x0 |  — |
-
-### burst_cfg register
-
-- Absolute Address: 0x550
-- Base Offset: 0x10
-- Size: 0x4
-
-<p>Chip burst configuration. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits| Identifier|Access|Reset|Name|
-|----|-----------|------|-----|----|
-|15:0|t_burst_max|  rw  |0x15E|  — |
-
-### chip_timing register
-
-- Absolute Address: 0x554
-- Base Offset: 0x14
-- Size: 0x4
-
-<p>Chip-select and read/write timing; byte-backed timing values must be at most 15. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-| Bits|      Identifier     |Access|Reset|Name|
-|-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
-
-### rx_delay register
-
-- Absolute Address: 0x558
-- Base Offset: 0x18
-- Size: 0x4
-
-<p>Chip receive delay. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 7:0|   value  |  rw  | 0x10|  — |
-
-## chip_6 register file
-
-- Absolute Address: 0x580
-- Base Offset: 0x580
-- Size: 0x1C
-
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | range_base|  — |
-| 0x04 |range_bound|  — |
-| 0x08 |address_cfg|  — |
-| 0x0C |latency_cfg|  — |
-| 0x10 | burst_cfg |  — |
-| 0x14 |chip_timing|  — |
-| 0x18 |  rx_delay |  — |
-
-### range_base register
-
-- Absolute Address: 0x580
-- Base Offset: 0x0
-- Size: 0x4
-
-<p>Inclusive 4 MiB-aligned chip address range base.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x6 |  — |
-
-### range_bound register
-
-- Absolute Address: 0x584
-- Base Offset: 0x4
-- Size: 0x4
-
-<p>Exclusive 4 MiB-aligned chip address range bound.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x7 |  — |
-
-### address_cfg register
-
-- Absolute Address: 0x588
-- Base Offset: 0x8
-- Size: 0x4
-
-<p>Chip address-space interpretation and enable. address_space and enable must be 0 or 1, and address_mask_msb must be at most 31. Chip 0 is shared when capability.per_chip_cfg is clear; enable is active when capability.chip_enable is set.</p>
-
-|Bits|   Identifier   |Access|Reset|Name|
-|----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
-| 16 |     enable     |  rw  | 0x1 |  — |
-
-### latency_cfg register
-
-- Absolute Address: 0x58C
-- Base Offset: 0xC
-- Size: 0x4
-
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|      Identifier     |Access|Reset|Name|
-|----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
-| 16 |en_latency_additional|  rw  | 0x0 |  — |
-
-### burst_cfg register
-
-- Absolute Address: 0x590
-- Base Offset: 0x10
-- Size: 0x4
-
-<p>Chip burst configuration. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits| Identifier|Access|Reset|Name|
-|----|-----------|------|-----|----|
-|15:0|t_burst_max|  rw  |0x15E|  — |
-
-### chip_timing register
-
-- Absolute Address: 0x594
-- Base Offset: 0x14
-- Size: 0x4
-
-<p>Chip-select and read/write timing; byte-backed timing values must be at most 15. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-| Bits|      Identifier     |Access|Reset|Name|
-|-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
-
-### rx_delay register
-
-- Absolute Address: 0x598
-- Base Offset: 0x18
-- Size: 0x4
-
-<p>Chip receive delay. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 7:0|   value  |  rw  | 0x10|  — |
-
-## chip_7 register file
-
-- Absolute Address: 0x5C0
-- Base Offset: 0x5C0
-- Size: 0x1C
-
-|Offset| Identifier|Name|
-|------|-----------|----|
-| 0x00 | range_base|  — |
-| 0x04 |range_bound|  — |
-| 0x08 |address_cfg|  — |
-| 0x0C |latency_cfg|  — |
-| 0x10 | burst_cfg |  — |
-| 0x14 |chip_timing|  — |
-| 0x18 |  rx_delay |  — |
-
-### range_base register
-
-- Absolute Address: 0x5C0
-- Base Offset: 0x0
-- Size: 0x4
-
-<p>Inclusive 4 MiB-aligned chip address range base.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x7 |  — |
-
-### range_bound register
-
-- Absolute Address: 0x5C4
-- Base Offset: 0x4
-- Size: 0x4
-
-<p>Exclusive 4 MiB-aligned chip address range bound.</p>
-
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-|31:22|   value  |  rw  | 0x8 |  — |
-
-### address_cfg register
-
-- Absolute Address: 0x5C8
-- Base Offset: 0x8
-- Size: 0x4
-
-<p>Chip address-space interpretation and enable. address_space and enable must be 0 or 1, and address_mask_msb must be at most 31. Chip 0 is shared when capability.per_chip_cfg is clear; enable is active when capability.chip_enable is set.</p>
-
-|Bits|   Identifier   |Access|Reset|Name|
-|----|----------------|------|-----|----|
-| 7:0|  address_space |  rw  | 0x0 |  — |
-|15:8|address_mask_msb|  rw  | 0x19|  — |
-| 16 |     enable     |  rw  | 0x1 |  — |
-
-### latency_cfg register
-
-- Absolute Address: 0x5CC
-- Base Offset: 0xC
-- Size: 0x4
-
-<p>Chip latency configuration. t_latency_access must be 3 through 15; rwds_sample_delay must be at most 15 and is active when capability.rwds_sample_timing is set. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits|      Identifier     |Access|Reset|Name|
-|----|---------------------|------|-----|----|
-| 7:0|   t_latency_access  |  rw  | 0x6 |  — |
-|15:8|  rwds_sample_delay  |  rw  | 0x0 |  — |
-| 16 |en_latency_additional|  rw  | 0x0 |  — |
-
-### burst_cfg register
-
-- Absolute Address: 0x5D0
-- Base Offset: 0x10
-- Size: 0x4
-
-<p>Chip burst configuration. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-|Bits| Identifier|Access|Reset|Name|
-|----|-----------|------|-----|----|
-|15:0|t_burst_max|  rw  |0x15E|  — |
-
-### chip_timing register
-
-- Absolute Address: 0x5D4
-- Base Offset: 0x14
-- Size: 0x4
-
-<p>Chip-select and read/write timing; byte-backed timing values must be at most 15. Chip 0 is shared when capability.per_chip_cfg is clear.</p>
-
-| Bits|      Identifier     |Access|Reset|Name|
-|-----|---------------------|------|-----|----|
-| 7:0 |t_read_write_recovery|  rw  | 0x6 |  — |
-| 15:8|     t_csh_cycles    |  rw  | 0x1 |  — |
-|23:16|   csn_to_ck_cycles  |  rw  | 0x0 |  — |
-
-### rx_delay register
-
-- Absolute Address: 0x5D8
 - Base Offset: 0x18
 - Size: 0x4
 

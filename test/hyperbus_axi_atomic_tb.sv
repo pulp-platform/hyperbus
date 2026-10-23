@@ -14,7 +14,7 @@ module hyperbus_axi_atomic_tb #(
     typedef logic [HostBytes-1:0] strb_t;
     typedef logic [3:0] id_t;
     typedef logic user_t;
-    typedef struct packed { addr_t start_addr; addr_t end_addr; logic [2:0] idx; } rule_t;
+    typedef struct packed { addr_t start_addr; addr_t end_addr; } rule_t;
     `AXI_TYPEDEF_ALL(axi, addr_t, id_t, data_t, strb_t, user_t)
     `HYPERBUS_TYPEDEF_HOST_ALL_CT(host, addr_t, data_t, strb_t)
     `HYPERBUS_TYPEDEF_LINK_ALL_CT(link, 1)
@@ -531,12 +531,8 @@ module hyperbus_axi_atomic_tb #(
         drain = 1'b0;
         cfg = '0;
         rules = '0;
-        for (int i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
-            rules[i].idx = 3'(i);
-            rules[i].start_addr = 32'hffff_0000 + 2*i;
-            rules[i].end_addr = rules[i].start_addr + 1;
-        end
-        cfg.address_mask_msb = 7;
+        cfg.chip[0].enable = 1;
+        cfg.chip[0].address_mask_msb = 7;
         rules[0].start_addr = 32'h8000_0000;
         rules[0].end_addr = 32'h8000_0080;
         for (int i = 0; i < 128; i++) memory[i] = 8'(i);

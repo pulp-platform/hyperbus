@@ -1,72 +1,97 @@
 # HyperBus v2
 
-This peripheral implements an AXI4-compliant interface for the HyperBus protocol, described [in its specification](https://www.cypress.com/file/213356/download). HyperBus v2 is part of the [PULP (Parallel Ultra-Low-Power) platform](https://pulp-platform.org/).
+AXI4 controller for the [HyperBus protocol](https://www.cypress.com/file/213356/download),
+part of the [PULP platform](https://pulp-platform.org/). Tested with HyperRAM.
 
-Hyperbus is mainly used for off-chip memories (HyperFlash and HyperRAM), but also supported by some generic peripherals.
-
-## Release 0.0.10
-
-This is the final release of the legacy controller architecture. It retains the
-`hyperbus` top, shared timing registers and `hyper_reset_no`; the controller and
-configuration redesign is not included. See [CHANGELOG.md](CHANGELOG.md) for the
-changes and migration notes for every tag since 0.0.1.
-
-When migrating from 0.0.9, replace `IsClockODelayed` with `UsePhyClkDivider`
-(inverted polarity), review the widened delay controls, and update chip-range
-register offsets from `0x2c` to `0x30` for a 32-bit register bus.
+`v0.0.10` is the final legacy release with the `hyperbus` top. This branch contains
+the redesigned controller; see [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Features
 
-The AXI data widths are parameterizable from 16 to 1024, with transfers of all sizes possible. It is also possible to decide how many memories to connect on the same HyperBUS to set the overall available memory.
+- 16-1024-bit AXI data; two PHYs require at least 32 bits.
+- One or two PHYs, with four chip-select ranks each. Dual-PHY interleaving pairs
+  devices at each rank, doubling data bandwidth: four ranks, up to eight devices.
+- Per-chip address ranges and timing, staged configuration, and runtime PHY selection.
+- Subword transfers, byte strobes and single-beat atomics.
+- Clock stopping and transaction segmentation for backpressure and chip boundaries.
 
-Multiple memories on the same bus are placed contiguously in the address memory map and selected through their dedicated CS. At runtime, one can communicate to the controller the size
-of the HyperRAMs, and the controller will demultiplex the transactions accordingly. Also, one can choose how many HyperBUS interfaces (1 or 2) to expose. Both buses will have the same number of CSs.
-When exposing 2 HyperBUSes, the pair of memories on the same chip select will be mapped as interleaved: each memory will be seen as a memory block of 16-bit width. Doing so will double the maximum achievable bandwidth, up to 6.4 Gbps,
-doubling the pin count.
+## Clocking Options
 
-The main restrictions are as follows:
+All three tops keep the AXI frontend, configuration frontend and midend on the
+system clock. They share the same physical backend.
 
-- Atomics are not supported.
-- AXI INCR bursts and single-beat FIXED requests are supported; multi-beat FIXED
-  and WRAP bursts are not supported.
-- All accesses except byte-size accesses must be aligned to 16-bit boundaries.
-- Only communication with HyperRAMs has been tested. Support for flash is WIP.
+### Synchronous
 
-The address width is also fully parameterizable. We support bursts of any size permitted by AXI and stalling through PHY-level clock stopping and protocol-level burst splitting. We do _not_ buffer bursts to support devices without the clock stop feature; please ensure your device supports clock stop or ensure sufficient buffering upstream.
+[`hyperbus_synchronous`](src/hyperbus_synchronous.sv) runs the frontend and backend
+on `clk_sys_i`, without a system-to-PHY bridge. Choose it when the backend can
+share the system clock.
 
-The configuration register interface uses the minimal Regbus protocol. Data and address widths are parameterizable, but register sizes must be a power of two larger than 16 bits.
+### Isochronous
 
-Dual-PHY builds can select one or both PHYs at runtime through `phys_in_use` and
-`which_phy`. Changing the active PHY count changes data packing and addressing;
-update configuration while the controller is idle.
+[`hyperbus_isochronous`](src/hyperbus_isochronous.sv) derives the backend clock from
+`clk_sys_i` using a programmable integer divider (minimum 2). It uses isochronous
+handshakes for control and spill registers for data, rather than asynchronous
+data FIFOs. Choose it for a slower, related PHY clock without a separate clock input.
+Divider changes wait for idle and completed backend recovery.
 
-## Architecture
+### Asynchronous
 
-The block diagram outlines the system-clock and PHY-clock paths, plus the delayed
-incoming RWDS read-capture clock. `UsePhyClkDivider=1` divides `clk_phy_i` by two
-to generate quadrature PHY clocks. With `UsePhyClkDivider=0`, each PHY uses a
-programmable TX clock delay instead. Xilinx delay-line builds additionally require
-`clk_ref200_i` at 200 MHz.
+[`hyperbus_asynchronous`](src/hyperbus_asynchronous.sv) accepts independent
+`clk_sys_i` and `clk_phy_i` clocks. CDC FIFOs carry data; synchronized handshakes
+carry commands, configuration and write responses. Choose it for unrelated
+system and PHY clock domains.
 
-![HyperBus v2 block diagram](./docs/axi_hyper.svg)
+All variants capture incoming read data using delayed RWDS, so the synchronous
+option still contains that source-synchronous clock crossing. TX clock and RX RWDS
+delays are programmable. Xilinx delay-line builds require `clk_ref200_i` at 200 MHz.
+
+The [legacy block diagram](docs/axi_hyper.svg) predates this split.
+
+## Configuration
+
+The [register map](docs/regs/hyperbus_cfg_regs.md) occupies a 4 KiB window on a
+32-bit Regbus interface. Writes are staged: APPLY drains traffic and activates
+the new values; FLUSH drains without applying them. AXI offers must remain stable
+until accepted, including during a barrier.
+
+The asynchronous top can replay the last-applied settings after a quiescent
+PHY-only reset. See [integration requirements](docs/integration.md) for the reset
+conditions and atomic operand encoding.
+
+## Limits
+
+- Ordinary AXI traffic supports INCR and single-beat FIXED requests, not WRAP.
+- Atomics require naturally aligned operands and one write-data beat. AtomicCompare
+  permits WRAP only to encode operand order; see the integration note.
+- Devices must tolerate clock stopping, or the system must provide enough buffering
+  to avoid it. The controller does not buffer complete bursts for such devices.
+- Unaligned-access coverage is incomplete (see TODOs).
 
 ## Simulation
 
-Simulation requires [Bender](https://github.com/pulp-platform/bender), QuestaSim
-and Infineon's proprietary S27KS0641 model. Download the vendor archive after
-logging in and pass its containing directory through `CACHED_MODEL_PATH`:
+Install Bender and QuestaSim, then obtain Infineon's proprietary model archive
+using a vendor login. See [model setup](models/README.md) for licensing and the
+optional `make hyper-nonfree-init` helper.
 
 ```bash
 bender checkout
-make run CACHED_MODEL_PATH=/path/to/model-archives
+make models/s27ks0641 CACHED_MODEL_PATH=/path/to/model-archives
+bash scripts/run_regression.sh all build/regression
 ```
 
-`make hyper-nonfree-init` optionally installs the pinned internal model helper;
-it requires access to that repository and is not required for local archives.
-See [models/README.md](models/README.md) for model setup and license information.
+Suites: `all`, `fast`, `integration`, `performance`. Performance tests enforce
+latency budgets; logs and work libraries stay in the chosen build directory.
 
-## ToDos
+Focused control tests need no vendor model. They use Verilator; the divider/reset
+runners select OSEDA 2026.09:
 
-- [ ] Support byte-aligned accesses for non-byte-size transfer
-- [ ] Test HyperFlash
-- [ ] PSRAM support through additional CA decoder
+```bash
+bash scripts/run_atomic_tests.sh build/atomic
+bash scripts/run_iso_clock_div_test.sh build/iso_clock_div
+bash scripts/run_phy_reset_cfg_test.sh
+```
+
+## TODOs
+
+- [ ] Complete unaligned-transfer coverage for dual-PHY and multi-beat traffic.
+- [ ] Support additional PSRAM command/address formats.

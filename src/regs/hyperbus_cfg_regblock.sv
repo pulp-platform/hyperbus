@@ -144,42 +144,6 @@ module hyperbus_cfg_regblock (
             logic chip_timing;
             logic rx_delay;
         } chip_3;
-        struct {
-            logic range_base;
-            logic range_bound;
-            logic address_cfg;
-            logic latency_cfg;
-            logic burst_cfg;
-            logic chip_timing;
-            logic rx_delay;
-        } chip_4;
-        struct {
-            logic range_base;
-            logic range_bound;
-            logic address_cfg;
-            logic latency_cfg;
-            logic burst_cfg;
-            logic chip_timing;
-            logic rx_delay;
-        } chip_5;
-        struct {
-            logic range_base;
-            logic range_bound;
-            logic address_cfg;
-            logic latency_cfg;
-            logic burst_cfg;
-            logic chip_timing;
-            logic rx_delay;
-        } chip_6;
-        struct {
-            logic range_base;
-            logic range_bound;
-            logic address_cfg;
-            logic latency_cfg;
-            logic burst_cfg;
-            logic chip_timing;
-            logic rx_delay;
-        } chip_7;
         logic reserved_top;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
@@ -234,34 +198,6 @@ module hyperbus_cfg_regblock (
         decoded_reg_strb.chip_3.burst_cfg = cpuif_req_masked & (cpuif_addr == 12'h4d0);
         decoded_reg_strb.chip_3.chip_timing = cpuif_req_masked & (cpuif_addr == 12'h4d4);
         decoded_reg_strb.chip_3.rx_delay = cpuif_req_masked & (cpuif_addr == 12'h4d8);
-        decoded_reg_strb.chip_4.range_base = cpuif_req_masked & (cpuif_addr == 12'h500);
-        decoded_reg_strb.chip_4.range_bound = cpuif_req_masked & (cpuif_addr == 12'h504);
-        decoded_reg_strb.chip_4.address_cfg = cpuif_req_masked & (cpuif_addr == 12'h508);
-        decoded_reg_strb.chip_4.latency_cfg = cpuif_req_masked & (cpuif_addr == 12'h50c);
-        decoded_reg_strb.chip_4.burst_cfg = cpuif_req_masked & (cpuif_addr == 12'h510);
-        decoded_reg_strb.chip_4.chip_timing = cpuif_req_masked & (cpuif_addr == 12'h514);
-        decoded_reg_strb.chip_4.rx_delay = cpuif_req_masked & (cpuif_addr == 12'h518);
-        decoded_reg_strb.chip_5.range_base = cpuif_req_masked & (cpuif_addr == 12'h540);
-        decoded_reg_strb.chip_5.range_bound = cpuif_req_masked & (cpuif_addr == 12'h544);
-        decoded_reg_strb.chip_5.address_cfg = cpuif_req_masked & (cpuif_addr == 12'h548);
-        decoded_reg_strb.chip_5.latency_cfg = cpuif_req_masked & (cpuif_addr == 12'h54c);
-        decoded_reg_strb.chip_5.burst_cfg = cpuif_req_masked & (cpuif_addr == 12'h550);
-        decoded_reg_strb.chip_5.chip_timing = cpuif_req_masked & (cpuif_addr == 12'h554);
-        decoded_reg_strb.chip_5.rx_delay = cpuif_req_masked & (cpuif_addr == 12'h558);
-        decoded_reg_strb.chip_6.range_base = cpuif_req_masked & (cpuif_addr == 12'h580);
-        decoded_reg_strb.chip_6.range_bound = cpuif_req_masked & (cpuif_addr == 12'h584);
-        decoded_reg_strb.chip_6.address_cfg = cpuif_req_masked & (cpuif_addr == 12'h588);
-        decoded_reg_strb.chip_6.latency_cfg = cpuif_req_masked & (cpuif_addr == 12'h58c);
-        decoded_reg_strb.chip_6.burst_cfg = cpuif_req_masked & (cpuif_addr == 12'h590);
-        decoded_reg_strb.chip_6.chip_timing = cpuif_req_masked & (cpuif_addr == 12'h594);
-        decoded_reg_strb.chip_6.rx_delay = cpuif_req_masked & (cpuif_addr == 12'h598);
-        decoded_reg_strb.chip_7.range_base = cpuif_req_masked & (cpuif_addr == 12'h5c0);
-        decoded_reg_strb.chip_7.range_bound = cpuif_req_masked & (cpuif_addr == 12'h5c4);
-        decoded_reg_strb.chip_7.address_cfg = cpuif_req_masked & (cpuif_addr == 12'h5c8);
-        decoded_reg_strb.chip_7.latency_cfg = cpuif_req_masked & (cpuif_addr == 12'h5cc);
-        decoded_reg_strb.chip_7.burst_cfg = cpuif_req_masked & (cpuif_addr == 12'h5d0);
-        decoded_reg_strb.chip_7.chip_timing = cpuif_req_masked & (cpuif_addr == 12'h5d4);
-        decoded_reg_strb.chip_7.rx_delay = cpuif_req_masked & (cpuif_addr == 12'h5d8);
         decoded_reg_strb.reserved_top = cpuif_req_masked & (cpuif_addr == 12'hffc) & !cpuif_req_is_wr;
         decoded_err = '0;
     end
@@ -370,7 +306,7 @@ module hyperbus_cfg_regblock (
             } tx_delay;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } rwds_oe_setup_cycles;
             } rwds_timing;
@@ -384,7 +320,7 @@ module hyperbus_cfg_regblock (
             } tx_delay;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } rwds_oe_setup_cycles;
             } rwds_timing;
@@ -404,11 +340,11 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic next;
                     logic load_next;
                 } address_space;
                 struct {
-                    logic [7:0] next;
+                    logic [4:0] next;
                     logic load_next;
                 } address_mask_msb;
                 struct {
@@ -418,11 +354,11 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_latency_access;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } rwds_sample_delay;
                 struct {
@@ -438,15 +374,15 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } csn_to_ck_cycles;
             } chip_timing;
@@ -472,11 +408,11 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic next;
                     logic load_next;
                 } address_space;
                 struct {
-                    logic [7:0] next;
+                    logic [4:0] next;
                     logic load_next;
                 } address_mask_msb;
                 struct {
@@ -486,11 +422,11 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_latency_access;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } rwds_sample_delay;
                 struct {
@@ -506,15 +442,15 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } csn_to_ck_cycles;
             } chip_timing;
@@ -540,11 +476,11 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic next;
                     logic load_next;
                 } address_space;
                 struct {
-                    logic [7:0] next;
+                    logic [4:0] next;
                     logic load_next;
                 } address_mask_msb;
                 struct {
@@ -554,11 +490,11 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_latency_access;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } rwds_sample_delay;
                 struct {
@@ -574,15 +510,15 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } csn_to_ck_cycles;
             } chip_timing;
@@ -608,11 +544,11 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic next;
                     logic load_next;
                 } address_space;
                 struct {
-                    logic [7:0] next;
+                    logic [4:0] next;
                     logic load_next;
                 } address_mask_msb;
                 struct {
@@ -622,11 +558,11 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_latency_access;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } rwds_sample_delay;
                 struct {
@@ -642,15 +578,15 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] next;
+                    logic [3:0] next;
                     logic load_next;
                 } csn_to_ck_cycles;
             } chip_timing;
@@ -661,278 +597,6 @@ module hyperbus_cfg_regblock (
                 } value;
             } rx_delay;
         } chip_3;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_space;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_mask_msb;
-                struct {
-                    logic next;
-                    logic load_next;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_latency_access;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } rwds_sample_delay;
-                struct {
-                    logic next;
-                    logic load_next;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] next;
-                    logic load_next;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } value;
-            } rx_delay;
-        } chip_4;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_space;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_mask_msb;
-                struct {
-                    logic next;
-                    logic load_next;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_latency_access;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } rwds_sample_delay;
-                struct {
-                    logic next;
-                    logic load_next;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] next;
-                    logic load_next;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } value;
-            } rx_delay;
-        } chip_5;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_space;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_mask_msb;
-                struct {
-                    logic next;
-                    logic load_next;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_latency_access;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } rwds_sample_delay;
-                struct {
-                    logic next;
-                    logic load_next;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] next;
-                    logic load_next;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } value;
-            } rx_delay;
-        } chip_6;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] next;
-                    logic load_next;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_space;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } address_mask_msb;
-                struct {
-                    logic next;
-                    logic load_next;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_latency_access;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } rwds_sample_delay;
-                struct {
-                    logic next;
-                    logic load_next;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] next;
-                    logic load_next;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] next;
-                    logic load_next;
-                } value;
-            } rx_delay;
-        } chip_7;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -1012,7 +676,7 @@ module hyperbus_cfg_regblock (
             } tx_delay;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } rwds_oe_setup_cycles;
             } rwds_timing;
         } phy_0;
@@ -1024,7 +688,7 @@ module hyperbus_cfg_regblock (
             } tx_delay;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } rwds_oe_setup_cycles;
             } rwds_timing;
         } phy_1;
@@ -1041,10 +705,10 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic value;
                 } address_space;
                 struct {
-                    logic [7:0] value;
+                    logic [4:0] value;
                 } address_mask_msb;
                 struct {
                     logic value;
@@ -1052,10 +716,10 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_latency_access;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } rwds_sample_delay;
                 struct {
                     logic value;
@@ -1068,13 +732,13 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } csn_to_ck_cycles;
             } chip_timing;
             struct {
@@ -1096,10 +760,10 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic value;
                 } address_space;
                 struct {
-                    logic [7:0] value;
+                    logic [4:0] value;
                 } address_mask_msb;
                 struct {
                     logic value;
@@ -1107,10 +771,10 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_latency_access;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } rwds_sample_delay;
                 struct {
                     logic value;
@@ -1123,13 +787,13 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } csn_to_ck_cycles;
             } chip_timing;
             struct {
@@ -1151,10 +815,10 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic value;
                 } address_space;
                 struct {
-                    logic [7:0] value;
+                    logic [4:0] value;
                 } address_mask_msb;
                 struct {
                     logic value;
@@ -1162,10 +826,10 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_latency_access;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } rwds_sample_delay;
                 struct {
                     logic value;
@@ -1178,13 +842,13 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } csn_to_ck_cycles;
             } chip_timing;
             struct {
@@ -1206,10 +870,10 @@ module hyperbus_cfg_regblock (
             } range_bound;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic value;
                 } address_space;
                 struct {
-                    logic [7:0] value;
+                    logic [4:0] value;
                 } address_mask_msb;
                 struct {
                     logic value;
@@ -1217,10 +881,10 @@ module hyperbus_cfg_regblock (
             } address_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_latency_access;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } rwds_sample_delay;
                 struct {
                     logic value;
@@ -1233,13 +897,13 @@ module hyperbus_cfg_regblock (
             } burst_cfg;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_read_write_recovery;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } t_csh_cycles;
                 struct {
-                    logic [7:0] value;
+                    logic [3:0] value;
                 } csn_to_ck_cycles;
             } chip_timing;
             struct {
@@ -1248,226 +912,6 @@ module hyperbus_cfg_regblock (
                 } value;
             } rx_delay;
         } chip_3;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } address_space;
-                struct {
-                    logic [7:0] value;
-                } address_mask_msb;
-                struct {
-                    logic value;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_latency_access;
-                struct {
-                    logic [7:0] value;
-                } rwds_sample_delay;
-                struct {
-                    logic value;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] value;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] value;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] value;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } value;
-            } rx_delay;
-        } chip_4;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } address_space;
-                struct {
-                    logic [7:0] value;
-                } address_mask_msb;
-                struct {
-                    logic value;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_latency_access;
-                struct {
-                    logic [7:0] value;
-                } rwds_sample_delay;
-                struct {
-                    logic value;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] value;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] value;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] value;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } value;
-            } rx_delay;
-        } chip_5;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } address_space;
-                struct {
-                    logic [7:0] value;
-                } address_mask_msb;
-                struct {
-                    logic value;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_latency_access;
-                struct {
-                    logic [7:0] value;
-                } rwds_sample_delay;
-                struct {
-                    logic value;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] value;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] value;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] value;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } value;
-            } rx_delay;
-        } chip_6;
-        struct {
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_base;
-            struct {
-                struct {
-                    logic [9:0] value;
-                } value;
-            } range_bound;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } address_space;
-                struct {
-                    logic [7:0] value;
-                } address_mask_msb;
-                struct {
-                    logic value;
-                } enable;
-            } address_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_latency_access;
-                struct {
-                    logic [7:0] value;
-                } rwds_sample_delay;
-                struct {
-                    logic value;
-                } en_latency_additional;
-            } latency_cfg;
-            struct {
-                struct {
-                    logic [15:0] value;
-                } t_burst_max;
-            } burst_cfg;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } t_read_write_recovery;
-                struct {
-                    logic [7:0] value;
-                } t_csh_cycles;
-                struct {
-                    logic [7:0] value;
-                } csn_to_ck_cycles;
-            } chip_timing;
-            struct {
-                struct {
-                    logic [7:0] value;
-                } value;
-            } rx_delay;
-        } chip_7;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -1905,12 +1349,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.phy_0.tx_delay.value.value = field_storage.phy_0.tx_delay.value.value;
     // Field: hyperbus_cfg_regs.phy_0.rwds_timing.rwds_oe_setup_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.phy_0.rwds_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.phy_0.rwds_timing.rwds_oe_setup_cycles.next = next_c;
@@ -1918,7 +1362,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value <= 8'h1;
+            field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value <= 4'h1;
         end else begin
             if(field_combo.phy_0.rwds_timing.rwds_oe_setup_cycles.load_next) begin
                 field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value <= field_combo.phy_0.rwds_timing.rwds_oe_setup_cycles.next;
@@ -1951,12 +1395,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.phy_1.tx_delay.value.value = field_storage.phy_1.tx_delay.value.value;
     // Field: hyperbus_cfg_regs.phy_1.rwds_timing.rwds_oe_setup_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.phy_1.rwds_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.phy_1.rwds_timing.rwds_oe_setup_cycles.next = next_c;
@@ -1964,7 +1408,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value <= 8'h1;
+            field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value <= 4'h1;
         end else begin
             if(field_combo.phy_1.rwds_timing.rwds_oe_setup_cycles.load_next) begin
                 field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value <= field_combo.phy_1.rwds_timing.rwds_oe_setup_cycles.next;
@@ -2020,12 +1464,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_0.range_bound.value.value = field_storage.chip_0.range_bound.value.value;
     // Field: hyperbus_cfg_regs.chip_0.address_cfg.address_space
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [0:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_0.address_cfg.address_space.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_0.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_0.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_0.address_cfg.address_space.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
         field_combo.chip_0.address_cfg.address_space.next = next_c;
@@ -2033,7 +1477,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_0.address_cfg.address_space.value <= 8'h0;
+            field_storage.chip_0.address_cfg.address_space.value <= 1'h0;
         end else begin
             if(field_combo.chip_0.address_cfg.address_space.load_next) begin
                 field_storage.chip_0.address_cfg.address_space.value <= field_combo.chip_0.address_cfg.address_space.next;
@@ -2043,12 +1487,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_0.address_cfg.address_space.value = field_storage.chip_0.address_cfg.address_space.value;
     // Field: hyperbus_cfg_regs.chip_0.address_cfg.address_mask_msb
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [4:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_0.address_cfg.address_mask_msb.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_0.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_0.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_0.address_cfg.address_mask_msb.value & ~decoded_wr_biten[12:8]) | (decoded_wr_data[12:8] & decoded_wr_biten[12:8]);
             load_next_c = '1;
         end
         field_combo.chip_0.address_cfg.address_mask_msb.next = next_c;
@@ -2056,7 +1500,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_0.address_cfg.address_mask_msb.value <= 8'h19;
+            field_storage.chip_0.address_cfg.address_mask_msb.value <= 5'h19;
         end else begin
             if(field_combo.chip_0.address_cfg.address_mask_msb.load_next) begin
                 field_storage.chip_0.address_cfg.address_mask_msb.value <= field_combo.chip_0.address_cfg.address_mask_msb.next;
@@ -2089,12 +1533,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_0.address_cfg.enable.value = field_storage.chip_0.address_cfg.enable.value;
     // Field: hyperbus_cfg_regs.chip_0.latency_cfg.t_latency_access
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_0.latency_cfg.t_latency_access.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_0.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_0.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_0.latency_cfg.t_latency_access.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_0.latency_cfg.t_latency_access.next = next_c;
@@ -2102,7 +1546,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_0.latency_cfg.t_latency_access.value <= 8'h6;
+            field_storage.chip_0.latency_cfg.t_latency_access.value <= 4'h6;
         end else begin
             if(field_combo.chip_0.latency_cfg.t_latency_access.load_next) begin
                 field_storage.chip_0.latency_cfg.t_latency_access.value <= field_combo.chip_0.latency_cfg.t_latency_access.next;
@@ -2112,12 +1556,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_0.latency_cfg.t_latency_access.value = field_storage.chip_0.latency_cfg.t_latency_access.value;
     // Field: hyperbus_cfg_regs.chip_0.latency_cfg.rwds_sample_delay
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_0.latency_cfg.rwds_sample_delay.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_0.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_0.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_0.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_0.latency_cfg.rwds_sample_delay.next = next_c;
@@ -2125,7 +1569,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_0.latency_cfg.rwds_sample_delay.value <= 8'h0;
+            field_storage.chip_0.latency_cfg.rwds_sample_delay.value <= 4'h0;
         end else begin
             if(field_combo.chip_0.latency_cfg.rwds_sample_delay.load_next) begin
                 field_storage.chip_0.latency_cfg.rwds_sample_delay.value <= field_combo.chip_0.latency_cfg.rwds_sample_delay.next;
@@ -2181,12 +1625,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_0.burst_cfg.t_burst_max.value = field_storage.chip_0.burst_cfg.t_burst_max.value;
     // Field: hyperbus_cfg_regs.chip_0.chip_timing.t_read_write_recovery
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_0.chip_timing.t_read_write_recovery.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_0.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_0.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_0.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_0.chip_timing.t_read_write_recovery.next = next_c;
@@ -2194,7 +1638,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_0.chip_timing.t_read_write_recovery.value <= 8'h6;
+            field_storage.chip_0.chip_timing.t_read_write_recovery.value <= 4'h6;
         end else begin
             if(field_combo.chip_0.chip_timing.t_read_write_recovery.load_next) begin
                 field_storage.chip_0.chip_timing.t_read_write_recovery.value <= field_combo.chip_0.chip_timing.t_read_write_recovery.next;
@@ -2204,12 +1648,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_0.chip_timing.t_read_write_recovery.value = field_storage.chip_0.chip_timing.t_read_write_recovery.value;
     // Field: hyperbus_cfg_regs.chip_0.chip_timing.t_csh_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_0.chip_timing.t_csh_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_0.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_0.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_0.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_0.chip_timing.t_csh_cycles.next = next_c;
@@ -2217,7 +1661,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_0.chip_timing.t_csh_cycles.value <= 8'h1;
+            field_storage.chip_0.chip_timing.t_csh_cycles.value <= 4'h1;
         end else begin
             if(field_combo.chip_0.chip_timing.t_csh_cycles.load_next) begin
                 field_storage.chip_0.chip_timing.t_csh_cycles.value <= field_combo.chip_0.chip_timing.t_csh_cycles.next;
@@ -2227,12 +1671,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_0.chip_timing.t_csh_cycles.value = field_storage.chip_0.chip_timing.t_csh_cycles.value;
     // Field: hyperbus_cfg_regs.chip_0.chip_timing.csn_to_ck_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_0.chip_timing.csn_to_ck_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_0.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_0.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            next_c = (field_storage.chip_0.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[19:16]) | (decoded_wr_data[19:16] & decoded_wr_biten[19:16]);
             load_next_c = '1;
         end
         field_combo.chip_0.chip_timing.csn_to_ck_cycles.next = next_c;
@@ -2240,7 +1684,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_0.chip_timing.csn_to_ck_cycles.value <= 8'h0;
+            field_storage.chip_0.chip_timing.csn_to_ck_cycles.value <= 4'h0;
         end else begin
             if(field_combo.chip_0.chip_timing.csn_to_ck_cycles.load_next) begin
                 field_storage.chip_0.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_0.chip_timing.csn_to_ck_cycles.next;
@@ -2319,12 +1763,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_1.range_bound.value.value = field_storage.chip_1.range_bound.value.value;
     // Field: hyperbus_cfg_regs.chip_1.address_cfg.address_space
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [0:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_1.address_cfg.address_space.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_1.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_1.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_1.address_cfg.address_space.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
         field_combo.chip_1.address_cfg.address_space.next = next_c;
@@ -2332,7 +1776,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_1.address_cfg.address_space.value <= 8'h0;
+            field_storage.chip_1.address_cfg.address_space.value <= 1'h0;
         end else begin
             if(field_combo.chip_1.address_cfg.address_space.load_next) begin
                 field_storage.chip_1.address_cfg.address_space.value <= field_combo.chip_1.address_cfg.address_space.next;
@@ -2342,12 +1786,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_1.address_cfg.address_space.value = field_storage.chip_1.address_cfg.address_space.value;
     // Field: hyperbus_cfg_regs.chip_1.address_cfg.address_mask_msb
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [4:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_1.address_cfg.address_mask_msb.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_1.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_1.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_1.address_cfg.address_mask_msb.value & ~decoded_wr_biten[12:8]) | (decoded_wr_data[12:8] & decoded_wr_biten[12:8]);
             load_next_c = '1;
         end
         field_combo.chip_1.address_cfg.address_mask_msb.next = next_c;
@@ -2355,7 +1799,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_1.address_cfg.address_mask_msb.value <= 8'h19;
+            field_storage.chip_1.address_cfg.address_mask_msb.value <= 5'h19;
         end else begin
             if(field_combo.chip_1.address_cfg.address_mask_msb.load_next) begin
                 field_storage.chip_1.address_cfg.address_mask_msb.value <= field_combo.chip_1.address_cfg.address_mask_msb.next;
@@ -2388,12 +1832,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_1.address_cfg.enable.value = field_storage.chip_1.address_cfg.enable.value;
     // Field: hyperbus_cfg_regs.chip_1.latency_cfg.t_latency_access
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_1.latency_cfg.t_latency_access.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_1.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_1.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_1.latency_cfg.t_latency_access.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_1.latency_cfg.t_latency_access.next = next_c;
@@ -2401,7 +1845,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_1.latency_cfg.t_latency_access.value <= 8'h6;
+            field_storage.chip_1.latency_cfg.t_latency_access.value <= 4'h6;
         end else begin
             if(field_combo.chip_1.latency_cfg.t_latency_access.load_next) begin
                 field_storage.chip_1.latency_cfg.t_latency_access.value <= field_combo.chip_1.latency_cfg.t_latency_access.next;
@@ -2411,12 +1855,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_1.latency_cfg.t_latency_access.value = field_storage.chip_1.latency_cfg.t_latency_access.value;
     // Field: hyperbus_cfg_regs.chip_1.latency_cfg.rwds_sample_delay
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_1.latency_cfg.rwds_sample_delay.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_1.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_1.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_1.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_1.latency_cfg.rwds_sample_delay.next = next_c;
@@ -2424,7 +1868,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_1.latency_cfg.rwds_sample_delay.value <= 8'h0;
+            field_storage.chip_1.latency_cfg.rwds_sample_delay.value <= 4'h0;
         end else begin
             if(field_combo.chip_1.latency_cfg.rwds_sample_delay.load_next) begin
                 field_storage.chip_1.latency_cfg.rwds_sample_delay.value <= field_combo.chip_1.latency_cfg.rwds_sample_delay.next;
@@ -2480,12 +1924,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_1.burst_cfg.t_burst_max.value = field_storage.chip_1.burst_cfg.t_burst_max.value;
     // Field: hyperbus_cfg_regs.chip_1.chip_timing.t_read_write_recovery
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_1.chip_timing.t_read_write_recovery.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_1.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_1.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_1.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_1.chip_timing.t_read_write_recovery.next = next_c;
@@ -2493,7 +1937,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_1.chip_timing.t_read_write_recovery.value <= 8'h6;
+            field_storage.chip_1.chip_timing.t_read_write_recovery.value <= 4'h6;
         end else begin
             if(field_combo.chip_1.chip_timing.t_read_write_recovery.load_next) begin
                 field_storage.chip_1.chip_timing.t_read_write_recovery.value <= field_combo.chip_1.chip_timing.t_read_write_recovery.next;
@@ -2503,12 +1947,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_1.chip_timing.t_read_write_recovery.value = field_storage.chip_1.chip_timing.t_read_write_recovery.value;
     // Field: hyperbus_cfg_regs.chip_1.chip_timing.t_csh_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_1.chip_timing.t_csh_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_1.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_1.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_1.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_1.chip_timing.t_csh_cycles.next = next_c;
@@ -2516,7 +1960,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_1.chip_timing.t_csh_cycles.value <= 8'h1;
+            field_storage.chip_1.chip_timing.t_csh_cycles.value <= 4'h1;
         end else begin
             if(field_combo.chip_1.chip_timing.t_csh_cycles.load_next) begin
                 field_storage.chip_1.chip_timing.t_csh_cycles.value <= field_combo.chip_1.chip_timing.t_csh_cycles.next;
@@ -2526,12 +1970,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_1.chip_timing.t_csh_cycles.value = field_storage.chip_1.chip_timing.t_csh_cycles.value;
     // Field: hyperbus_cfg_regs.chip_1.chip_timing.csn_to_ck_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_1.chip_timing.csn_to_ck_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_1.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_1.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            next_c = (field_storage.chip_1.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[19:16]) | (decoded_wr_data[19:16] & decoded_wr_biten[19:16]);
             load_next_c = '1;
         end
         field_combo.chip_1.chip_timing.csn_to_ck_cycles.next = next_c;
@@ -2539,7 +1983,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_1.chip_timing.csn_to_ck_cycles.value <= 8'h0;
+            field_storage.chip_1.chip_timing.csn_to_ck_cycles.value <= 4'h0;
         end else begin
             if(field_combo.chip_1.chip_timing.csn_to_ck_cycles.load_next) begin
                 field_storage.chip_1.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_1.chip_timing.csn_to_ck_cycles.next;
@@ -2618,12 +2062,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_2.range_bound.value.value = field_storage.chip_2.range_bound.value.value;
     // Field: hyperbus_cfg_regs.chip_2.address_cfg.address_space
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [0:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_2.address_cfg.address_space.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_2.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_2.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_2.address_cfg.address_space.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
         field_combo.chip_2.address_cfg.address_space.next = next_c;
@@ -2631,7 +2075,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_2.address_cfg.address_space.value <= 8'h0;
+            field_storage.chip_2.address_cfg.address_space.value <= 1'h0;
         end else begin
             if(field_combo.chip_2.address_cfg.address_space.load_next) begin
                 field_storage.chip_2.address_cfg.address_space.value <= field_combo.chip_2.address_cfg.address_space.next;
@@ -2641,12 +2085,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_2.address_cfg.address_space.value = field_storage.chip_2.address_cfg.address_space.value;
     // Field: hyperbus_cfg_regs.chip_2.address_cfg.address_mask_msb
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [4:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_2.address_cfg.address_mask_msb.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_2.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_2.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_2.address_cfg.address_mask_msb.value & ~decoded_wr_biten[12:8]) | (decoded_wr_data[12:8] & decoded_wr_biten[12:8]);
             load_next_c = '1;
         end
         field_combo.chip_2.address_cfg.address_mask_msb.next = next_c;
@@ -2654,7 +2098,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_2.address_cfg.address_mask_msb.value <= 8'h19;
+            field_storage.chip_2.address_cfg.address_mask_msb.value <= 5'h19;
         end else begin
             if(field_combo.chip_2.address_cfg.address_mask_msb.load_next) begin
                 field_storage.chip_2.address_cfg.address_mask_msb.value <= field_combo.chip_2.address_cfg.address_mask_msb.next;
@@ -2687,12 +2131,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_2.address_cfg.enable.value = field_storage.chip_2.address_cfg.enable.value;
     // Field: hyperbus_cfg_regs.chip_2.latency_cfg.t_latency_access
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_2.latency_cfg.t_latency_access.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_2.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_2.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_2.latency_cfg.t_latency_access.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_2.latency_cfg.t_latency_access.next = next_c;
@@ -2700,7 +2144,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_2.latency_cfg.t_latency_access.value <= 8'h6;
+            field_storage.chip_2.latency_cfg.t_latency_access.value <= 4'h6;
         end else begin
             if(field_combo.chip_2.latency_cfg.t_latency_access.load_next) begin
                 field_storage.chip_2.latency_cfg.t_latency_access.value <= field_combo.chip_2.latency_cfg.t_latency_access.next;
@@ -2710,12 +2154,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_2.latency_cfg.t_latency_access.value = field_storage.chip_2.latency_cfg.t_latency_access.value;
     // Field: hyperbus_cfg_regs.chip_2.latency_cfg.rwds_sample_delay
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_2.latency_cfg.rwds_sample_delay.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_2.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_2.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_2.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_2.latency_cfg.rwds_sample_delay.next = next_c;
@@ -2723,7 +2167,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_2.latency_cfg.rwds_sample_delay.value <= 8'h0;
+            field_storage.chip_2.latency_cfg.rwds_sample_delay.value <= 4'h0;
         end else begin
             if(field_combo.chip_2.latency_cfg.rwds_sample_delay.load_next) begin
                 field_storage.chip_2.latency_cfg.rwds_sample_delay.value <= field_combo.chip_2.latency_cfg.rwds_sample_delay.next;
@@ -2779,12 +2223,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_2.burst_cfg.t_burst_max.value = field_storage.chip_2.burst_cfg.t_burst_max.value;
     // Field: hyperbus_cfg_regs.chip_2.chip_timing.t_read_write_recovery
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_2.chip_timing.t_read_write_recovery.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_2.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_2.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_2.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_2.chip_timing.t_read_write_recovery.next = next_c;
@@ -2792,7 +2236,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_2.chip_timing.t_read_write_recovery.value <= 8'h6;
+            field_storage.chip_2.chip_timing.t_read_write_recovery.value <= 4'h6;
         end else begin
             if(field_combo.chip_2.chip_timing.t_read_write_recovery.load_next) begin
                 field_storage.chip_2.chip_timing.t_read_write_recovery.value <= field_combo.chip_2.chip_timing.t_read_write_recovery.next;
@@ -2802,12 +2246,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_2.chip_timing.t_read_write_recovery.value = field_storage.chip_2.chip_timing.t_read_write_recovery.value;
     // Field: hyperbus_cfg_regs.chip_2.chip_timing.t_csh_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_2.chip_timing.t_csh_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_2.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_2.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_2.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_2.chip_timing.t_csh_cycles.next = next_c;
@@ -2815,7 +2259,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_2.chip_timing.t_csh_cycles.value <= 8'h1;
+            field_storage.chip_2.chip_timing.t_csh_cycles.value <= 4'h1;
         end else begin
             if(field_combo.chip_2.chip_timing.t_csh_cycles.load_next) begin
                 field_storage.chip_2.chip_timing.t_csh_cycles.value <= field_combo.chip_2.chip_timing.t_csh_cycles.next;
@@ -2825,12 +2269,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_2.chip_timing.t_csh_cycles.value = field_storage.chip_2.chip_timing.t_csh_cycles.value;
     // Field: hyperbus_cfg_regs.chip_2.chip_timing.csn_to_ck_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_2.chip_timing.csn_to_ck_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_2.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_2.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            next_c = (field_storage.chip_2.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[19:16]) | (decoded_wr_data[19:16] & decoded_wr_biten[19:16]);
             load_next_c = '1;
         end
         field_combo.chip_2.chip_timing.csn_to_ck_cycles.next = next_c;
@@ -2838,7 +2282,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_2.chip_timing.csn_to_ck_cycles.value <= 8'h0;
+            field_storage.chip_2.chip_timing.csn_to_ck_cycles.value <= 4'h0;
         end else begin
             if(field_combo.chip_2.chip_timing.csn_to_ck_cycles.load_next) begin
                 field_storage.chip_2.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_2.chip_timing.csn_to_ck_cycles.next;
@@ -2917,12 +2361,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_3.range_bound.value.value = field_storage.chip_3.range_bound.value.value;
     // Field: hyperbus_cfg_regs.chip_3.address_cfg.address_space
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [0:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_3.address_cfg.address_space.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_3.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_3.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_3.address_cfg.address_space.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
         end
         field_combo.chip_3.address_cfg.address_space.next = next_c;
@@ -2930,7 +2374,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_3.address_cfg.address_space.value <= 8'h0;
+            field_storage.chip_3.address_cfg.address_space.value <= 1'h0;
         end else begin
             if(field_combo.chip_3.address_cfg.address_space.load_next) begin
                 field_storage.chip_3.address_cfg.address_space.value <= field_combo.chip_3.address_cfg.address_space.next;
@@ -2940,12 +2384,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_3.address_cfg.address_space.value = field_storage.chip_3.address_cfg.address_space.value;
     // Field: hyperbus_cfg_regs.chip_3.address_cfg.address_mask_msb
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [4:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_3.address_cfg.address_mask_msb.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_3.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_3.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_3.address_cfg.address_mask_msb.value & ~decoded_wr_biten[12:8]) | (decoded_wr_data[12:8] & decoded_wr_biten[12:8]);
             load_next_c = '1;
         end
         field_combo.chip_3.address_cfg.address_mask_msb.next = next_c;
@@ -2953,7 +2397,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_3.address_cfg.address_mask_msb.value <= 8'h19;
+            field_storage.chip_3.address_cfg.address_mask_msb.value <= 5'h19;
         end else begin
             if(field_combo.chip_3.address_cfg.address_mask_msb.load_next) begin
                 field_storage.chip_3.address_cfg.address_mask_msb.value <= field_combo.chip_3.address_cfg.address_mask_msb.next;
@@ -2986,12 +2430,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_3.address_cfg.enable.value = field_storage.chip_3.address_cfg.enable.value;
     // Field: hyperbus_cfg_regs.chip_3.latency_cfg.t_latency_access
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_3.latency_cfg.t_latency_access.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_3.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_3.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_3.latency_cfg.t_latency_access.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_3.latency_cfg.t_latency_access.next = next_c;
@@ -2999,7 +2443,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_3.latency_cfg.t_latency_access.value <= 8'h6;
+            field_storage.chip_3.latency_cfg.t_latency_access.value <= 4'h6;
         end else begin
             if(field_combo.chip_3.latency_cfg.t_latency_access.load_next) begin
                 field_storage.chip_3.latency_cfg.t_latency_access.value <= field_combo.chip_3.latency_cfg.t_latency_access.next;
@@ -3009,12 +2453,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_3.latency_cfg.t_latency_access.value = field_storage.chip_3.latency_cfg.t_latency_access.value;
     // Field: hyperbus_cfg_regs.chip_3.latency_cfg.rwds_sample_delay
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_3.latency_cfg.rwds_sample_delay.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_3.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_3.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_3.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_3.latency_cfg.rwds_sample_delay.next = next_c;
@@ -3022,7 +2466,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_3.latency_cfg.rwds_sample_delay.value <= 8'h0;
+            field_storage.chip_3.latency_cfg.rwds_sample_delay.value <= 4'h0;
         end else begin
             if(field_combo.chip_3.latency_cfg.rwds_sample_delay.load_next) begin
                 field_storage.chip_3.latency_cfg.rwds_sample_delay.value <= field_combo.chip_3.latency_cfg.rwds_sample_delay.next;
@@ -3078,12 +2522,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_3.burst_cfg.t_burst_max.value = field_storage.chip_3.burst_cfg.t_burst_max.value;
     // Field: hyperbus_cfg_regs.chip_3.chip_timing.t_read_write_recovery
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_3.chip_timing.t_read_write_recovery.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_3.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_3.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.chip_3.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
             load_next_c = '1;
         end
         field_combo.chip_3.chip_timing.t_read_write_recovery.next = next_c;
@@ -3091,7 +2535,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_3.chip_timing.t_read_write_recovery.value <= 8'h6;
+            field_storage.chip_3.chip_timing.t_read_write_recovery.value <= 4'h6;
         end else begin
             if(field_combo.chip_3.chip_timing.t_read_write_recovery.load_next) begin
                 field_storage.chip_3.chip_timing.t_read_write_recovery.value <= field_combo.chip_3.chip_timing.t_read_write_recovery.next;
@@ -3101,12 +2545,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_3.chip_timing.t_read_write_recovery.value = field_storage.chip_3.chip_timing.t_read_write_recovery.value;
     // Field: hyperbus_cfg_regs.chip_3.chip_timing.t_csh_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_3.chip_timing.t_csh_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_3.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_3.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.chip_3.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
             load_next_c = '1;
         end
         field_combo.chip_3.chip_timing.t_csh_cycles.next = next_c;
@@ -3114,7 +2558,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_3.chip_timing.t_csh_cycles.value <= 8'h1;
+            field_storage.chip_3.chip_timing.t_csh_cycles.value <= 4'h1;
         end else begin
             if(field_combo.chip_3.chip_timing.t_csh_cycles.load_next) begin
                 field_storage.chip_3.chip_timing.t_csh_cycles.value <= field_combo.chip_3.chip_timing.t_csh_cycles.next;
@@ -3124,12 +2568,12 @@ module hyperbus_cfg_regblock (
     assign hwif_out.chip_3.chip_timing.t_csh_cycles.value = field_storage.chip_3.chip_timing.t_csh_cycles.value;
     // Field: hyperbus_cfg_regs.chip_3.chip_timing.csn_to_ck_cycles
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [3:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.chip_3.chip_timing.csn_to_ck_cycles.value;
         load_next_c = '0;
         if(decoded_reg_strb.chip_3.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_3.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            next_c = (field_storage.chip_3.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[19:16]) | (decoded_wr_data[19:16] & decoded_wr_biten[19:16]);
             load_next_c = '1;
         end
         field_combo.chip_3.chip_timing.csn_to_ck_cycles.next = next_c;
@@ -3137,7 +2581,7 @@ module hyperbus_cfg_regblock (
     end
     always_ff @(posedge clk or negedge arst_n) begin
         if(~arst_n) begin
-            field_storage.chip_3.chip_timing.csn_to_ck_cycles.value <= 8'h0;
+            field_storage.chip_3.chip_timing.csn_to_ck_cycles.value <= 4'h0;
         end else begin
             if(field_combo.chip_3.chip_timing.csn_to_ck_cycles.load_next) begin
                 field_storage.chip_3.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_3.chip_timing.csn_to_ck_cycles.next;
@@ -3168,1202 +2612,6 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.chip_3.rx_delay.value.value = field_storage.chip_3.rx_delay.value.value;
-    // Field: hyperbus_cfg_regs.chip_4.range_base.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.range_base.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.range_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.range_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.range_base.value.next = next_c;
-        field_combo.chip_4.range_base.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.range_base.value.value <= 10'h4;
-        end else begin
-            if(field_combo.chip_4.range_base.value.load_next) begin
-                field_storage.chip_4.range_base.value.value <= field_combo.chip_4.range_base.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.range_base.value.value = field_storage.chip_4.range_base.value.value;
-    // Field: hyperbus_cfg_regs.chip_4.range_bound.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.range_bound.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.range_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.range_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.range_bound.value.next = next_c;
-        field_combo.chip_4.range_bound.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.range_bound.value.value <= 10'h5;
-        end else begin
-            if(field_combo.chip_4.range_bound.value.load_next) begin
-                field_storage.chip_4.range_bound.value.value <= field_combo.chip_4.range_bound.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.range_bound.value.value = field_storage.chip_4.range_bound.value.value;
-    // Field: hyperbus_cfg_regs.chip_4.address_cfg.address_space
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.address_cfg.address_space.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.address_cfg.address_space.next = next_c;
-        field_combo.chip_4.address_cfg.address_space.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.address_cfg.address_space.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_4.address_cfg.address_space.load_next) begin
-                field_storage.chip_4.address_cfg.address_space.value <= field_combo.chip_4.address_cfg.address_space.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.address_cfg.address_space.value = field_storage.chip_4.address_cfg.address_space.value;
-    // Field: hyperbus_cfg_regs.chip_4.address_cfg.address_mask_msb
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.address_cfg.address_mask_msb.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.address_cfg.address_mask_msb.next = next_c;
-        field_combo.chip_4.address_cfg.address_mask_msb.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.address_cfg.address_mask_msb.value <= 8'h19;
-        end else begin
-            if(field_combo.chip_4.address_cfg.address_mask_msb.load_next) begin
-                field_storage.chip_4.address_cfg.address_mask_msb.value <= field_combo.chip_4.address_cfg.address_mask_msb.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.address_cfg.address_mask_msb.value = field_storage.chip_4.address_cfg.address_mask_msb.value;
-    // Field: hyperbus_cfg_regs.chip_4.address_cfg.enable
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.address_cfg.enable.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.address_cfg.enable.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.address_cfg.enable.next = next_c;
-        field_combo.chip_4.address_cfg.enable.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.address_cfg.enable.value <= 1'h1;
-        end else begin
-            if(field_combo.chip_4.address_cfg.enable.load_next) begin
-                field_storage.chip_4.address_cfg.enable.value <= field_combo.chip_4.address_cfg.enable.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.address_cfg.enable.value = field_storage.chip_4.address_cfg.enable.value;
-    // Field: hyperbus_cfg_regs.chip_4.latency_cfg.t_latency_access
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.latency_cfg.t_latency_access.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.latency_cfg.t_latency_access.next = next_c;
-        field_combo.chip_4.latency_cfg.t_latency_access.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.latency_cfg.t_latency_access.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_4.latency_cfg.t_latency_access.load_next) begin
-                field_storage.chip_4.latency_cfg.t_latency_access.value <= field_combo.chip_4.latency_cfg.t_latency_access.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.latency_cfg.t_latency_access.value = field_storage.chip_4.latency_cfg.t_latency_access.value;
-    // Field: hyperbus_cfg_regs.chip_4.latency_cfg.rwds_sample_delay
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.latency_cfg.rwds_sample_delay.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.latency_cfg.rwds_sample_delay.next = next_c;
-        field_combo.chip_4.latency_cfg.rwds_sample_delay.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.latency_cfg.rwds_sample_delay.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_4.latency_cfg.rwds_sample_delay.load_next) begin
-                field_storage.chip_4.latency_cfg.rwds_sample_delay.value <= field_combo.chip_4.latency_cfg.rwds_sample_delay.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.latency_cfg.rwds_sample_delay.value = field_storage.chip_4.latency_cfg.rwds_sample_delay.value;
-    // Field: hyperbus_cfg_regs.chip_4.latency_cfg.en_latency_additional
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.latency_cfg.en_latency_additional.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.latency_cfg.en_latency_additional.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.latency_cfg.en_latency_additional.next = next_c;
-        field_combo.chip_4.latency_cfg.en_latency_additional.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.latency_cfg.en_latency_additional.value <= 1'h0;
-        end else begin
-            if(field_combo.chip_4.latency_cfg.en_latency_additional.load_next) begin
-                field_storage.chip_4.latency_cfg.en_latency_additional.value <= field_combo.chip_4.latency_cfg.en_latency_additional.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.latency_cfg.en_latency_additional.value = field_storage.chip_4.latency_cfg.en_latency_additional.value;
-    // Field: hyperbus_cfg_regs.chip_4.burst_cfg.t_burst_max
-    always_comb begin
-        automatic logic [15:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.burst_cfg.t_burst_max.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.burst_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.burst_cfg.t_burst_max.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.burst_cfg.t_burst_max.next = next_c;
-        field_combo.chip_4.burst_cfg.t_burst_max.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.burst_cfg.t_burst_max.value <= 16'h15e;
-        end else begin
-            if(field_combo.chip_4.burst_cfg.t_burst_max.load_next) begin
-                field_storage.chip_4.burst_cfg.t_burst_max.value <= field_combo.chip_4.burst_cfg.t_burst_max.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.burst_cfg.t_burst_max.value = field_storage.chip_4.burst_cfg.t_burst_max.value;
-    // Field: hyperbus_cfg_regs.chip_4.chip_timing.t_read_write_recovery
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.chip_timing.t_read_write_recovery.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.chip_timing.t_read_write_recovery.next = next_c;
-        field_combo.chip_4.chip_timing.t_read_write_recovery.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.chip_timing.t_read_write_recovery.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_4.chip_timing.t_read_write_recovery.load_next) begin
-                field_storage.chip_4.chip_timing.t_read_write_recovery.value <= field_combo.chip_4.chip_timing.t_read_write_recovery.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.chip_timing.t_read_write_recovery.value = field_storage.chip_4.chip_timing.t_read_write_recovery.value;
-    // Field: hyperbus_cfg_regs.chip_4.chip_timing.t_csh_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.chip_timing.t_csh_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.chip_timing.t_csh_cycles.next = next_c;
-        field_combo.chip_4.chip_timing.t_csh_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.chip_timing.t_csh_cycles.value <= 8'h1;
-        end else begin
-            if(field_combo.chip_4.chip_timing.t_csh_cycles.load_next) begin
-                field_storage.chip_4.chip_timing.t_csh_cycles.value <= field_combo.chip_4.chip_timing.t_csh_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.chip_timing.t_csh_cycles.value = field_storage.chip_4.chip_timing.t_csh_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_4.chip_timing.csn_to_ck_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.chip_timing.csn_to_ck_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.chip_timing.csn_to_ck_cycles.next = next_c;
-        field_combo.chip_4.chip_timing.csn_to_ck_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.chip_timing.csn_to_ck_cycles.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_4.chip_timing.csn_to_ck_cycles.load_next) begin
-                field_storage.chip_4.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_4.chip_timing.csn_to_ck_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.chip_timing.csn_to_ck_cycles.value = field_storage.chip_4.chip_timing.csn_to_ck_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_4.rx_delay.value
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_4.rx_delay.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_4.rx_delay && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_4.rx_delay.value.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_4.rx_delay.value.next = next_c;
-        field_combo.chip_4.rx_delay.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_4.rx_delay.value.value <= 8'h10;
-        end else begin
-            if(field_combo.chip_4.rx_delay.value.load_next) begin
-                field_storage.chip_4.rx_delay.value.value <= field_combo.chip_4.rx_delay.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_4.rx_delay.value.value = field_storage.chip_4.rx_delay.value.value;
-    // Field: hyperbus_cfg_regs.chip_5.range_base.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.range_base.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.range_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.range_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.range_base.value.next = next_c;
-        field_combo.chip_5.range_base.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.range_base.value.value <= 10'h5;
-        end else begin
-            if(field_combo.chip_5.range_base.value.load_next) begin
-                field_storage.chip_5.range_base.value.value <= field_combo.chip_5.range_base.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.range_base.value.value = field_storage.chip_5.range_base.value.value;
-    // Field: hyperbus_cfg_regs.chip_5.range_bound.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.range_bound.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.range_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.range_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.range_bound.value.next = next_c;
-        field_combo.chip_5.range_bound.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.range_bound.value.value <= 10'h6;
-        end else begin
-            if(field_combo.chip_5.range_bound.value.load_next) begin
-                field_storage.chip_5.range_bound.value.value <= field_combo.chip_5.range_bound.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.range_bound.value.value = field_storage.chip_5.range_bound.value.value;
-    // Field: hyperbus_cfg_regs.chip_5.address_cfg.address_space
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.address_cfg.address_space.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.address_cfg.address_space.next = next_c;
-        field_combo.chip_5.address_cfg.address_space.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.address_cfg.address_space.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_5.address_cfg.address_space.load_next) begin
-                field_storage.chip_5.address_cfg.address_space.value <= field_combo.chip_5.address_cfg.address_space.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.address_cfg.address_space.value = field_storage.chip_5.address_cfg.address_space.value;
-    // Field: hyperbus_cfg_regs.chip_5.address_cfg.address_mask_msb
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.address_cfg.address_mask_msb.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.address_cfg.address_mask_msb.next = next_c;
-        field_combo.chip_5.address_cfg.address_mask_msb.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.address_cfg.address_mask_msb.value <= 8'h19;
-        end else begin
-            if(field_combo.chip_5.address_cfg.address_mask_msb.load_next) begin
-                field_storage.chip_5.address_cfg.address_mask_msb.value <= field_combo.chip_5.address_cfg.address_mask_msb.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.address_cfg.address_mask_msb.value = field_storage.chip_5.address_cfg.address_mask_msb.value;
-    // Field: hyperbus_cfg_regs.chip_5.address_cfg.enable
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.address_cfg.enable.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.address_cfg.enable.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.address_cfg.enable.next = next_c;
-        field_combo.chip_5.address_cfg.enable.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.address_cfg.enable.value <= 1'h1;
-        end else begin
-            if(field_combo.chip_5.address_cfg.enable.load_next) begin
-                field_storage.chip_5.address_cfg.enable.value <= field_combo.chip_5.address_cfg.enable.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.address_cfg.enable.value = field_storage.chip_5.address_cfg.enable.value;
-    // Field: hyperbus_cfg_regs.chip_5.latency_cfg.t_latency_access
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.latency_cfg.t_latency_access.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.latency_cfg.t_latency_access.next = next_c;
-        field_combo.chip_5.latency_cfg.t_latency_access.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.latency_cfg.t_latency_access.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_5.latency_cfg.t_latency_access.load_next) begin
-                field_storage.chip_5.latency_cfg.t_latency_access.value <= field_combo.chip_5.latency_cfg.t_latency_access.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.latency_cfg.t_latency_access.value = field_storage.chip_5.latency_cfg.t_latency_access.value;
-    // Field: hyperbus_cfg_regs.chip_5.latency_cfg.rwds_sample_delay
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.latency_cfg.rwds_sample_delay.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.latency_cfg.rwds_sample_delay.next = next_c;
-        field_combo.chip_5.latency_cfg.rwds_sample_delay.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.latency_cfg.rwds_sample_delay.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_5.latency_cfg.rwds_sample_delay.load_next) begin
-                field_storage.chip_5.latency_cfg.rwds_sample_delay.value <= field_combo.chip_5.latency_cfg.rwds_sample_delay.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.latency_cfg.rwds_sample_delay.value = field_storage.chip_5.latency_cfg.rwds_sample_delay.value;
-    // Field: hyperbus_cfg_regs.chip_5.latency_cfg.en_latency_additional
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.latency_cfg.en_latency_additional.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.latency_cfg.en_latency_additional.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.latency_cfg.en_latency_additional.next = next_c;
-        field_combo.chip_5.latency_cfg.en_latency_additional.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.latency_cfg.en_latency_additional.value <= 1'h0;
-        end else begin
-            if(field_combo.chip_5.latency_cfg.en_latency_additional.load_next) begin
-                field_storage.chip_5.latency_cfg.en_latency_additional.value <= field_combo.chip_5.latency_cfg.en_latency_additional.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.latency_cfg.en_latency_additional.value = field_storage.chip_5.latency_cfg.en_latency_additional.value;
-    // Field: hyperbus_cfg_regs.chip_5.burst_cfg.t_burst_max
-    always_comb begin
-        automatic logic [15:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.burst_cfg.t_burst_max.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.burst_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.burst_cfg.t_burst_max.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.burst_cfg.t_burst_max.next = next_c;
-        field_combo.chip_5.burst_cfg.t_burst_max.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.burst_cfg.t_burst_max.value <= 16'h15e;
-        end else begin
-            if(field_combo.chip_5.burst_cfg.t_burst_max.load_next) begin
-                field_storage.chip_5.burst_cfg.t_burst_max.value <= field_combo.chip_5.burst_cfg.t_burst_max.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.burst_cfg.t_burst_max.value = field_storage.chip_5.burst_cfg.t_burst_max.value;
-    // Field: hyperbus_cfg_regs.chip_5.chip_timing.t_read_write_recovery
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.chip_timing.t_read_write_recovery.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.chip_timing.t_read_write_recovery.next = next_c;
-        field_combo.chip_5.chip_timing.t_read_write_recovery.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.chip_timing.t_read_write_recovery.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_5.chip_timing.t_read_write_recovery.load_next) begin
-                field_storage.chip_5.chip_timing.t_read_write_recovery.value <= field_combo.chip_5.chip_timing.t_read_write_recovery.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.chip_timing.t_read_write_recovery.value = field_storage.chip_5.chip_timing.t_read_write_recovery.value;
-    // Field: hyperbus_cfg_regs.chip_5.chip_timing.t_csh_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.chip_timing.t_csh_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.chip_timing.t_csh_cycles.next = next_c;
-        field_combo.chip_5.chip_timing.t_csh_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.chip_timing.t_csh_cycles.value <= 8'h1;
-        end else begin
-            if(field_combo.chip_5.chip_timing.t_csh_cycles.load_next) begin
-                field_storage.chip_5.chip_timing.t_csh_cycles.value <= field_combo.chip_5.chip_timing.t_csh_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.chip_timing.t_csh_cycles.value = field_storage.chip_5.chip_timing.t_csh_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_5.chip_timing.csn_to_ck_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.chip_timing.csn_to_ck_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.chip_timing.csn_to_ck_cycles.next = next_c;
-        field_combo.chip_5.chip_timing.csn_to_ck_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.chip_timing.csn_to_ck_cycles.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_5.chip_timing.csn_to_ck_cycles.load_next) begin
-                field_storage.chip_5.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_5.chip_timing.csn_to_ck_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.chip_timing.csn_to_ck_cycles.value = field_storage.chip_5.chip_timing.csn_to_ck_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_5.rx_delay.value
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_5.rx_delay.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_5.rx_delay && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_5.rx_delay.value.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_5.rx_delay.value.next = next_c;
-        field_combo.chip_5.rx_delay.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_5.rx_delay.value.value <= 8'h10;
-        end else begin
-            if(field_combo.chip_5.rx_delay.value.load_next) begin
-                field_storage.chip_5.rx_delay.value.value <= field_combo.chip_5.rx_delay.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_5.rx_delay.value.value = field_storage.chip_5.rx_delay.value.value;
-    // Field: hyperbus_cfg_regs.chip_6.range_base.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.range_base.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.range_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.range_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.range_base.value.next = next_c;
-        field_combo.chip_6.range_base.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.range_base.value.value <= 10'h6;
-        end else begin
-            if(field_combo.chip_6.range_base.value.load_next) begin
-                field_storage.chip_6.range_base.value.value <= field_combo.chip_6.range_base.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.range_base.value.value = field_storage.chip_6.range_base.value.value;
-    // Field: hyperbus_cfg_regs.chip_6.range_bound.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.range_bound.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.range_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.range_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.range_bound.value.next = next_c;
-        field_combo.chip_6.range_bound.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.range_bound.value.value <= 10'h7;
-        end else begin
-            if(field_combo.chip_6.range_bound.value.load_next) begin
-                field_storage.chip_6.range_bound.value.value <= field_combo.chip_6.range_bound.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.range_bound.value.value = field_storage.chip_6.range_bound.value.value;
-    // Field: hyperbus_cfg_regs.chip_6.address_cfg.address_space
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.address_cfg.address_space.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.address_cfg.address_space.next = next_c;
-        field_combo.chip_6.address_cfg.address_space.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.address_cfg.address_space.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_6.address_cfg.address_space.load_next) begin
-                field_storage.chip_6.address_cfg.address_space.value <= field_combo.chip_6.address_cfg.address_space.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.address_cfg.address_space.value = field_storage.chip_6.address_cfg.address_space.value;
-    // Field: hyperbus_cfg_regs.chip_6.address_cfg.address_mask_msb
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.address_cfg.address_mask_msb.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.address_cfg.address_mask_msb.next = next_c;
-        field_combo.chip_6.address_cfg.address_mask_msb.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.address_cfg.address_mask_msb.value <= 8'h19;
-        end else begin
-            if(field_combo.chip_6.address_cfg.address_mask_msb.load_next) begin
-                field_storage.chip_6.address_cfg.address_mask_msb.value <= field_combo.chip_6.address_cfg.address_mask_msb.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.address_cfg.address_mask_msb.value = field_storage.chip_6.address_cfg.address_mask_msb.value;
-    // Field: hyperbus_cfg_regs.chip_6.address_cfg.enable
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.address_cfg.enable.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.address_cfg.enable.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.address_cfg.enable.next = next_c;
-        field_combo.chip_6.address_cfg.enable.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.address_cfg.enable.value <= 1'h1;
-        end else begin
-            if(field_combo.chip_6.address_cfg.enable.load_next) begin
-                field_storage.chip_6.address_cfg.enable.value <= field_combo.chip_6.address_cfg.enable.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.address_cfg.enable.value = field_storage.chip_6.address_cfg.enable.value;
-    // Field: hyperbus_cfg_regs.chip_6.latency_cfg.t_latency_access
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.latency_cfg.t_latency_access.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.latency_cfg.t_latency_access.next = next_c;
-        field_combo.chip_6.latency_cfg.t_latency_access.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.latency_cfg.t_latency_access.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_6.latency_cfg.t_latency_access.load_next) begin
-                field_storage.chip_6.latency_cfg.t_latency_access.value <= field_combo.chip_6.latency_cfg.t_latency_access.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.latency_cfg.t_latency_access.value = field_storage.chip_6.latency_cfg.t_latency_access.value;
-    // Field: hyperbus_cfg_regs.chip_6.latency_cfg.rwds_sample_delay
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.latency_cfg.rwds_sample_delay.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.latency_cfg.rwds_sample_delay.next = next_c;
-        field_combo.chip_6.latency_cfg.rwds_sample_delay.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.latency_cfg.rwds_sample_delay.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_6.latency_cfg.rwds_sample_delay.load_next) begin
-                field_storage.chip_6.latency_cfg.rwds_sample_delay.value <= field_combo.chip_6.latency_cfg.rwds_sample_delay.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.latency_cfg.rwds_sample_delay.value = field_storage.chip_6.latency_cfg.rwds_sample_delay.value;
-    // Field: hyperbus_cfg_regs.chip_6.latency_cfg.en_latency_additional
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.latency_cfg.en_latency_additional.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.latency_cfg.en_latency_additional.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.latency_cfg.en_latency_additional.next = next_c;
-        field_combo.chip_6.latency_cfg.en_latency_additional.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.latency_cfg.en_latency_additional.value <= 1'h0;
-        end else begin
-            if(field_combo.chip_6.latency_cfg.en_latency_additional.load_next) begin
-                field_storage.chip_6.latency_cfg.en_latency_additional.value <= field_combo.chip_6.latency_cfg.en_latency_additional.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.latency_cfg.en_latency_additional.value = field_storage.chip_6.latency_cfg.en_latency_additional.value;
-    // Field: hyperbus_cfg_regs.chip_6.burst_cfg.t_burst_max
-    always_comb begin
-        automatic logic [15:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.burst_cfg.t_burst_max.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.burst_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.burst_cfg.t_burst_max.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.burst_cfg.t_burst_max.next = next_c;
-        field_combo.chip_6.burst_cfg.t_burst_max.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.burst_cfg.t_burst_max.value <= 16'h15e;
-        end else begin
-            if(field_combo.chip_6.burst_cfg.t_burst_max.load_next) begin
-                field_storage.chip_6.burst_cfg.t_burst_max.value <= field_combo.chip_6.burst_cfg.t_burst_max.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.burst_cfg.t_burst_max.value = field_storage.chip_6.burst_cfg.t_burst_max.value;
-    // Field: hyperbus_cfg_regs.chip_6.chip_timing.t_read_write_recovery
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.chip_timing.t_read_write_recovery.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.chip_timing.t_read_write_recovery.next = next_c;
-        field_combo.chip_6.chip_timing.t_read_write_recovery.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.chip_timing.t_read_write_recovery.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_6.chip_timing.t_read_write_recovery.load_next) begin
-                field_storage.chip_6.chip_timing.t_read_write_recovery.value <= field_combo.chip_6.chip_timing.t_read_write_recovery.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.chip_timing.t_read_write_recovery.value = field_storage.chip_6.chip_timing.t_read_write_recovery.value;
-    // Field: hyperbus_cfg_regs.chip_6.chip_timing.t_csh_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.chip_timing.t_csh_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.chip_timing.t_csh_cycles.next = next_c;
-        field_combo.chip_6.chip_timing.t_csh_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.chip_timing.t_csh_cycles.value <= 8'h1;
-        end else begin
-            if(field_combo.chip_6.chip_timing.t_csh_cycles.load_next) begin
-                field_storage.chip_6.chip_timing.t_csh_cycles.value <= field_combo.chip_6.chip_timing.t_csh_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.chip_timing.t_csh_cycles.value = field_storage.chip_6.chip_timing.t_csh_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_6.chip_timing.csn_to_ck_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.chip_timing.csn_to_ck_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.chip_timing.csn_to_ck_cycles.next = next_c;
-        field_combo.chip_6.chip_timing.csn_to_ck_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.chip_timing.csn_to_ck_cycles.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_6.chip_timing.csn_to_ck_cycles.load_next) begin
-                field_storage.chip_6.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_6.chip_timing.csn_to_ck_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.chip_timing.csn_to_ck_cycles.value = field_storage.chip_6.chip_timing.csn_to_ck_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_6.rx_delay.value
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_6.rx_delay.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_6.rx_delay && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_6.rx_delay.value.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_6.rx_delay.value.next = next_c;
-        field_combo.chip_6.rx_delay.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_6.rx_delay.value.value <= 8'h10;
-        end else begin
-            if(field_combo.chip_6.rx_delay.value.load_next) begin
-                field_storage.chip_6.rx_delay.value.value <= field_combo.chip_6.rx_delay.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_6.rx_delay.value.value = field_storage.chip_6.rx_delay.value.value;
-    // Field: hyperbus_cfg_regs.chip_7.range_base.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.range_base.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.range_base && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.range_base.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.range_base.value.next = next_c;
-        field_combo.chip_7.range_base.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.range_base.value.value <= 10'h7;
-        end else begin
-            if(field_combo.chip_7.range_base.value.load_next) begin
-                field_storage.chip_7.range_base.value.value <= field_combo.chip_7.range_base.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.range_base.value.value = field_storage.chip_7.range_base.value.value;
-    // Field: hyperbus_cfg_regs.chip_7.range_bound.value
-    always_comb begin
-        automatic logic [9:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.range_bound.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.range_bound && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.range_bound.value.value & ~decoded_wr_biten[31:22]) | (decoded_wr_data[31:22] & decoded_wr_biten[31:22]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.range_bound.value.next = next_c;
-        field_combo.chip_7.range_bound.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.range_bound.value.value <= 10'h8;
-        end else begin
-            if(field_combo.chip_7.range_bound.value.load_next) begin
-                field_storage.chip_7.range_bound.value.value <= field_combo.chip_7.range_bound.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.range_bound.value.value = field_storage.chip_7.range_bound.value.value;
-    // Field: hyperbus_cfg_regs.chip_7.address_cfg.address_space
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.address_cfg.address_space.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.address_cfg.address_space.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.address_cfg.address_space.next = next_c;
-        field_combo.chip_7.address_cfg.address_space.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.address_cfg.address_space.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_7.address_cfg.address_space.load_next) begin
-                field_storage.chip_7.address_cfg.address_space.value <= field_combo.chip_7.address_cfg.address_space.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.address_cfg.address_space.value = field_storage.chip_7.address_cfg.address_space.value;
-    // Field: hyperbus_cfg_regs.chip_7.address_cfg.address_mask_msb
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.address_cfg.address_mask_msb.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.address_cfg.address_mask_msb.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.address_cfg.address_mask_msb.next = next_c;
-        field_combo.chip_7.address_cfg.address_mask_msb.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.address_cfg.address_mask_msb.value <= 8'h19;
-        end else begin
-            if(field_combo.chip_7.address_cfg.address_mask_msb.load_next) begin
-                field_storage.chip_7.address_cfg.address_mask_msb.value <= field_combo.chip_7.address_cfg.address_mask_msb.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.address_cfg.address_mask_msb.value = field_storage.chip_7.address_cfg.address_mask_msb.value;
-    // Field: hyperbus_cfg_regs.chip_7.address_cfg.enable
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.address_cfg.enable.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.address_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.address_cfg.enable.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.address_cfg.enable.next = next_c;
-        field_combo.chip_7.address_cfg.enable.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.address_cfg.enable.value <= 1'h1;
-        end else begin
-            if(field_combo.chip_7.address_cfg.enable.load_next) begin
-                field_storage.chip_7.address_cfg.enable.value <= field_combo.chip_7.address_cfg.enable.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.address_cfg.enable.value = field_storage.chip_7.address_cfg.enable.value;
-    // Field: hyperbus_cfg_regs.chip_7.latency_cfg.t_latency_access
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.latency_cfg.t_latency_access.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.latency_cfg.t_latency_access.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.latency_cfg.t_latency_access.next = next_c;
-        field_combo.chip_7.latency_cfg.t_latency_access.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.latency_cfg.t_latency_access.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_7.latency_cfg.t_latency_access.load_next) begin
-                field_storage.chip_7.latency_cfg.t_latency_access.value <= field_combo.chip_7.latency_cfg.t_latency_access.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.latency_cfg.t_latency_access.value = field_storage.chip_7.latency_cfg.t_latency_access.value;
-    // Field: hyperbus_cfg_regs.chip_7.latency_cfg.rwds_sample_delay
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.latency_cfg.rwds_sample_delay.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.latency_cfg.rwds_sample_delay.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.latency_cfg.rwds_sample_delay.next = next_c;
-        field_combo.chip_7.latency_cfg.rwds_sample_delay.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.latency_cfg.rwds_sample_delay.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_7.latency_cfg.rwds_sample_delay.load_next) begin
-                field_storage.chip_7.latency_cfg.rwds_sample_delay.value <= field_combo.chip_7.latency_cfg.rwds_sample_delay.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.latency_cfg.rwds_sample_delay.value = field_storage.chip_7.latency_cfg.rwds_sample_delay.value;
-    // Field: hyperbus_cfg_regs.chip_7.latency_cfg.en_latency_additional
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.latency_cfg.en_latency_additional.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.latency_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.latency_cfg.en_latency_additional.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.latency_cfg.en_latency_additional.next = next_c;
-        field_combo.chip_7.latency_cfg.en_latency_additional.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.latency_cfg.en_latency_additional.value <= 1'h0;
-        end else begin
-            if(field_combo.chip_7.latency_cfg.en_latency_additional.load_next) begin
-                field_storage.chip_7.latency_cfg.en_latency_additional.value <= field_combo.chip_7.latency_cfg.en_latency_additional.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.latency_cfg.en_latency_additional.value = field_storage.chip_7.latency_cfg.en_latency_additional.value;
-    // Field: hyperbus_cfg_regs.chip_7.burst_cfg.t_burst_max
-    always_comb begin
-        automatic logic [15:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.burst_cfg.t_burst_max.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.burst_cfg && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.burst_cfg.t_burst_max.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.burst_cfg.t_burst_max.next = next_c;
-        field_combo.chip_7.burst_cfg.t_burst_max.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.burst_cfg.t_burst_max.value <= 16'h15e;
-        end else begin
-            if(field_combo.chip_7.burst_cfg.t_burst_max.load_next) begin
-                field_storage.chip_7.burst_cfg.t_burst_max.value <= field_combo.chip_7.burst_cfg.t_burst_max.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.burst_cfg.t_burst_max.value = field_storage.chip_7.burst_cfg.t_burst_max.value;
-    // Field: hyperbus_cfg_regs.chip_7.chip_timing.t_read_write_recovery
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.chip_timing.t_read_write_recovery.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.chip_timing.t_read_write_recovery.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.chip_timing.t_read_write_recovery.next = next_c;
-        field_combo.chip_7.chip_timing.t_read_write_recovery.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.chip_timing.t_read_write_recovery.value <= 8'h6;
-        end else begin
-            if(field_combo.chip_7.chip_timing.t_read_write_recovery.load_next) begin
-                field_storage.chip_7.chip_timing.t_read_write_recovery.value <= field_combo.chip_7.chip_timing.t_read_write_recovery.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.chip_timing.t_read_write_recovery.value = field_storage.chip_7.chip_timing.t_read_write_recovery.value;
-    // Field: hyperbus_cfg_regs.chip_7.chip_timing.t_csh_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.chip_timing.t_csh_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.chip_timing.t_csh_cycles.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.chip_timing.t_csh_cycles.next = next_c;
-        field_combo.chip_7.chip_timing.t_csh_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.chip_timing.t_csh_cycles.value <= 8'h1;
-        end else begin
-            if(field_combo.chip_7.chip_timing.t_csh_cycles.load_next) begin
-                field_storage.chip_7.chip_timing.t_csh_cycles.value <= field_combo.chip_7.chip_timing.t_csh_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.chip_timing.t_csh_cycles.value = field_storage.chip_7.chip_timing.t_csh_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_7.chip_timing.csn_to_ck_cycles
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.chip_timing.csn_to_ck_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.chip_timing && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.chip_timing.csn_to_ck_cycles.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.chip_timing.csn_to_ck_cycles.next = next_c;
-        field_combo.chip_7.chip_timing.csn_to_ck_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.chip_timing.csn_to_ck_cycles.value <= 8'h0;
-        end else begin
-            if(field_combo.chip_7.chip_timing.csn_to_ck_cycles.load_next) begin
-                field_storage.chip_7.chip_timing.csn_to_ck_cycles.value <= field_combo.chip_7.chip_timing.csn_to_ck_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.chip_timing.csn_to_ck_cycles.value = field_storage.chip_7.chip_timing.csn_to_ck_cycles.value;
-    // Field: hyperbus_cfg_regs.chip_7.rx_delay.value
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.chip_7.rx_delay.value.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.chip_7.rx_delay && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.chip_7.rx_delay.value.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.chip_7.rx_delay.value.next = next_c;
-        field_combo.chip_7.rx_delay.value.load_next = load_next_c;
-    end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.chip_7.rx_delay.value.value <= 8'h10;
-        end else begin
-            if(field_combo.chip_7.rx_delay.value.load_next) begin
-                field_storage.chip_7.rx_delay.value.value <= field_combo.chip_7.rx_delay.value.next;
-            end
-        end
-    end
-    assign hwif_out.chip_7.rx_delay.value.value = field_storage.chip_7.rx_delay.value.value;
     assign hwif_out.reserved_top.value.value = 32'h0;
 
     //--------------------------------------------------------------------------
@@ -4427,13 +2675,13 @@ module hyperbus_cfg_regblock (
             readback_data_var[7:0] = field_storage.phy_0.tx_delay.value.value;
         end
         if(rd_mux_addr == 12'h304) begin
-            readback_data_var[7:0] = field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value;
+            readback_data_var[3:0] = field_storage.phy_0.rwds_timing.rwds_oe_setup_cycles.value;
         end
         if(rd_mux_addr == 12'h340) begin
             readback_data_var[7:0] = field_storage.phy_1.tx_delay.value.value;
         end
         if(rd_mux_addr == 12'h344) begin
-            readback_data_var[7:0] = field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value;
+            readback_data_var[3:0] = field_storage.phy_1.rwds_timing.rwds_oe_setup_cycles.value;
         end
         if(rd_mux_addr == 12'h400) begin
             readback_data_var[31:22] = field_storage.chip_0.range_base.value.value;
@@ -4442,22 +2690,22 @@ module hyperbus_cfg_regblock (
             readback_data_var[31:22] = field_storage.chip_0.range_bound.value.value;
         end
         if(rd_mux_addr == 12'h408) begin
-            readback_data_var[7:0] = field_storage.chip_0.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_0.address_cfg.address_mask_msb.value;
+            readback_data_var[0] = field_storage.chip_0.address_cfg.address_space.value;
+            readback_data_var[12:8] = field_storage.chip_0.address_cfg.address_mask_msb.value;
             readback_data_var[16] = field_storage.chip_0.address_cfg.enable.value;
         end
         if(rd_mux_addr == 12'h40c) begin
-            readback_data_var[7:0] = field_storage.chip_0.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_0.latency_cfg.rwds_sample_delay.value;
+            readback_data_var[3:0] = field_storage.chip_0.latency_cfg.t_latency_access.value;
+            readback_data_var[11:8] = field_storage.chip_0.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_0.latency_cfg.en_latency_additional.value;
         end
         if(rd_mux_addr == 12'h410) begin
             readback_data_var[15:0] = field_storage.chip_0.burst_cfg.t_burst_max.value;
         end
         if(rd_mux_addr == 12'h414) begin
-            readback_data_var[7:0] = field_storage.chip_0.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_0.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_0.chip_timing.csn_to_ck_cycles.value;
+            readback_data_var[3:0] = field_storage.chip_0.chip_timing.t_read_write_recovery.value;
+            readback_data_var[11:8] = field_storage.chip_0.chip_timing.t_csh_cycles.value;
+            readback_data_var[19:16] = field_storage.chip_0.chip_timing.csn_to_ck_cycles.value;
         end
         if(rd_mux_addr == 12'h418) begin
             readback_data_var[7:0] = field_storage.chip_0.rx_delay.value.value;
@@ -4469,22 +2717,22 @@ module hyperbus_cfg_regblock (
             readback_data_var[31:22] = field_storage.chip_1.range_bound.value.value;
         end
         if(rd_mux_addr == 12'h448) begin
-            readback_data_var[7:0] = field_storage.chip_1.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_1.address_cfg.address_mask_msb.value;
+            readback_data_var[0] = field_storage.chip_1.address_cfg.address_space.value;
+            readback_data_var[12:8] = field_storage.chip_1.address_cfg.address_mask_msb.value;
             readback_data_var[16] = field_storage.chip_1.address_cfg.enable.value;
         end
         if(rd_mux_addr == 12'h44c) begin
-            readback_data_var[7:0] = field_storage.chip_1.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_1.latency_cfg.rwds_sample_delay.value;
+            readback_data_var[3:0] = field_storage.chip_1.latency_cfg.t_latency_access.value;
+            readback_data_var[11:8] = field_storage.chip_1.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_1.latency_cfg.en_latency_additional.value;
         end
         if(rd_mux_addr == 12'h450) begin
             readback_data_var[15:0] = field_storage.chip_1.burst_cfg.t_burst_max.value;
         end
         if(rd_mux_addr == 12'h454) begin
-            readback_data_var[7:0] = field_storage.chip_1.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_1.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_1.chip_timing.csn_to_ck_cycles.value;
+            readback_data_var[3:0] = field_storage.chip_1.chip_timing.t_read_write_recovery.value;
+            readback_data_var[11:8] = field_storage.chip_1.chip_timing.t_csh_cycles.value;
+            readback_data_var[19:16] = field_storage.chip_1.chip_timing.csn_to_ck_cycles.value;
         end
         if(rd_mux_addr == 12'h458) begin
             readback_data_var[7:0] = field_storage.chip_1.rx_delay.value.value;
@@ -4496,22 +2744,22 @@ module hyperbus_cfg_regblock (
             readback_data_var[31:22] = field_storage.chip_2.range_bound.value.value;
         end
         if(rd_mux_addr == 12'h488) begin
-            readback_data_var[7:0] = field_storage.chip_2.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_2.address_cfg.address_mask_msb.value;
+            readback_data_var[0] = field_storage.chip_2.address_cfg.address_space.value;
+            readback_data_var[12:8] = field_storage.chip_2.address_cfg.address_mask_msb.value;
             readback_data_var[16] = field_storage.chip_2.address_cfg.enable.value;
         end
         if(rd_mux_addr == 12'h48c) begin
-            readback_data_var[7:0] = field_storage.chip_2.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_2.latency_cfg.rwds_sample_delay.value;
+            readback_data_var[3:0] = field_storage.chip_2.latency_cfg.t_latency_access.value;
+            readback_data_var[11:8] = field_storage.chip_2.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_2.latency_cfg.en_latency_additional.value;
         end
         if(rd_mux_addr == 12'h490) begin
             readback_data_var[15:0] = field_storage.chip_2.burst_cfg.t_burst_max.value;
         end
         if(rd_mux_addr == 12'h494) begin
-            readback_data_var[7:0] = field_storage.chip_2.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_2.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_2.chip_timing.csn_to_ck_cycles.value;
+            readback_data_var[3:0] = field_storage.chip_2.chip_timing.t_read_write_recovery.value;
+            readback_data_var[11:8] = field_storage.chip_2.chip_timing.t_csh_cycles.value;
+            readback_data_var[19:16] = field_storage.chip_2.chip_timing.csn_to_ck_cycles.value;
         end
         if(rd_mux_addr == 12'h498) begin
             readback_data_var[7:0] = field_storage.chip_2.rx_delay.value.value;
@@ -4523,133 +2771,25 @@ module hyperbus_cfg_regblock (
             readback_data_var[31:22] = field_storage.chip_3.range_bound.value.value;
         end
         if(rd_mux_addr == 12'h4c8) begin
-            readback_data_var[7:0] = field_storage.chip_3.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_3.address_cfg.address_mask_msb.value;
+            readback_data_var[0] = field_storage.chip_3.address_cfg.address_space.value;
+            readback_data_var[12:8] = field_storage.chip_3.address_cfg.address_mask_msb.value;
             readback_data_var[16] = field_storage.chip_3.address_cfg.enable.value;
         end
         if(rd_mux_addr == 12'h4cc) begin
-            readback_data_var[7:0] = field_storage.chip_3.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_3.latency_cfg.rwds_sample_delay.value;
+            readback_data_var[3:0] = field_storage.chip_3.latency_cfg.t_latency_access.value;
+            readback_data_var[11:8] = field_storage.chip_3.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_3.latency_cfg.en_latency_additional.value;
         end
         if(rd_mux_addr == 12'h4d0) begin
             readback_data_var[15:0] = field_storage.chip_3.burst_cfg.t_burst_max.value;
         end
         if(rd_mux_addr == 12'h4d4) begin
-            readback_data_var[7:0] = field_storage.chip_3.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_3.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_3.chip_timing.csn_to_ck_cycles.value;
+            readback_data_var[3:0] = field_storage.chip_3.chip_timing.t_read_write_recovery.value;
+            readback_data_var[11:8] = field_storage.chip_3.chip_timing.t_csh_cycles.value;
+            readback_data_var[19:16] = field_storage.chip_3.chip_timing.csn_to_ck_cycles.value;
         end
         if(rd_mux_addr == 12'h4d8) begin
             readback_data_var[7:0] = field_storage.chip_3.rx_delay.value.value;
-        end
-        if(rd_mux_addr == 12'h500) begin
-            readback_data_var[31:22] = field_storage.chip_4.range_base.value.value;
-        end
-        if(rd_mux_addr == 12'h504) begin
-            readback_data_var[31:22] = field_storage.chip_4.range_bound.value.value;
-        end
-        if(rd_mux_addr == 12'h508) begin
-            readback_data_var[7:0] = field_storage.chip_4.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_4.address_cfg.address_mask_msb.value;
-            readback_data_var[16] = field_storage.chip_4.address_cfg.enable.value;
-        end
-        if(rd_mux_addr == 12'h50c) begin
-            readback_data_var[7:0] = field_storage.chip_4.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_4.latency_cfg.rwds_sample_delay.value;
-            readback_data_var[16] = field_storage.chip_4.latency_cfg.en_latency_additional.value;
-        end
-        if(rd_mux_addr == 12'h510) begin
-            readback_data_var[15:0] = field_storage.chip_4.burst_cfg.t_burst_max.value;
-        end
-        if(rd_mux_addr == 12'h514) begin
-            readback_data_var[7:0] = field_storage.chip_4.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_4.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_4.chip_timing.csn_to_ck_cycles.value;
-        end
-        if(rd_mux_addr == 12'h518) begin
-            readback_data_var[7:0] = field_storage.chip_4.rx_delay.value.value;
-        end
-        if(rd_mux_addr == 12'h540) begin
-            readback_data_var[31:22] = field_storage.chip_5.range_base.value.value;
-        end
-        if(rd_mux_addr == 12'h544) begin
-            readback_data_var[31:22] = field_storage.chip_5.range_bound.value.value;
-        end
-        if(rd_mux_addr == 12'h548) begin
-            readback_data_var[7:0] = field_storage.chip_5.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_5.address_cfg.address_mask_msb.value;
-            readback_data_var[16] = field_storage.chip_5.address_cfg.enable.value;
-        end
-        if(rd_mux_addr == 12'h54c) begin
-            readback_data_var[7:0] = field_storage.chip_5.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_5.latency_cfg.rwds_sample_delay.value;
-            readback_data_var[16] = field_storage.chip_5.latency_cfg.en_latency_additional.value;
-        end
-        if(rd_mux_addr == 12'h550) begin
-            readback_data_var[15:0] = field_storage.chip_5.burst_cfg.t_burst_max.value;
-        end
-        if(rd_mux_addr == 12'h554) begin
-            readback_data_var[7:0] = field_storage.chip_5.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_5.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_5.chip_timing.csn_to_ck_cycles.value;
-        end
-        if(rd_mux_addr == 12'h558) begin
-            readback_data_var[7:0] = field_storage.chip_5.rx_delay.value.value;
-        end
-        if(rd_mux_addr == 12'h580) begin
-            readback_data_var[31:22] = field_storage.chip_6.range_base.value.value;
-        end
-        if(rd_mux_addr == 12'h584) begin
-            readback_data_var[31:22] = field_storage.chip_6.range_bound.value.value;
-        end
-        if(rd_mux_addr == 12'h588) begin
-            readback_data_var[7:0] = field_storage.chip_6.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_6.address_cfg.address_mask_msb.value;
-            readback_data_var[16] = field_storage.chip_6.address_cfg.enable.value;
-        end
-        if(rd_mux_addr == 12'h58c) begin
-            readback_data_var[7:0] = field_storage.chip_6.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_6.latency_cfg.rwds_sample_delay.value;
-            readback_data_var[16] = field_storage.chip_6.latency_cfg.en_latency_additional.value;
-        end
-        if(rd_mux_addr == 12'h590) begin
-            readback_data_var[15:0] = field_storage.chip_6.burst_cfg.t_burst_max.value;
-        end
-        if(rd_mux_addr == 12'h594) begin
-            readback_data_var[7:0] = field_storage.chip_6.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_6.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_6.chip_timing.csn_to_ck_cycles.value;
-        end
-        if(rd_mux_addr == 12'h598) begin
-            readback_data_var[7:0] = field_storage.chip_6.rx_delay.value.value;
-        end
-        if(rd_mux_addr == 12'h5c0) begin
-            readback_data_var[31:22] = field_storage.chip_7.range_base.value.value;
-        end
-        if(rd_mux_addr == 12'h5c4) begin
-            readback_data_var[31:22] = field_storage.chip_7.range_bound.value.value;
-        end
-        if(rd_mux_addr == 12'h5c8) begin
-            readback_data_var[7:0] = field_storage.chip_7.address_cfg.address_space.value;
-            readback_data_var[15:8] = field_storage.chip_7.address_cfg.address_mask_msb.value;
-            readback_data_var[16] = field_storage.chip_7.address_cfg.enable.value;
-        end
-        if(rd_mux_addr == 12'h5cc) begin
-            readback_data_var[7:0] = field_storage.chip_7.latency_cfg.t_latency_access.value;
-            readback_data_var[15:8] = field_storage.chip_7.latency_cfg.rwds_sample_delay.value;
-            readback_data_var[16] = field_storage.chip_7.latency_cfg.en_latency_additional.value;
-        end
-        if(rd_mux_addr == 12'h5d0) begin
-            readback_data_var[15:0] = field_storage.chip_7.burst_cfg.t_burst_max.value;
-        end
-        if(rd_mux_addr == 12'h5d4) begin
-            readback_data_var[7:0] = field_storage.chip_7.chip_timing.t_read_write_recovery.value;
-            readback_data_var[15:8] = field_storage.chip_7.chip_timing.t_csh_cycles.value;
-            readback_data_var[23:16] = field_storage.chip_7.chip_timing.csn_to_ck_cycles.value;
-        end
-        if(rd_mux_addr == 12'h5d8) begin
-            readback_data_var[7:0] = field_storage.chip_7.rx_delay.value.value;
         end
         if(rd_mux_addr == 12'hffc) begin
             readback_data_var[31:0] = 32'h0;

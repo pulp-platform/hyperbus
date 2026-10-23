@@ -18,6 +18,9 @@ module dut_if
   parameter int  AxiAddrWidth    = -1,
   parameter int  AxiIdWidth      = -1,
   parameter int  AxiUserWidth    = -1,
+  parameter int unsigned AxiMaxReadTxns = 4,
+  parameter int unsigned AxiMaxWriteTxns = 4,
+  parameter int unsigned HostWriteBufferBytes = 64,
                                   
   parameter int  RegAw           = -1,
   parameter int  RegDw           = -1,
@@ -302,9 +305,13 @@ module dut_if
         .AxiDataWidth     ( AxiDataWidth  ),
         .AxiIdWidth       ( AxiIdWidth    ),
         .AxiUserWidth     ( AxiUserWidth  ),
+        .AxiMaxReadTxns   ( AxiMaxReadTxns ),
+        .AxiMaxWriteTxns  ( AxiMaxWriteTxns ),
+        .HostWriteBufferBytes ( HostWriteBufferBytes ),
         .axi_req_t        ( axi_req_t     ),
         .axi_rsp_t        ( axi_resp_t    ),
         .RegDataWidth     ( RegDw         ),
+        .RegAddrWidth     ( RegAw         ),
         .reg_req_t        ( reg_req_t     ),
         .reg_rsp_t        ( reg_rsp_t     ),
         .axi_rule_t       ( axi_rule_t    )
