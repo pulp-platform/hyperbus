@@ -4,11 +4,18 @@
 
 package hyperbus_pkg;
 
+    // The register map and physical interface expose every supported chip select.
+    localparam int unsigned HyperNumChips = 8;
+
+    ////////////////////////////
+    // Host-side transaction //
+    ////////////////////////////
+
     // Maximal burst size: 2^8 1024-bit words as 16-bit words (plus one as not decremented)
     localparam unsigned HyperBurstWidth = 8 + $clog2(1024/16) + 1;
     typedef logic [HyperBurstWidth-1:0] hyper_blen_t;
 
-    typedef logic [2:0]                    hyper_host_size_t;
+    typedef logic [2:0] hyper_host_size_t;
 
     typedef enum logic [1:0] {
         HyperBurstIncr,
@@ -21,6 +28,7 @@ package hyperbus_pkg;
         HyperAtomicSwap,
         HyperAtomicCompare,
         HyperAtomicAdd,
+        HyperAtomicAnd,
         HyperAtomicClear,
         HyperAtomicXor,
         HyperAtomicSet,
@@ -37,7 +45,10 @@ package hyperbus_pkg;
         HyperRespAtomicError
     } hyper_resp_e;
 
-    // configuration type
+    ///////////////////
+    // Configuration //
+    ///////////////////
+
     typedef struct packed {
         logic [3:0]      t_latency_access;
         logic            en_latency_additional;
@@ -61,6 +72,10 @@ package hyperbus_pkg;
         logic            dual_phy;
     } phy_cfg_t;
 
+    //////////////////////////
+    // Backend transaction //
+    //////////////////////////
+
     typedef struct packed {
         logic           write;     // transaction is a write
         hyper_blen_t    burst;
@@ -70,12 +85,12 @@ package hyperbus_pkg;
     } hyper_tf_t;
 
     typedef struct packed {
-           logic [15:0]    data;
-           logic           last;
-           logic           error;
+        logic [15:0] data;
+        logic        last;
+        logic        error;
     } phy_rx_t;
 
-    typedef enum logic[3:0] {
+    typedef enum logic [3:0] {
         Startup,
         Idle,
         DelayCK,

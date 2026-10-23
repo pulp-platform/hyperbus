@@ -55,12 +55,28 @@ proc run_test {top_name name completion_marker args} {
 
 if {$suite in {all fast}} {
     run_test hyperbus_atomic_handler_tb atomic_handler {Atomic handler operation and protocol tests passed}
+    run_test hyperbus_axi_atomic_tb axi_atomic {AXI atomic frontend/midend tests passed}
+    run_test hyperbus_read_counter_tb read_counters_one_phy {Read counter tests passed}
+    run_test hyperbus_read_counter_tb read_counters_two_phy {Read counter tests passed} -gNumPhys=2
+    run_test hyperbus_read_counter_tb read_counters_generic {Read counter tests passed} -gMaxHostBurstBeats=0
+    run_test hyperbus_read_counter_tb read_counters_generic_two_phy {Read counter tests passed} -gMaxHostBurstBeats=0 -gNumPhys=2
+    run_test hyperbus_read_counter_tb read_counters_min_one_phy {Read counter tests passed} -gHostDataWidth=16
+    run_test hyperbus_read_counter_tb read_counters_min_two_phy {Read counter tests passed} -gHostDataWidth=32 -gNumPhys=2
+    run_test hyperbus_read_counter_tb read_counters_wide_generic {Read counter tests passed} -gHostDataWidth=1024 -gMaxHostBurstBeats=0
+    foreach width {128 256 512 1024} {
+        foreach phys {1 2} {
+            run_test hyperbus_read_counter_tb read_counters_bounded_${width}_${phys} {Read counter tests passed} -gHostDataWidth=$width -gNumPhys=$phys
+        }
+    }
+    run_test hyperbus_burst_bound_tb burst_bound {PASS: maximum burst rejected}
+    run_test hyperbus_burst_bound_tb generic_mapped_read {PASS: generic mapped 32768-byte read} -gMaxHostBurstBeats=0 +mapped-read
     run_test hyperbus_cfg_regs_tb cfg_regs {[CFG-REGS] all checks completed}
 }
 if {$suite in {all integration}} {
     foreach variant {isochronous synchronous asynchronous synchronous_one_phy} {
         run_test axi_hyper_tb_$variant functional_$variant {[AXI-TEST] passed} +HYPERBUS_FUNCTIONAL_ONLY
     }
+    run_test axi_pre_aw_drain_tb pre_aw_drain {Pre-AW W drain regressions passed}
 }
 if {$suite in {all performance}} {
     foreach variant {isochronous synchronous asynchronous synchronous_one_phy} {
