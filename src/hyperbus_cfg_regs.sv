@@ -133,6 +133,9 @@ module hyperbus_cfg_regs #(
                     end
                 end
                 if (cfg_addr == (12'h40c + i * 12'h40)) begin
+                    if (reg_req_i.wstrb[3]) begin
+                        cfg_value_valid &= reg_req_i.wdata[31:24] <= 8'd1;
+                    end
                     if (reg_req_i.wstrb[0]) begin
                         cfg_value_valid &= reg_req_i.wdata[7:0] inside {[8'd3:8'd15]};
                     end
@@ -141,6 +144,16 @@ module hyperbus_cfg_regs #(
                     end
                     if (reg_req_i.wstrb[2]) begin
                         cfg_value_valid &= reg_req_i.wdata[23:16] <= 8'd1;
+                    end
+                    if (reg_req_i.wstrb[0] && reg_req_i.wstrb[1]) begin
+                        cfg_value_valid &= ({1'b0, reg_req_i.wdata[15:8]} + 9'd2) <=
+                                           {1'b0, reg_req_i.wdata[7:0]};
+                    end else if (reg_req_i.wstrb[0]) begin
+                        cfg_value_valid &= ({5'b0, phy_cfg_o.chip[i].rwds_sample_delay} + 9'd2) <=
+                                           {1'b0, reg_req_i.wdata[7:0]};
+                    end else if (reg_req_i.wstrb[1]) begin
+                        cfg_value_valid &= ({1'b0, reg_req_i.wdata[15:8]} + 9'd2) <=
+                                           {5'b0, phy_cfg_o.chip[i].t_latency_access};
                     end
                 end
                 if (cfg_addr == (12'h414 + i * 12'h40)) begin
@@ -179,8 +192,8 @@ module hyperbus_cfg_regs #(
     assign cfg_hwif_in.global_cfg.capability.clock_divider.next = ClockDividerImplemented;
     assign cfg_hwif_in.global_cfg.capability.staged_apply.next = 1'b1;
     assign cfg_hwif_in.global_cfg.capability.error_status.next = 1'b1;
-    assign cfg_hwif_in.global_cfg.capability.rwds_sample_timing.next = 1'b0;
-    assign cfg_hwif_in.global_cfg.capability.rwds_oe_timing.next = 1'b0;
+    assign cfg_hwif_in.global_cfg.capability.rwds_sample_timing.next = 1'b1;
+    assign cfg_hwif_in.global_cfg.capability.rwds_oe_timing.next = 1'b1;
     assign cfg_hwif_in.global_cfg.status.busy.next = status_busy_i;
     assign cfg_hwif_in.global_cfg.status.dirty.next = status_dirty_i;
     assign cfg_hwif_in.global_cfg.status.decode_error.next =
@@ -241,6 +254,7 @@ module hyperbus_cfg_regs #(
                     phy_cfg_o.chip[i].t_latency_access = cfg_hwif_out.chip_0.latency_cfg.t_latency_access.value[3:0];
                     phy_cfg_o.chip[i].rwds_sample_delay = cfg_hwif_out.chip_0.latency_cfg.rwds_sample_delay.value[3:0];
                     phy_cfg_o.chip[i].en_latency_additional = cfg_hwif_out.chip_0.latency_cfg.en_latency_additional.value;
+                    phy_cfg_o.chip[i].keep_dq_driven = cfg_hwif_out.chip_0.latency_cfg.keep_dq_driven.value;
                     phy_cfg_o.chip[i].t_burst_max = cfg_hwif_out.chip_0.burst_cfg.t_burst_max.value;
                     phy_cfg_o.chip[i].t_read_write_recovery = cfg_hwif_out.chip_0.chip_timing.t_read_write_recovery.value[3:0];
                     phy_cfg_o.chip[i].t_csh_cycles = cfg_hwif_out.chip_0.chip_timing.t_csh_cycles.value[3:0];
@@ -256,6 +270,7 @@ module hyperbus_cfg_regs #(
                     phy_cfg_o.chip[i].t_latency_access = cfg_hwif_out.chip_1.latency_cfg.t_latency_access.value[3:0];
                     phy_cfg_o.chip[i].rwds_sample_delay = cfg_hwif_out.chip_1.latency_cfg.rwds_sample_delay.value[3:0];
                     phy_cfg_o.chip[i].en_latency_additional = cfg_hwif_out.chip_1.latency_cfg.en_latency_additional.value;
+                    phy_cfg_o.chip[i].keep_dq_driven = cfg_hwif_out.chip_1.latency_cfg.keep_dq_driven.value;
                     phy_cfg_o.chip[i].t_burst_max = cfg_hwif_out.chip_1.burst_cfg.t_burst_max.value;
                     phy_cfg_o.chip[i].t_read_write_recovery = cfg_hwif_out.chip_1.chip_timing.t_read_write_recovery.value[3:0];
                     phy_cfg_o.chip[i].t_csh_cycles = cfg_hwif_out.chip_1.chip_timing.t_csh_cycles.value[3:0];
@@ -271,6 +286,7 @@ module hyperbus_cfg_regs #(
                     phy_cfg_o.chip[i].t_latency_access = cfg_hwif_out.chip_2.latency_cfg.t_latency_access.value[3:0];
                     phy_cfg_o.chip[i].rwds_sample_delay = cfg_hwif_out.chip_2.latency_cfg.rwds_sample_delay.value[3:0];
                     phy_cfg_o.chip[i].en_latency_additional = cfg_hwif_out.chip_2.latency_cfg.en_latency_additional.value;
+                    phy_cfg_o.chip[i].keep_dq_driven = cfg_hwif_out.chip_2.latency_cfg.keep_dq_driven.value;
                     phy_cfg_o.chip[i].t_burst_max = cfg_hwif_out.chip_2.burst_cfg.t_burst_max.value;
                     phy_cfg_o.chip[i].t_read_write_recovery = cfg_hwif_out.chip_2.chip_timing.t_read_write_recovery.value[3:0];
                     phy_cfg_o.chip[i].t_csh_cycles = cfg_hwif_out.chip_2.chip_timing.t_csh_cycles.value[3:0];
@@ -286,6 +302,7 @@ module hyperbus_cfg_regs #(
                     phy_cfg_o.chip[i].t_latency_access = cfg_hwif_out.chip_3.latency_cfg.t_latency_access.value[3:0];
                     phy_cfg_o.chip[i].rwds_sample_delay = cfg_hwif_out.chip_3.latency_cfg.rwds_sample_delay.value[3:0];
                     phy_cfg_o.chip[i].en_latency_additional = cfg_hwif_out.chip_3.latency_cfg.en_latency_additional.value;
+                    phy_cfg_o.chip[i].keep_dq_driven = cfg_hwif_out.chip_3.latency_cfg.keep_dq_driven.value;
                     phy_cfg_o.chip[i].t_burst_max = cfg_hwif_out.chip_3.burst_cfg.t_burst_max.value;
                     phy_cfg_o.chip[i].t_read_write_recovery = cfg_hwif_out.chip_3.chip_timing.t_read_write_recovery.value[3:0];
                     phy_cfg_o.chip[i].t_csh_cycles = cfg_hwif_out.chip_3.chip_timing.t_csh_cycles.value[3:0];
@@ -301,6 +318,7 @@ module hyperbus_cfg_regs #(
                     phy_cfg_o.chip[i].t_latency_access = cfg_hwif_out.chip_3.latency_cfg.t_latency_access.value[3:0];
                     phy_cfg_o.chip[i].rwds_sample_delay = cfg_hwif_out.chip_3.latency_cfg.rwds_sample_delay.value[3:0];
                     phy_cfg_o.chip[i].en_latency_additional = cfg_hwif_out.chip_3.latency_cfg.en_latency_additional.value;
+                    phy_cfg_o.chip[i].keep_dq_driven = cfg_hwif_out.chip_3.latency_cfg.keep_dq_driven.value;
                     phy_cfg_o.chip[i].t_burst_max = cfg_hwif_out.chip_3.burst_cfg.t_burst_max.value;
                     phy_cfg_o.chip[i].t_read_write_recovery = cfg_hwif_out.chip_3.chip_timing.t_read_write_recovery.value[3:0];
                     phy_cfg_o.chip[i].t_csh_cycles = cfg_hwif_out.chip_3.chip_timing.t_csh_cycles.value[3:0];

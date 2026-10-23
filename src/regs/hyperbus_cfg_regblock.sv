@@ -365,6 +365,10 @@ module hyperbus_cfg_regblock (
                     logic next;
                     logic load_next;
                 } en_latency_additional;
+                struct {
+                    logic next;
+                    logic load_next;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -433,6 +437,10 @@ module hyperbus_cfg_regblock (
                     logic next;
                     logic load_next;
                 } en_latency_additional;
+                struct {
+                    logic next;
+                    logic load_next;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -501,6 +509,10 @@ module hyperbus_cfg_regblock (
                     logic next;
                     logic load_next;
                 } en_latency_additional;
+                struct {
+                    logic next;
+                    logic load_next;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -569,6 +581,10 @@ module hyperbus_cfg_regblock (
                     logic next;
                     logic load_next;
                 } en_latency_additional;
+                struct {
+                    logic next;
+                    logic load_next;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -724,6 +740,9 @@ module hyperbus_cfg_regblock (
                 struct {
                     logic value;
                 } en_latency_additional;
+                struct {
+                    logic value;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -779,6 +798,9 @@ module hyperbus_cfg_regblock (
                 struct {
                     logic value;
                 } en_latency_additional;
+                struct {
+                    logic value;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -834,6 +856,9 @@ module hyperbus_cfg_regblock (
                 struct {
                     logic value;
                 } en_latency_additional;
+                struct {
+                    logic value;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -889,6 +914,9 @@ module hyperbus_cfg_regblock (
                 struct {
                     logic value;
                 } en_latency_additional;
+                struct {
+                    logic value;
+                } keep_dq_driven;
             } latency_cfg;
             struct {
                 struct {
@@ -1600,6 +1628,29 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.chip_0.latency_cfg.en_latency_additional.value = field_storage.chip_0.latency_cfg.en_latency_additional.value;
+    // Field: hyperbus_cfg_regs.chip_0.latency_cfg.keep_dq_driven
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip_0.latency_cfg.keep_dq_driven.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip_0.latency_cfg && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip_0.latency_cfg.keep_dq_driven.value & ~decoded_wr_biten[24:24]) | (decoded_wr_data[24:24] & decoded_wr_biten[24:24]);
+            load_next_c = '1;
+        end
+        field_combo.chip_0.latency_cfg.keep_dq_driven.next = next_c;
+        field_combo.chip_0.latency_cfg.keep_dq_driven.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip_0.latency_cfg.keep_dq_driven.value <= 1'h0;
+        end else begin
+            if(field_combo.chip_0.latency_cfg.keep_dq_driven.load_next) begin
+                field_storage.chip_0.latency_cfg.keep_dq_driven.value <= field_combo.chip_0.latency_cfg.keep_dq_driven.next;
+            end
+        end
+    end
+    assign hwif_out.chip_0.latency_cfg.keep_dq_driven.value = field_storage.chip_0.latency_cfg.keep_dq_driven.value;
     // Field: hyperbus_cfg_regs.chip_0.burst_cfg.t_burst_max
     always_comb begin
         automatic logic [15:0] next_c;
@@ -1899,6 +1950,29 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.chip_1.latency_cfg.en_latency_additional.value = field_storage.chip_1.latency_cfg.en_latency_additional.value;
+    // Field: hyperbus_cfg_regs.chip_1.latency_cfg.keep_dq_driven
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip_1.latency_cfg.keep_dq_driven.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip_1.latency_cfg && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip_1.latency_cfg.keep_dq_driven.value & ~decoded_wr_biten[24:24]) | (decoded_wr_data[24:24] & decoded_wr_biten[24:24]);
+            load_next_c = '1;
+        end
+        field_combo.chip_1.latency_cfg.keep_dq_driven.next = next_c;
+        field_combo.chip_1.latency_cfg.keep_dq_driven.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip_1.latency_cfg.keep_dq_driven.value <= 1'h0;
+        end else begin
+            if(field_combo.chip_1.latency_cfg.keep_dq_driven.load_next) begin
+                field_storage.chip_1.latency_cfg.keep_dq_driven.value <= field_combo.chip_1.latency_cfg.keep_dq_driven.next;
+            end
+        end
+    end
+    assign hwif_out.chip_1.latency_cfg.keep_dq_driven.value = field_storage.chip_1.latency_cfg.keep_dq_driven.value;
     // Field: hyperbus_cfg_regs.chip_1.burst_cfg.t_burst_max
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2198,6 +2272,29 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.chip_2.latency_cfg.en_latency_additional.value = field_storage.chip_2.latency_cfg.en_latency_additional.value;
+    // Field: hyperbus_cfg_regs.chip_2.latency_cfg.keep_dq_driven
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip_2.latency_cfg.keep_dq_driven.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip_2.latency_cfg && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip_2.latency_cfg.keep_dq_driven.value & ~decoded_wr_biten[24:24]) | (decoded_wr_data[24:24] & decoded_wr_biten[24:24]);
+            load_next_c = '1;
+        end
+        field_combo.chip_2.latency_cfg.keep_dq_driven.next = next_c;
+        field_combo.chip_2.latency_cfg.keep_dq_driven.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip_2.latency_cfg.keep_dq_driven.value <= 1'h0;
+        end else begin
+            if(field_combo.chip_2.latency_cfg.keep_dq_driven.load_next) begin
+                field_storage.chip_2.latency_cfg.keep_dq_driven.value <= field_combo.chip_2.latency_cfg.keep_dq_driven.next;
+            end
+        end
+    end
+    assign hwif_out.chip_2.latency_cfg.keep_dq_driven.value = field_storage.chip_2.latency_cfg.keep_dq_driven.value;
     // Field: hyperbus_cfg_regs.chip_2.burst_cfg.t_burst_max
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2497,6 +2594,29 @@ module hyperbus_cfg_regblock (
         end
     end
     assign hwif_out.chip_3.latency_cfg.en_latency_additional.value = field_storage.chip_3.latency_cfg.en_latency_additional.value;
+    // Field: hyperbus_cfg_regs.chip_3.latency_cfg.keep_dq_driven
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.chip_3.latency_cfg.keep_dq_driven.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.chip_3.latency_cfg && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.chip_3.latency_cfg.keep_dq_driven.value & ~decoded_wr_biten[24:24]) | (decoded_wr_data[24:24] & decoded_wr_biten[24:24]);
+            load_next_c = '1;
+        end
+        field_combo.chip_3.latency_cfg.keep_dq_driven.next = next_c;
+        field_combo.chip_3.latency_cfg.keep_dq_driven.load_next = load_next_c;
+    end
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
+            field_storage.chip_3.latency_cfg.keep_dq_driven.value <= 1'h0;
+        end else begin
+            if(field_combo.chip_3.latency_cfg.keep_dq_driven.load_next) begin
+                field_storage.chip_3.latency_cfg.keep_dq_driven.value <= field_combo.chip_3.latency_cfg.keep_dq_driven.next;
+            end
+        end
+    end
+    assign hwif_out.chip_3.latency_cfg.keep_dq_driven.value = field_storage.chip_3.latency_cfg.keep_dq_driven.value;
     // Field: hyperbus_cfg_regs.chip_3.burst_cfg.t_burst_max
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2698,6 +2818,7 @@ module hyperbus_cfg_regblock (
             readback_data_var[3:0] = field_storage.chip_0.latency_cfg.t_latency_access.value;
             readback_data_var[11:8] = field_storage.chip_0.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_0.latency_cfg.en_latency_additional.value;
+            readback_data_var[24] = field_storage.chip_0.latency_cfg.keep_dq_driven.value;
         end
         if(rd_mux_addr == 12'h410) begin
             readback_data_var[15:0] = field_storage.chip_0.burst_cfg.t_burst_max.value;
@@ -2725,6 +2846,7 @@ module hyperbus_cfg_regblock (
             readback_data_var[3:0] = field_storage.chip_1.latency_cfg.t_latency_access.value;
             readback_data_var[11:8] = field_storage.chip_1.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_1.latency_cfg.en_latency_additional.value;
+            readback_data_var[24] = field_storage.chip_1.latency_cfg.keep_dq_driven.value;
         end
         if(rd_mux_addr == 12'h450) begin
             readback_data_var[15:0] = field_storage.chip_1.burst_cfg.t_burst_max.value;
@@ -2752,6 +2874,7 @@ module hyperbus_cfg_regblock (
             readback_data_var[3:0] = field_storage.chip_2.latency_cfg.t_latency_access.value;
             readback_data_var[11:8] = field_storage.chip_2.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_2.latency_cfg.en_latency_additional.value;
+            readback_data_var[24] = field_storage.chip_2.latency_cfg.keep_dq_driven.value;
         end
         if(rd_mux_addr == 12'h490) begin
             readback_data_var[15:0] = field_storage.chip_2.burst_cfg.t_burst_max.value;
@@ -2779,6 +2902,7 @@ module hyperbus_cfg_regblock (
             readback_data_var[3:0] = field_storage.chip_3.latency_cfg.t_latency_access.value;
             readback_data_var[11:8] = field_storage.chip_3.latency_cfg.rwds_sample_delay.value;
             readback_data_var[16] = field_storage.chip_3.latency_cfg.en_latency_additional.value;
+            readback_data_var[24] = field_storage.chip_3.latency_cfg.keep_dq_driven.value;
         end
         if(rd_mux_addr == 12'h4d0) begin
             readback_data_var[15:0] = field_storage.chip_3.burst_cfg.t_burst_max.value;
