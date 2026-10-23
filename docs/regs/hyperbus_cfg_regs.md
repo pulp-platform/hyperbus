@@ -2,7 +2,7 @@
 Markdown description for SystemRDL register map.
 
 Don't override. Generated from: hyperbus_cfg_regs
-  - /home/phsauter/repos/hyperbus/src/regs/hyperbus_cfg_regs.rdl
+  - src/regs/hyperbus_cfg_regs.rdl
 -->
 
 ## hyperbus_cfg_regs address map
