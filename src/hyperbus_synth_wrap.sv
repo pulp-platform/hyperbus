@@ -146,6 +146,7 @@ module hyperbus_lint_wrap #(
         .axi_r_chan_t    ( r_chan_t        ),
         .axi_aw_chan_t   ( aw_chan_t       ),
         .RegDataWidth    ( RegDataWidth    ),
+        .RegAddrWidth    ( RegAddrWidth    ),
         .reg_req_t       ( reg_req_t       ),
         .reg_rsp_t       ( reg_rsp_t       ),
         .axi_rule_t      ( axi_rule_t      )

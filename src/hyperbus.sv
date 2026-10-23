@@ -22,6 +22,7 @@ module hyperbus #(
     parameter type          axi_r_chan_t     = logic,
     parameter type          axi_aw_chan_t    = logic,
     parameter int unsigned  RegDataWidth     = -1,
+    parameter int unsigned  RegAddrWidth     = 32,
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          axi_rule_t       = logic,
@@ -118,6 +119,8 @@ module hyperbus #(
         .NumChips       ( NumChips      ),
         .NumPhys        ( NumPhys       ),
         .RegDataWidth   ( RegDataWidth  ),
+        .RegAddrWidth   ( RegAddrWidth  ),
+        .CapabilityFeatures ( '0           ),
         .reg_req_t      ( reg_req_t     ),
         .reg_rsp_t      ( reg_rsp_t     ),
         .rule_t         ( axi_rule_t    )
@@ -129,7 +132,12 @@ module hyperbus #(
         .frontend_cfg_o ( frontend_cfg  ),
         .phy_cfg_o      ( phy_cfg       ),
         .chip_rules_o   ( chip_rules    ),
-        .trans_active_i ( trans_active  )
+        .trans_active_i ( trans_active  ),
+        .cfg_busy_i     ( trans_active  ),
+        .decode_error_i ( 1'b0           ),
+        .cfg_dirty_i    ( 1'b0           ),
+        .flush_req_o    (                ),
+        .apply_req_o    (                )
     );
 
     // AXI slave interfacing PHY
