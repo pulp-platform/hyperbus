@@ -7,7 +7,6 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_cfg_regs #(
-    parameter int unsigned  NumChips        = -1,
     parameter int unsigned  NumPhys         = -1,
     parameter int unsigned  RegDataWidth    = -1,
     parameter int unsigned  RegAddrWidth    = 32,
@@ -26,13 +25,11 @@ module hyperbus_cfg_regs #(
 
     output hyperbus_pkg::frontend_cfg_t frontend_cfg_o,
     output hyperbus_pkg::phy_cfg_t      phy_cfg_o,
-    output addr_rule_t [NumChips-1:0]   chip_rules_o,
+    output addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules_o,
     input  logic                        decode_error_i
 );
     `include "common_cells/registers.svh"
 
-    localparam int unsigned NumChipsMax = 8;
-    `ASSERT_INIT(NumChipsValid, NumChips >= 1 && NumChips <= NumChipsMax)
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
     `ASSERT_INIT(RegAddrWidthValid, RegAddrWidth >= 12)
     `ASSERT_INIT(RegDataWidthValid, RegDataWidth == 32)
@@ -73,7 +70,7 @@ module hyperbus_cfg_regs #(
 
     hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__out_t cfg_hwif_out;
     hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__in_t  cfg_hwif_in;
-    addr_rule_t [NumChipsMax-1:0] chip_rules_all;
+    addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules_all;
 
     cfg_addr_t cfg_addr;
     logic cfg_addr_in_window;
@@ -187,7 +184,7 @@ module hyperbus_cfg_regs #(
 
     always_comb begin : proc_chip_rules
         chip_rules_all = '0;
-        for (int unsigned i = 0; i < NumChipsMax; i++) begin
+        for (int unsigned i = 0; i < hyperbus_pkg::HyperNumChips; i++) begin
             chip_rules_all[i].idx = unsigned'(i);
         end
         chip_rules_all[0].start_addr = {cfg_hwif_out.chip_0.range_base.value.value, 22'b0};
@@ -208,7 +205,7 @@ module hyperbus_cfg_regs #(
         chip_rules_all[7].end_addr   = {cfg_hwif_out.chip_7.range_bound.value.value, 22'b0};
     end
 
-    assign cfg_hwif_in.global_cfg.capability.num_chips.next = 8'(NumChips);
+    assign cfg_hwif_in.global_cfg.capability.num_chips.next = 8'(hyperbus_pkg::HyperNumChips);
     assign cfg_hwif_in.global_cfg.capability.num_phys.next  = 8'(NumPhys);
     assign cfg_hwif_in.global_cfg.capability.per_chip_cfg.next  = CapabilityFeatures[0];
     assign cfg_hwif_in.global_cfg.capability.per_phy_cfg.next   = CapabilityFeatures[1];
@@ -303,13 +300,6 @@ module hyperbus_cfg_regs #(
         unused_cfg_fields |= ^cfg_hwif_out.chip_7.latency_cfg.rwds_sample_delay.value;
     end
 
-    for (genvar i = 0; unsigned'(i) < NumChipsMax; i++) begin : gen_chip_rules
-        if (i < NumChips) begin : gen_active
-            assign chip_rules_o[i] = chip_rules_all[i];
-        end else begin : gen_inactive
-            logic unused_chip_rule;
-            assign unused_chip_rule = ^chip_rules_all[i];
-        end
-    end
+    assign chip_rules_o = chip_rules_all;
 
 endmodule : hyperbus_cfg_regs

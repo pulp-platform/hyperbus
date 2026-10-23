@@ -6,7 +6,6 @@
 `include "common_cells/registers.svh"
 
 module hyperbus_backend #(
-    parameter int unsigned  NumChips         = -1,
     parameter int unsigned  NumPhys          = 2,
     parameter int unsigned  StartupCycles    = 60000,
     parameter int unsigned  SyncStages       = 2,
@@ -31,7 +30,7 @@ module hyperbus_backend #(
     input  hyper_req_t                 req_i,
     output hyper_rsp_t                 rsp_o,
 
-    output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
+    output logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_no,
     output logic [NumPhys-1:0]               hyper_ck_o,
     output logic [NumPhys-1:0]               hyper_ck_no,
     output logic [NumPhys-1:0]               hyper_rwds_o,
@@ -43,12 +42,15 @@ module hyperbus_backend #(
     output logic [NumPhys-1:0]               hyper_reset_no
 );
 
-    hyperbus_pkg::phy_cfg_t cfg_q;
-    logic                     cfg_apply_accepted;
-    logic                     phy_busy_any;
-    logic                     clk_tx;
+    /////////////////////////////
+    // Configuration and clock //
+    /////////////////////////////
 
-    `ASSERT_INIT(NumChipsValid, NumChips >= 1 && NumChips <= 8)
+    hyperbus_pkg::phy_cfg_t cfg_q;
+    logic                   cfg_apply_accepted;
+    logic                   phy_busy_any;
+    logic                   clk_tx;
+
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
     `ASSERT_INIT(SyncStagesValid, SyncStages >= 2)
 
@@ -68,6 +70,10 @@ module hyperbus_backend #(
         .delay_i ( cfg_q.t_tx_clk_delay ),
         .out_o   ( clk_tx               )
     );
+
+    /////////////////////
+    // Physical lanes //
+    /////////////////////
 
     if (NumPhys == 2) begin : gen_dual_phy
         hyperbus_pkg::phy_rx_t [NumPhys-1:0] phy_rx;
@@ -169,7 +175,6 @@ module hyperbus_backend #(
             );
 
             hyperbus_phy #(
-                .NumChips       ( NumChips       ),
                 .StartupCycles  ( StartupCycles  ),
                 .NumPhys        ( NumPhys        ),
                 .SyncStages     ( SyncStages     )
@@ -211,7 +216,6 @@ module hyperbus_backend #(
         end
     end else begin : gen_single_phy
         hyperbus_phy #(
-            .NumChips       ( NumChips       ),
             .StartupCycles  ( StartupCycles  ),
             .NumPhys        ( NumPhys        ),
             .SyncStages     ( SyncStages     )
