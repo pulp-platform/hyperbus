@@ -99,3 +99,10 @@ test:
 
 test-fast test-integration test-performance test-pad:
 	BENDER="$(BENDER)" VSIM="$(VSIM)" bash scripts/run_regression.sh $(patsubst test-%,%,$@)
+
+.PHONY: test-pad-matrix characterize-pad
+test-pad-matrix:
+	BENDER="$(BENDER)" VSIM="$(VSIM)" bash scripts/run_pad_delay_matrix.sh regression build/pad-matrix
+
+characterize-pad:
+	BENDER="$(BENDER)" VSIM="$(VSIM)" bash scripts/run_pad_delay_matrix.sh characterize build/pad-characterization --axis out

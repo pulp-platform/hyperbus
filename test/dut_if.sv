@@ -139,14 +139,14 @@ module dut_if
       end
 
       if (axi_req.aw_valid && axi_resp.aw_ready) begin
-        if (aw_tail - aw_head >= MonitorDepth) $fatal(1, "[AXI-PROTOCOL] AW monitor queue overflow");
+        if (aw_tail - aw_head >= MonitorDepth) $fatal(1, "[TB-MONITOR] AW monitor queue overflow");
         aw_id_fifo[aw_tail % MonitorDepth] = axi_req.aw.id;
         aw_beats_fifo[aw_tail % MonitorDepth] = int'(axi_req.aw.len) + 1;
         aw_tail++;
         if (axi_req.aw.atop[axi_pkg::ATOP_R_RESP]) begin
           id = int'(axi_req.aw.id);
           if (read_tail[id] - read_head[id] >= MonitorDepth)
-            $fatal(1, "[AXI-PROTOCOL] Atomic R monitor queue overflow for id=%0d", id);
+            $fatal(1, "[TB-MONITOR] Atomic R monitor queue overflow for id=%0d", id);
           // AXI atomics return one old-value beat even when malformed AWLEN is drained.
           read_len_fifo[id][read_tail[id] % MonitorDepth] = 1;
           read_tail[id]++;
@@ -155,7 +155,7 @@ module dut_if
       if (axi_req.w_valid && axi_resp.w_ready) begin
         w_current_beats++;
         if (axi_req.w.last) begin
-          if (w_tail - w_head >= MonitorDepth) $fatal(1, "[AXI-PROTOCOL] W monitor queue overflow");
+          if (w_tail - w_head >= MonitorDepth) $fatal(1, "[TB-MONITOR] W monitor queue overflow");
           w_beats_fifo[w_tail % MonitorDepth] = w_current_beats;
           w_tail++;
           w_current_beats = 0;
@@ -172,7 +172,7 @@ module dut_if
       if (axi_req.ar_valid && axi_resp.ar_ready) begin
         id = int'(axi_req.ar.id);
         if (read_tail[id] - read_head[id] >= MonitorDepth)
-          $fatal(1, "[AXI-PROTOCOL] AR monitor queue overflow for id=%0d", id);
+          $fatal(1, "[TB-MONITOR] AR monitor queue overflow for id=%0d", id);
         read_len_fifo[id][read_tail[id] % MonitorDepth] = int'(axi_req.ar.len) + 1;
         read_tail[id]++;
       end
@@ -236,8 +236,22 @@ module dut_if
     logic [NumPhys-1:0]               hyper_rwds_oe_pad;
     logic [NumPhys-1:0][7:0]          hyper_dq_o_pad;
     logic [NumPhys-1:0]               hyper_dq_oe_pad;
+    logic [NumPhys-1:0]               delayed_dq_oe;
     logic [NumPhys-1:0]               hyper_rwds_i_pad;
     logic [NumPhys-1:0][7:0]          hyper_dq_i_pad;
+    logic [NumPhys-1:0][7:0]          delayed_dq_i;
+    bit pad_matrix_mode, inject_read_fault, inject_read_unknown, inject_ca_fault;
+    initial begin
+        pad_matrix_mode = $test$plusargs("HYPERBUS_PAD_MATRIX");
+        inject_read_fault = pad_matrix_mode && $test$plusargs("PAD_INJECT_READ_FAULT");
+        inject_read_unknown = pad_matrix_mode && $test$plusargs("PAD_INJECT_READ_X");
+        inject_ca_fault = pad_matrix_mode && $test$plusargs("PAD_INJECT_CA_OE_FAULT");
+    end
+    assign hyper_dq_oe_pad = inject_ca_fault ? '0 : delayed_dq_oe;
+    for (genvar p = 0; p < NumPhys; p++) begin : gen_pad_read_fault
+        assign hyper_dq_i[p] = inject_read_unknown ? 'x :
+                              delayed_dq_i[p] ^ (inject_read_fault ? 8'h01 : 8'h00);
+    end
              
     wire  [NumPhys-1:0][NumConnectedChips-1:0] pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
@@ -268,12 +282,34 @@ module dut_if
       .rwds_o_o     ( hyper_rwds_o_pad      ),
       .dq_o_o       ( hyper_dq_o_pad        ),
       .reset_n_o    (                       ),
-      .dq_oe_o      ( hyper_dq_oe_pad       ),
+      .dq_oe_o      ( delayed_dq_oe         ),
       .rwds_oe_o    ( hyper_rwds_oe_pad     ),
       .rwds_i_pad   ( hyper_rwds_i_pad      ),
       .dq_i_pad     ( hyper_dq_i_pad        ),
       .rwds_i       ( hyper_rwds_i           ),
-      .dq_i         ( hyper_dq_i             )
+      .dq_i         ( delayed_dq_i           )
+    );
+
+    hyperbus_pad_timing_monitor #(
+      .NumPhys    ( NumPhys ),
+      .NumChips   ( hyperbus_pkg::HyperNumChips ),
+      .TickPeriodPs ( int'(real'(PhyCyclTime) / 1ps / 4.0) )
+    ) i_pad_timing_monitor (
+      .rst_ni,
+      .enabled_i        ( pad_matrix_mode ),
+      .end_i            ( end_sim_i ),
+      .cfg_i            ( pad_delay_cfg_i ),
+      .ideal_ck_i       ( hyper_ck_wire ),
+      .delayed_ck_i     ( hyper_ck_pad ),
+      .raw_rwds_i       ( hyper_rwds_i_pad ),
+      .delayed_rwds_i   ( hyper_rwds_i ),
+      .ideal_dq_oe_i    ( hyper_dq_oe ),
+      .delayed_dq_oe_i  ( hyper_dq_oe_pad ),
+      .ideal_rwds_oe_i  ( hyper_rwds_oe ),
+      .delayed_rwds_oe_i( hyper_rwds_oe_pad ),
+      .cs_no           ( hyper_cs_n_pad ),
+      .dq_i            ( pad_hyper_dq ),
+      .rwds_i          ( pad_hyper_rwds )
     );
    
   axi_chan_logger #(
@@ -319,10 +355,15 @@ module dut_if
     end
 
     initial begin
+        real tick_interval;
+        // The adapter consumes both edges. Matrix ticks are one quarter PHY
+        // cycle; preserve the existing reference clock for ordinary suites.
+        tick_interval = $test$plusargs("HYPERBUS_PAD_MATRIX") ?
+            real'(PhyCyclTime) / 4.0 : real'(PadDelayTickCyclTime) / 4.0;
         pad_delay_tick_clk = 1'b0;
-        #(real'(PadDelayTickCyclTime) / 8.0);
+        #(tick_interval / 2.0);
         forever begin
-            #(real'(PadDelayTickCyclTime) / 4.0);
+            #(tick_interval);
             pad_delay_tick_clk = ~pad_delay_tick_clk;
         end
     end
