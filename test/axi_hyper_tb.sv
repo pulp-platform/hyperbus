@@ -92,6 +92,7 @@ module axi_hyper_tb
   hyperbus_tb_pkg::pad_delay_cfg_t pad_delay_cfg;
   bit performance_only;
   bit functional_only;
+  bit pad_matrix;
   logic [63:0]           cycle_count;
 
   sim_timeout #(
@@ -100,6 +101,14 @@ module axi_hyper_tb
     .clk_i  ( clk   ),
     .rst_ni ( rst_n )
   );
+
+  initial begin : proc_pad_matrix_timeout
+    if ($test$plusargs("HYPERBUS_PAD_MATRIX")) begin
+      @(posedge rst_n);
+      repeat (150000) @(posedge clk);
+      $fatal(1, "[PAD-MATRIX] transaction timeout");
+    end
+  end
 
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -340,7 +349,7 @@ module axi_hyper_tb
     w.w_last = 1'b1;
     axi_drv.send_w(w);
     axi_drv.recv_b(b);
-    if (b.b_resp != axi_pkg::RESP_OKAY) begin
+    if (b.b_resp !== axi_pkg::RESP_OKAY || b.b_id !== '0) begin
       $error("[AXI] Write to 0x%08x returned response %0d", addr, b.b_resp);
     end
   endtask
@@ -372,7 +381,8 @@ module axi_hyper_tb
     end
     actual = r.r_data >> (8 * addr[$clog2(TbAxiDataWidthFull/8)-1:0]);
 
-    if (r.r_resp != axi_pkg::RESP_OKAY || (actual & mask) != (expected & mask)) begin
+    if (r.r_resp !== axi_pkg::RESP_OKAY || r.r_last !== 1'b1 || r.r_id !== '0 ||
+        ((actual & mask) !== (expected & mask))) begin
       $error("[AXI] Read from 0x%08x returned 0x%016x, expected 0x%016x, response %0d",
              addr, actual & mask, expected & mask, r.r_resp);
     end
@@ -434,7 +444,7 @@ module axi_hyper_tb
     w.w_last = 1'b1;
     axi_drv.send_w(w);
     axi_drv.recv_b(b);
-    if (b.b_resp != axi_pkg::RESP_OKAY) begin
+    if (b.b_resp !== axi_pkg::RESP_OKAY || b.b_id !== '0) begin
       $error("[AXI-UNALIGNED] Write returned response %0d", b.b_resp);
     end
 
@@ -442,8 +452,8 @@ module axi_hyper_tb
 
     axi_drv.send_ar(ax);
     axi_drv.recv_r(r);
-    if ((r.r_resp != axi_pkg::RESP_OKAY) || !r.r_last ||
-        (r.r_data[31:8] != UpdatedData)) begin
+    if ((r.r_resp !== axi_pkg::RESP_OKAY) || (r.r_last !== 1'b1) ||
+        (r.r_id !== '0) || (r.r_data[31:8] !== UpdatedData)) begin
       $error("[AXI-UNALIGNED] Read returned data=0x%016x last=%0b resp=%0d",
              r.r_data, r.r_last, r.r_resp);
     end
@@ -480,7 +490,7 @@ module axi_hyper_tb
     end
 
     axi_drv.recv_b(b);
-    if (b.b_resp != axi_pkg::RESP_OKAY) begin
+    if (b.b_resp !== axi_pkg::RESP_OKAY || b.b_id !== '0) begin
       $error("[AXI-SLOW] Write to 0x%08x returned response %0d", addr, b.b_resp);
     end
   endtask
@@ -510,8 +520,8 @@ module axi_hyper_tb
       repeat (gap_cycles) @(posedge clk);
       axi_drv.recv_r(r);
       expected = slow_stress_data(addr, beat);
-      if (r.r_resp != axi_pkg::RESP_OKAY || r.r_data != expected ||
-          r.r_last != (beat == (num_beats - 1))) begin
+      if (r.r_resp !== axi_pkg::RESP_OKAY || r.r_data !== expected || r.r_id !== '0 ||
+          r.r_last !== (beat == (num_beats - 1))) begin
         $error("[AXI-SLOW] Read beat %0d from 0x%08x returned data=0x%016x last=%0b resp=%0d, expected data=0x%016x last=%0b",
                beat, addr, r.r_data, r.r_last, r.r_resp, expected, beat == (num_beats - 1));
       end
@@ -565,7 +575,7 @@ module axi_hyper_tb
         repeat (8) @(posedge clk);
         for (int unsigned response = 0; response < NumTransactions; response++) begin
           axi_drv.recv_b(b);
-          if (b.b_resp != axi_pkg::RESP_OKAY) $error("[MIDEND-BUFFER] B response %0d: resp=%0d", response, b.b_resp);
+          if (b.b_resp !== axi_pkg::RESP_OKAY) $error("[MIDEND-BUFFER] B response %0d: resp=%0d", response, b.b_resp);
           for (int unsigned i = 0; i < NumTransactions; i++) begin
             if (!write_seen[i] && ids[i] == b.b_id) begin
               write_seen[i] = 1'b1;
@@ -603,9 +613,9 @@ module axi_hyper_tb
                 int unsigned beat;
                 beat = read_beats_seen[i];
                 transaction_addr = BufferBaseAddr + axi_addr_t'(i * WriteBeats * (TbAxiDataWidthFull / 8));
-                if ((r.r_resp != axi_pkg::RESP_OKAY) ||
-                    (r.r_last != (beat == WriteBeats - 1)) ||
-                    (r.r_data != slow_stress_data(transaction_addr, beat))) begin
+                if ((r.r_resp !== axi_pkg::RESP_OKAY) ||
+                    (r.r_last !== (beat == WriteBeats - 1)) ||
+                    (r.r_data !== slow_stress_data(transaction_addr, beat))) begin
                   $error("[MIDEND-BUFFER] Read id=%0d beat=%0d expected_addr=0x%08x data=0x%016x last=%0b resp=%0d",
                          r.r_id, beat, transaction_addr, r.r_data, r.r_last, r.r_resp);
                 end
@@ -638,6 +648,152 @@ module axi_hyper_tb
     reg_drv.send_write(32'h00c, 32'h2, '1, reg_error);
     if (reg_error != 1'b0) $error("configuration APPLY write failed");
     wait_config_barrier(reg_drv);
+  endtask
+
+  function automatic int unsigned pad_option(
+    input string name,
+    input int unsigned default_value,
+    input int unsigned maximum
+  );
+    int value;
+    if ($value$plusargs({name, "=%d"}, value)) begin
+      if (value < 0 || value > maximum)
+        $fatal(1, "%s must be between 0 and %0d, got %0d", name, maximum, value);
+      return value;
+    end
+    if ($test$plusargs(name)) $fatal(1, "%s requires an integer value", name);
+    return default_value;
+  endfunction
+
+  task automatic run_pad_matrix(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t SlowBaseAddr = axi_addr_t'(32'h8000_4000);
+    localparam axi_addr_t Cfg0HostOffset = axi_addr_t'(S27KS_CFG0_REG_OFFSET / 2 * NumPhys);
+    int unsigned csn_to_ck, rwds_sample, rwds_setup, csh, recovery, variable_latency;
+    logic [31:0] address_cfg [NumConnectedChips];
+    logic [31:0] latency_cfg, timing_cfg;
+    logic [31:0] cs_snapshot [NumPhys];
+    logic [TbAxiDataWidthFull-1:0] cfg0_data;
+    axi_addr_t chip_base;
+    s27ks_cfg0_reg_t cfg0;
+    axi_ctrl_master_t::ax_beat_t masked_ax;
+    axi_ctrl_master_t::w_beat_t masked_w;
+    axi_ctrl_master_t::b_beat_t masked_b;
+    logic reg_error;
+
+    csn_to_ck = pad_option("PAD_CSN_TO_CK", 0, 15);
+    rwds_sample = pad_option("PAD_RWDS_SAMPLE", 0, 4);
+    rwds_setup = pad_option("PAD_RWDS_SETUP", 1, 15);
+    csh = pad_option("PAD_CSH", 1, 15);
+    recovery = pad_option("PAD_RECOVERY", 6, 15);
+    variable_latency = pad_option("PAD_VARIABLE_LATENCY", 0, 1);
+    $display("[PAD-MATRIX] phys=%0d chips=%0d out=%0d in=%0d dq_assert=%0d dq_release=%0d rwds_assert=%0d rwds_release=%0d csn_to_ck=%0d rwds_sample=%0d rwds_setup=%0d csh=%0d recovery=%0d variable_latency=%0d",
+             NumPhys, NumConnectedChips, pad_delay_cfg.output_delay_steps,
+             pad_delay_cfg.input_delay_steps, pad_delay_cfg.dq_oe_assert_steps,
+             pad_delay_cfg.dq_oe_release_steps, pad_delay_cfg.rwds_oe_assert_steps,
+             pad_delay_cfg.rwds_oe_release_steps, csn_to_ck, rwds_sample, rwds_setup,
+             csh, recovery, variable_latency);
+
+    // Configure every populated rank; keep DQ high-Z through write latency.
+    latency_cfg = 32'd6 | (rwds_sample << 8);
+    timing_cfg = recovery | (csh << 8) | (csn_to_ck << 16);
+    for (int c = 0; c < NumConnectedChips; c++) begin
+      reg_drv.send_write(32'h40c + c * 32'h40, latency_cfg, '1, reg_error);
+      if (reg_error) $fatal(1, "[PAD-MATRIX] chip %0d latency configuration failed", c);
+      reg_drv.send_write(32'h414 + c * 32'h40, timing_cfg, '1, reg_error);
+      if (reg_error) $fatal(1, "[PAD-MATRIX] chip %0d timing configuration failed", c);
+    end
+    for (int p = 0; p < NumPhys; p++) begin
+      reg_drv.send_write(32'h304 + p * 32'h40, rwds_setup, '1, reg_error);
+      if (reg_error) $fatal(1, "[PAD-MATRIX] PHY %0d RWDS setup configuration failed", p);
+    end
+    apply_config(reg_drv);
+
+    if (variable_latency) begin
+      cfg0 = hyperbus_tb_pkg::s27ks_cfg0_default;
+      cfg0.fixed_latency_enable = 1'b0;
+      cfg0_data = '0;
+      for (int p = 0; p < NumPhys; p++) cfg0_data[16*p +: 16] = cfg0;
+      for (int c = 0; c < NumConnectedChips; c++) begin
+        reg_drv.send_read(32'h408 + c * 32'h40, address_cfg[c], reg_error);
+        if (reg_error) $fatal(1, "[PAD-MATRIX] chip %0d address configuration read failed", c);
+        reg_drv.send_write(32'h408 + c * 32'h40, address_cfg[c] | 32'h1,
+                           '1, reg_error);
+        if (reg_error) $fatal(1, "[PAD-MATRIX] chip %0d register-space setup failed", c);
+      end
+      apply_config(reg_drv);
+      for (int c = 0; c < NumConnectedChips; c++) begin
+        chip_base = axi_addr_t'(32'h8000_0000 + c * 32'h0100_0000);
+        $display("[PAD-MATRIX] chip %0d CFG0 write/readback address=0x%08x expected=0x%08x",
+                 c, chip_base + Cfg0HostOffset, cfg0_data);
+        axi_write_subword(axi_drv, chip_base + Cfg0HostOffset,
+                          cfg0_data, (NumPhys == 1) ? 1 : 2);
+        axi_check_subword(axi_drv, chip_base + Cfg0HostOffset,
+                          cfg0_data, (NumPhys == 1) ? 1 : 2);
+        $display("[PAD-MATRIX] chip %0d CFG0 readback completed", c);
+      end
+      for (int c = 0; c < NumConnectedChips; c++) begin
+        reg_drv.send_write(32'h408 + c * 32'h40, address_cfg[c], '1, reg_error);
+        if (reg_error) $fatal(1, "[PAD-MATRIX] chip %0d memory-space restore failed", c);
+      end
+      apply_config(reg_drv);
+    end
+
+    // Check the entire word after narrow updates, including every untouched byte.
+    for (int c = 0; c < NumConnectedChips; c++) begin
+      chip_base = axi_addr_t'(32'h8000_0100 + c * 32'h0100_0000);
+      axi_write_subword(axi_drv, chip_base, 64'h8877_6655_4433_2211, 3);
+      axi_check_subword(axi_drv, chip_base, 64'h8877_6655_4433_2211, 3);
+      axi_write_subword(axi_drv, chip_base + 2, 64'hb2a1, 1);
+      axi_write_subword(axi_drv, chip_base + 5, 64'hc3, 0);
+      axi_check_subword(axi_drv, chip_base, 64'h8877_c355_b2a1_2211, 3);
+      masked_ax = new();
+      masked_ax.ax_addr = chip_base;
+      masked_ax.ax_id = '0;
+      masked_ax.ax_len = '0;
+      masked_ax.ax_size = 3;
+      masked_ax.ax_burst = axi_pkg::BURST_INCR;
+      axi_drv.send_aw(masked_ax);
+      masked_w = new();
+      masked_w.w_data = 64'h1020_3040_5060_7080;
+      masked_w.w_strb = 8'h5a;
+      masked_w.w_last = 1'b1;
+      axi_drv.send_w(masked_w);
+      axi_drv.recv_b(masked_b);
+      if (masked_b.b_resp !== axi_pkg::RESP_OKAY || masked_b.b_id !== '0)
+        $error("[PAD-DATA] chip %0d masked write response=%0d id=%0d", c,
+               masked_b.b_resp, masked_b.b_id);
+      axi_check_subword(axi_drv, chip_base, 64'h8820_c340_50a1_7011, 3);
+    end
+    if (NumPhys == 1) check_unaligned_word_access(axi_drv);
+    check_midend_buffering(axi_drv);
+    check_consecutive_reads(axi_drv);
+
+    // Small bursts with late W and held R force restarts on both PHY widths.
+    for (int c = 0; c < NumConnectedChips; c++) begin
+      reg_drv.send_write(32'h410 + c * 32'h40, 32'd16, '1, reg_error);
+      if (reg_error) $fatal(1, "[PAD-MATRIX] chip %0d burst limit configuration failed", c);
+    end
+    apply_config(reg_drv);
+    for (int p = 0; p < NumPhys; p++) cs_snapshot[p] = cs_start_count[p][0];
+    axi_write_slow(axi_drv, SlowBaseAddr, 16, 32);
+    for (int p = 0; p < NumPhys; p++) begin
+      if (cs_start_count[p][0] - cs_snapshot[p] < 2)
+        $error("[PAD-MATRIX] PHY %0d write stimulus did not exercise a restart", p);
+      $display("[PAD-MATRIX] PHY %0d write CS starts=%0d", p,
+               cs_start_count[p][0] - cs_snapshot[p]);
+      cs_snapshot[p] = cs_start_count[p][0];
+    end
+    axi_read_slow_check(axi_drv, SlowBaseAddr, 16, 32);
+    for (int p = 0; p < NumPhys; p++) begin
+      if (cs_start_count[p][0] - cs_snapshot[p] < 2)
+        $error("[PAD-MATRIX] PHY %0d read stimulus did not exercise a restart", p);
+      $display("[PAD-MATRIX] PHY %0d read CS starts=%0d", p,
+               cs_start_count[p][0] - cs_snapshot[p]);
+    end
+    check_cross_chip_burst(axi_drv, reg_drv);
   endtask
 
   task automatic run_performance_smoke(input axi_ctrl_master_t axi_drv);
@@ -1234,8 +1390,15 @@ module axi_hyper_tb
     end_of_sim = 1'b0;
     functional_only = $test$plusargs("HYPERBUS_FUNCTIONAL_ONLY");
     performance_only = $test$plusargs("HYPERBUS_PERFORMANCE_ONLY");
+    pad_matrix = $test$plusargs("HYPERBUS_PAD_MATRIX");
     if (functional_only && performance_only)
       $fatal(1, "Select either functional-only or performance-only mode");
+    if (pad_matrix && (functional_only || performance_only))
+      $fatal(1, "HYPERBUS_PAD_MATRIX cannot be combined with functional/performance-only mode");
+    if (pad_matrix && (TbDutVariant != 1 || NumPhys < 1 || NumPhys > 2))
+      $fatal(1, "HYPERBUS_PAD_MATRIX requires the synchronous one- or two-PHY variant");
+    if (pad_matrix && TbPhyCyclTime != 10ns)
+      $fatal(1, "[PAD-MATRIX] requires a 10 ns PHY cycle for 2.5 ns pad ticks");
     pad_delay_cfg = '0;
     if (TbPadDelayIntegration) begin
       pad_delay_cfg.output_delay_steps = 1;
@@ -1250,6 +1413,14 @@ module axi_hyper_tb
       pad_delay_cfg.output_delay_steps = 1;
       pad_delay_cfg.input_delay_steps = 1;
     end
+    pad_delay_cfg.output_delay_steps = 6'(pad_option("PAD_OUT_TICKS",
+                                                   pad_delay_cfg.output_delay_steps, 63));
+    pad_delay_cfg.input_delay_steps = 6'(pad_option("PAD_IN_TICKS",
+                                                  pad_delay_cfg.input_delay_steps, 63));
+    pad_delay_cfg.dq_oe_assert_steps = 6'(pad_option("DQ_OE_ASSERT_TICKS", 0, 63));
+    pad_delay_cfg.dq_oe_release_steps = 6'(pad_option("DQ_OE_RELEASE_TICKS", 0, 63));
+    pad_delay_cfg.rwds_oe_assert_steps = 6'(pad_option("RWDS_OE_ASSERT_TICKS", 0, 63));
+    pad_delay_cfg.rwds_oe_release_steps = 6'(pad_option("RWDS_OE_RELEASE_TICKS", 0, 63));
     mst_scoreboard.reset();
     axi_rand_mst.reset();
     axi_ctrl_mst.reset_master();
@@ -1293,7 +1464,11 @@ module axi_hyper_tb
     reg_master.send_read(32'h010, reg_read, s_reg_error);
     if (s_reg_error != 1'b0 || reg_read[2] || reg_read[1]) $error("APPLY did not clear STATUS.dirty/busy");
 
-    if (!performance_only) begin
+    if (pad_matrix) begin
+      #600350ns;
+      @(posedge clk);
+      run_pad_matrix(axi_ctrl_mst, reg_master);
+    end else if (!performance_only) begin
     if (TbDutVariant == 0) begin
       reg_master.send_read(32'h200, reg_read, s_reg_error);
       if ((s_reg_error != 1'b0) || (reg_read != 8)) $error("unexpected divider reset value");
@@ -1446,11 +1621,20 @@ module axi_hyper_tb
       run_performance_smoke(axi_ctrl_mst);
     end
 
+    if (pad_matrix) begin
+      // Drain the maximum 63-tick pad delay before the pin monitor's final checks.
+      #(64 * 2500ps + 2 * TbCyclTime);
+    end
     @(negedge clk);
     end_of_sim = 1'b1;
     @(negedge clk);
-    $display("[AXI-TEST] passed functional=%0d performance=%0d pad_delay_ticks=%0d",
-             !performance_only, TbRunPerformance && !functional_only, pad_delay_cfg.output_delay_steps);
+    if (pad_matrix) begin
+      $display("[PAD-MATRIX] passed");
+    end else begin
+      $display("[AXI-TEST] passed functional=%0d performance=%0d pad_delay_ticks=%0d",
+               !performance_only, TbRunPerformance && !functional_only,
+               pad_delay_cfg.output_delay_steps);
+    end
     $finish();
   end
 

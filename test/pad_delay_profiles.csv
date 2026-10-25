@@ -1,0 +1,13 @@
+name,out,in,dq_assert,dq_release,rwds_assert,rwds_release,cs_setup,sample,rwds_setup,csh,recovery,variable
+baseline,0,0,0,0,0,0,0,0,1,1,6,0
+outbound,1,0,0,0,0,0,0,0,1,1,6,0
+return,0,1,0,0,0,0,0,0,1,1,6,0
+round_trip,1,1,0,0,0,0,0,0,1,1,6,0
+dq_assert,0,0,1,0,0,0,0,0,1,1,6,0
+dq_release,0,0,0,1,0,0,0,0,1,1,6,0
+rwds_assert,0,0,0,0,1,0,0,0,1,1,6,0
+rwds_release,0,0,0,0,0,1,0,0,1,1,6,0
+mixed_oe,0,0,1,1,1,1,0,0,1,1,6,0
+relaxed_ca,2,1,2,2,2,2,2,1,1,1,6,0
+relaxed_rwds,0,0,0,0,4,0,0,0,4,1,6,0
+variable_return,1,1,0,0,0,0,1,0,1,1,6,1

@@ -75,6 +75,7 @@ sources:
         - test/fixture_hyperbus.sv
         - test/hyperbus_tb_pkg.sv
         - test/hyperbus_pad_delay.sv
+        - test/hyperbus_pad_timing_monitor.sv
         - test/dut_if.sv
         - test/axi_hyper_tb.sv
         - test/hyperbus_atomic_handler_tb.sv
