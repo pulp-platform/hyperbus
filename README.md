@@ -4,6 +4,17 @@ This peripheral implements an AXI4-compliant interface for the HyperBus protocol
 
 Hyperbus is mainly used for off-chip memories (HyperFlash and HyperRAM), but also supported by some generic peripherals.
 
+## Release 0.0.10
+
+This is the final release of the legacy controller architecture. It retains the
+`hyperbus` top, shared timing registers and `hyper_reset_no`; the controller and
+configuration redesign is not included. See [CHANGELOG.md](CHANGELOG.md) for the
+changes and migration notes for every tag since 0.0.1.
+
+When migrating from 0.0.9, replace `IsClockODelayed` with `UsePhyClkDivider`
+(inverted polarity), review the widened delay controls, and update chip-range
+register offsets from `0x2c` to `0x30` for a 32-bit register bus.
+
 ## Features
 
 The AXI data widths are parameterizable from 16 to 1024, with transfers of all sizes possible. It is also possible to decide how many memories to connect on the same HyperBUS to set the overall available memory.
@@ -16,7 +27,8 @@ doubling the pin count.
 The main restrictions are as follows:
 
 - Atomics are not supported.
-- Only linear bursts are supported.
+- AXI INCR bursts and single-beat FIXED requests are supported; multi-beat FIXED
+  and WRAP bursts are not supported.
 - All accesses except byte-size accesses must be aligned to 16-bit boundaries.
 - Only communication with HyperRAMs has been tested. Support for flash is WIP.
 
@@ -24,23 +36,34 @@ The address width is also fully parameterizable. We support bursts of any size p
 
 The configuration register interface uses the minimal Regbus protocol. Data and address widths are parameterizable, but register sizes must be a power of two larger than 16 bits.
 
+Dual-PHY builds can select one or both PHYs at runtime through `phys_in_use` and
+`which_phy`. Changing the active PHY count changes data packing and addressing;
+update configuration while the controller is idle.
+
 ## Architecture
 
-The block diagram below outlines the approximate architecture. Note that there are *two* internally provided clock domains,`clk_sys` and `clk_phy`, as well as an incoming clock `clk_rwds_in` which is then internally delayed.
-The `clk_phy` and `clk_phy_90` have a 90 degree difference in phase. To obtain the two clocks one can either shift the input `clk_phy_i` with the clock delayer or to use the `ddr_clk` module that halves the frequency and generated 4 90-degree shifted clocks. 
+The block diagram outlines the system-clock and PHY-clock paths, plus the delayed
+incoming RWDS read-capture clock. `UsePhyClkDivider=1` divides `clk_phy_i` by two
+to generate quadrature PHY clocks. With `UsePhyClkDivider=0`, each PHY uses a
+programmable TX clock delay instead. Xilinx delay-line builds additionally require
+`clk_ref200_i` at 200 MHz.
 
 ![HyperBus v2 block diagram](./docs/axi_hyper.svg)
 
 ## Simulation
 
-† * `models/s27ks0641/s27ks0641.v` will download externally provided peripheral simulation models, some proprietary and with non-free license terms, from their publically accessible sources; see `Makefile` for details. By running `models/s27ks0641/s27ks0641.v` or the default target `run`, you accept this.*
-
-To run a simulation you need [Bender](https://github.com/pulp-platform/bender) and Questasim. Export your path to include your bender binary, and then:
+Simulation requires [Bender](https://github.com/pulp-platform/bender), QuestaSim
+and Infineon's proprietary S27KS0641 model. Download the vendor archive after
+logging in and pass its containing directory through `CACHED_MODEL_PATH`:
 
 ```bash
-bender update
-make run #(will download proprietary models from Infineon !!)
+bender checkout
+make run CACHED_MODEL_PATH=/path/to/model-archives
 ```
+
+`make hyper-nonfree-init` optionally installs the pinned internal model helper;
+it requires access to that repository and is not required for local archives.
+See [models/README.md](models/README.md) for model setup and license information.
 
 ## ToDos
 
