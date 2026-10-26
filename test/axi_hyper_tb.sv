@@ -4,6 +4,8 @@
 //
 // Luca Valente <luca.valente@unibo.it>
 
+`timescale 1 ns/1 ps
+
 module axi_hyper_tb
   import axi_pkg::*;
 #(
@@ -66,7 +68,7 @@ module axi_hyper_tb
   /////////////////////////
   // Clock and Reset gen //
   /////////////////////////
-  logic clk, rst_n;
+  logic clk, phy_clk, rst_n;
   clk_rst_gen #(
     .ClkPeriod     ( TbCyclTime ),
     .RstClkCycles  ( 32'd5      )
@@ -74,6 +76,14 @@ module axi_hyper_tb
     .clk_o  ( clk   ),
     .rst_no ( rst_n )
   );
+
+  initial begin
+    phy_clk = 1'b0;
+    forever begin
+      #(TbPhyCyclTime/2);
+      phy_clk = ~phy_clk;
+    end
+  end
 
   localparam int WaitOneRefCycleBeforeAXI = 1;
   localparam int unsigned TbAxiUserWidthFull = 32'd1;
@@ -1664,6 +1674,7 @@ module axi_hyper_tb
   ) i_dut_if (
     // clk and rst signal
     .clk_i      ( clk          ),
+    .clk_phy_i  ( phy_clk      ),
     .rst_ni     ( rst_n        ),
     .end_sim_i  ( end_of_sim   ),
     .segment_start_count_o ( segment_start_count ),
