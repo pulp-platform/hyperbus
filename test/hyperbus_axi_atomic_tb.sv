@@ -30,7 +30,6 @@ module hyperbus_axi_atomic_tb #(
     hyperbus_pkg::frontend_cfg_t cfg;
     rule_t [hyperbus_pkg::HyperNumChips-1:0] rules;
     logic idle, active, decode_error, drain;
-    byte unsigned memory [128];
     int unsigned cycle, commands, writes;
 
     hyperbus_axi_frontend #(
@@ -64,32 +63,21 @@ module hyperbus_axi_atomic_tb #(
 
     always #5ns clk = ~clk;
 
-    // A byte-addressed physical-link model checks actual adapter strobes. It
-    // independently stalls command, TX, RX and write-response channels.
-    typedef enum logic [2:0] { BackendIdle, ReadDelay, BackendRead,
-        BackendWrite, ResponseDelay, BackendResponse } backend_state_e;
-    backend_state_e backend_state;
-    int unsigned address, remaining, delay_cycles;
+    hyperbus_link_mem #(
+        .link_req_t(link_req_t), .link_rsp_t(link_rsp_t)
+    ) i_link_mem (
+        .clk_i(clk), .rst_ni(rst_n), .cycle_i(cycle),
+        .inject_write_fault_i($test$plusargs("inject_backend_write_fault")),
+        .link_req_i(link_req), .link_rsp_o(link_rsp)
+    );
+
     bit protect_atomic_commands;
     bit competing_command_offered;
-    always_comb begin
-        link_rsp = '0;
-        link_rsp.cmd_ready = backend_state == BackendIdle && cycle % 4 == 0;
-        link_rsp.tx_ready = backend_state == BackendWrite && cycle % 3 != 0;
-        link_rsp.rx_valid = backend_state == BackendRead;
-        link_rsp.rx.data = {memory[address+1], memory[address]};
-        link_rsp.rx.last = remaining == 1;
-        link_rsp.wrsp_valid = backend_state == BackendResponse;
-    end
     always @(posedge clk) begin
         if (!rst_n) begin
-            backend_state <= BackendIdle;
             protect_atomic_commands <= 1'b0;
             competing_command_offered <= 1'b0;
             cycle <= 0;
-            address <= 0;
-            remaining <= 0;
-            delay_cycles <= 0;
             commands <= 0;
             writes <= 0;
         end else begin
@@ -98,55 +86,17 @@ module hyperbus_axi_atomic_tb #(
                 ((axi_req.ar_valid && axi_req.ar.id == 6) ||
                  (axi_req.aw_valid && axi_req.aw.id == 7)))
                 competing_command_offered <= 1'b1;
-            case (backend_state)
-                BackendIdle: if (link_req.cmd_valid && link_rsp.cmd_ready) begin
-                    if (protect_atomic_commands && link_req.cmd.trans.address != 0)
-                        $fatal(1, "Ordinary backend command interleaved atomic read/write");
-                    address <= int'(link_req.cmd.trans.address) * 2;
-                    remaining <= int'(link_req.cmd.trans.burst);
-                    delay_cycles <= 2;
-                    commands <= commands + 1;
-                    backend_state <= link_req.cmd.trans.write ? BackendWrite : ReadDelay;
-                    if (protect_atomic_commands && link_req.cmd.trans.write)
-                        protect_atomic_commands <= 1'b0;
-                    if (link_req.cmd.cs != 1 || !link_req.cmd.trans.burst_type)
-                        $fatal(1, "Atomic command selected wrong chip or backend WRAP");
-                end
-                ReadDelay: if (delay_cycles == 0) backend_state <= BackendRead;
-                           else delay_cycles <= delay_cycles - 1;
-                BackendRead: if (link_req.rx_ready) begin
-                    address <= address + 2;
-                    remaining <= remaining - 1;
-                    delay_cycles <= cycle % 3;
-                    backend_state <= remaining == 1 ? BackendIdle : ReadDelay;
-                end
-                BackendWrite: if (link_req.tx_valid && link_rsp.tx_ready) begin
-                    for (int lane = 0; lane < 2; lane++) begin
-                        if (link_req.tx.strb[lane]) begin
-                            if ($test$plusargs("inject_backend_write_fault") &&
-                                address == 0 && lane == 0)
-                                memory[address+lane] <= link_req.tx.data[lane*8 +: 8] ^ 8'h01;
-                            else
-                                memory[address+lane] <= link_req.tx.data[lane*8 +: 8];
-                        end
-                    end
-                    if (link_req.tx.last != (remaining == 1))
-                        $fatal(1, "Incorrect atomic physical burst length");
-                    address <= address + 2;
-                    remaining <= remaining - 1;
-                    if (remaining == 1) begin
-                        writes <= writes + 1;
-                        delay_cycles <= 3;
-                        backend_state <= ResponseDelay;
-                    end
-                end
-                ResponseDelay: if (delay_cycles == 0) backend_state <= BackendResponse;
-                               else delay_cycles <= delay_cycles - 1;
-                BackendResponse: if (link_req.wrsp_ready) begin
-                    backend_state <= BackendIdle;
-                end
-                default: $fatal(1, "Invalid backend state");
-            endcase
+            if (link_req.cmd_valid && link_rsp.cmd_ready) begin
+                if (protect_atomic_commands && link_req.cmd.trans.address != 0)
+                    $fatal(1, "Ordinary backend command interleaved atomic read/write");
+                commands <= commands + 1;
+                if (protect_atomic_commands && link_req.cmd.trans.write)
+                    protect_atomic_commands <= 1'b0;
+                if (link_req.cmd.cs != 1 || !link_req.cmd.trans.burst_type)
+                    $fatal(1, "Atomic command selected wrong chip or backend WRAP");
+            end
+            if (link_req.tx_valid && link_rsp.tx_ready && link_req.tx.last)
+                writes <= writes + 1;
         end
     end
 
@@ -265,7 +215,7 @@ module hyperbus_axi_atomic_tb #(
         axi_req.r_ready = 0;
         axi_req.b_ready = 0;
         for (int lane = 0; lane < HostBytes; lane++)
-            if (memory[64+lane] != 8'(8'h40 + lane))
+            if (i_link_mem.read_byte(64+lane) != 8'(8'h40 + lane))
                 $fatal(1, "Ordinary write overlapping atomic failed at lane %0d", lane);
     endtask
 
@@ -369,7 +319,7 @@ module hyperbus_axi_atomic_tb #(
         @(negedge clk);
         for (int i = 0; i < 128; i++) begin
             original[i] = 8'(32'h6d + 17*i + 3*pattern);
-            memory[i] = original[i];
+            i_link_mem.write_byte(i, original[i]);
         end
         for (int lane = 0; lane < HostBytes; lane++)
             overlap_read[lane*8 +: 8] = original[32+lane];
@@ -415,9 +365,10 @@ module hyperbus_axi_atomic_tb #(
             $fatal(1, "Atomic overlap lacked a competing ordinary offer");
         for (int i = 0; i < 128; i++) begin
             if (match && i >= offset && i < offset + bytes) begin
-                if (memory[i] != replacement[i-offset]) $fatal(1, "Compare failed at byte %0d", i);
+                if (i_link_mem.read_byte(i) != replacement[i-offset])
+                    $fatal(1, "Compare failed at byte %0d", i);
             end else if (!(overlap_ordinary && i >= 64 && i < 64 + HostBytes) &&
-                         memory[i] != original[i])
+                         i_link_mem.read_byte(i) != original[i])
                 $fatal(1, "Compare modified neighboring byte %0d", i);
         end
     endtask
@@ -493,8 +444,8 @@ module hyperbus_axi_atomic_tb #(
         expected_read = '0;
         read_mask = '0;
         for (int i = 0; i < 128; i++) begin
-            memory[i] = 8'(32'h41 + 3*i);
-            original[i] = memory[i];
+            original[i] = 8'(32'h41 + 3*i);
+            i_link_mem.write_byte(i, original[i]);
         end
         axi_req.aw = '0;
         axi_req.aw.addr = 32'h8000_0000 + offset;
@@ -505,7 +456,7 @@ module hyperbus_axi_atomic_tb #(
         axi_req.w = '0;
         axi_req.w.last = 1;
         for (int i = 0; i < bytes; i++) begin
-            memory[offset+i] = old_value[i*8 +: 8];
+            i_link_mem.write_byte(offset+i, old_value[i*8 +: 8]);
             original[offset+i] = old_value[i*8 +: 8];
             axi_req.w.data[(offset+i)*8 +: 8] = operand[i*8 +: 8];
             axi_req.w.strb[offset+i] = 1;
@@ -520,9 +471,10 @@ module hyperbus_axi_atomic_tb #(
         join
         for (int i = 0; i < 128; i++) begin
             if (i >= offset && i < offset + bytes) begin
-                if (memory[i] != expected_value[(i-offset)*8 +: 8])
+                if (i_link_mem.read_byte(i) != expected_value[(i-offset)*8 +: 8])
                     $fatal(1, "ATOP %b bytes=%0d offset=%0d failed at byte %0d", atop, bytes, offset, i);
-            end else if (memory[i] != original[i]) $fatal(1, "Arithmetic changed neighbor %0d", i);
+            end else if (i_link_mem.read_byte(i) != original[i])
+                $fatal(1, "Arithmetic changed neighbor %0d", i);
         end
     endtask
 
@@ -535,7 +487,7 @@ module hyperbus_axi_atomic_tb #(
         cfg.chip[0].address_mask_msb = 7;
         rules[0].start_addr = 32'h8000_0000;
         rules[0].end_addr = 32'h8000_0080;
-        for (int i = 0; i < 128; i++) memory[i] = 8'(i);
+        for (int i = 0; i < 128; i++) i_link_mem.write_byte(i, 8'(i));
         repeat (4) @(negedge clk);
         rst_n = 1;
         repeat (2) @(negedge clk);
