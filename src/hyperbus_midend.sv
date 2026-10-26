@@ -6,23 +6,23 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_midend #(
-    parameter int unsigned HostAddrWidth = -1,
-    parameter int unsigned HostDataWidth = -1,
+    parameter int unsigned HostAddrWidth         = -1,
+    parameter int unsigned HostDataWidth         = -1,
     parameter int unsigned NumPhys               = -1,
     parameter int unsigned HostWriteBufferBytes = 64,
     parameter int unsigned MaxHostBurstBeats    = 0,
-    parameter type         host_cmd_t    = logic,
-    parameter type         host_w_t      = logic,
-    parameter type         host_r_t      = logic,
-    parameter type         host_wrsp_t   = logic,
-    parameter type         host_req_t    = logic,
-    parameter type         host_rsp_t    = logic,
-    parameter type         hyper_rx_t    = logic,
-    parameter type         hyper_tx_t    = logic,
-    parameter type         hyper_cmd_t   = logic,
-    parameter type         hyper_req_t   = logic,
-    parameter type         hyper_rsp_t   = logic,
-    parameter type         rule_t        = logic
+    parameter type         host_cmd_t            = logic,
+    parameter type         host_w_t              = logic,
+    parameter type         host_r_t              = logic,
+    parameter type         host_wrsp_t           = logic,
+    parameter type         host_req_t            = logic,
+    parameter type         host_rsp_t            = logic,
+    parameter type         hyper_rx_t            = logic,
+    parameter type         hyper_tx_t            = logic,
+    parameter type         hyper_cmd_t           = logic,
+    parameter type         hyper_req_t           = logic,
+    parameter type         hyper_rsp_t           = logic,
+    parameter type         rule_t                = logic
 ) (
     input  logic                         clk_i,
     input  logic                         rst_ni,
@@ -31,7 +31,7 @@ module hyperbus_midend #(
     output host_rsp_t                    host_link_rsp_o,
 
     input  hyperbus_pkg::frontend_cfg_t  frontend_cfg_i,
-    input  rule_t [hyperbus_pkg::HyperNumChips-1:0]         chip_rules_i,
+    input  rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules_i,
     output logic                         trans_active_o,
     output logic                         decode_error_o,
 
@@ -39,24 +39,25 @@ module hyperbus_midend #(
     input  hyper_rsp_t                   hyper_link_rsp_i
 );
 
-    localparam int unsigned HostDataBytes    = HostDataWidth / 8;
+    localparam int unsigned HostDataBytes     = HostDataWidth / 8;
     // Generic commands encode host beats; the adapter tracks their byte span.
     localparam int unsigned ReadCounterWidth = (MaxHostBurstBeats == 0) ?
         hyperbus_pkg::HyperBurstWidth + $clog2(HostDataBytes) :
         $clog2(MaxHostBurstBeats * HostDataBytes + 1);
     localparam int unsigned ErrorBeatWidth = (MaxHostBurstBeats == 0) ?
         hyperbus_pkg::HyperBurstWidth : $clog2(MaxHostBurstBeats + 1);
-    localparam int unsigned HostBusAddrWidth = $clog2(HostDataBytes);
-    // Include the complete encoded burst span and the carry from its starting address.
+    localparam int unsigned HostBusAddrWidth  = $clog2(HostDataBytes);
+    // Preserve the full encoded burst span and the carry from its starting address.
     localparam int unsigned HostExtAddrWidth = 1 +
         ((HostAddrWidth > hyperbus_pkg::HyperBurstWidth + HostBusAddrWidth) ?
          HostAddrWidth : hyperbus_pkg::HyperBurstWidth + HostBusAddrWidth);
-    localparam int unsigned PhyDataWidth     = NumPhys * 16;
+    localparam int unsigned PhyDataWidth      = NumPhys * 16;
     localparam int unsigned WriteFifoDepth    = HostWriteBufferBytes / HostDataBytes;
     localparam int unsigned CommandFifoDepth  = 2;
     localparam int unsigned ReadFifoDepth     = 4;
     localparam int unsigned WriteRspFifoDepth = 4;
-    localparam int unsigned ChipSelWidth     = cf_math_pkg::idx_width(hyperbus_pkg::HyperNumChips);
+    localparam int unsigned ChipSelWidth =
+        cf_math_pkg::idx_width(hyperbus_pkg::HyperNumChips);
 
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
     `ASSERT_INIT(HostAddrWidthValid, HostAddrWidth >= HostBusAddrWidth)
@@ -84,7 +85,11 @@ module hyperbus_midend #(
         logic                           start_adapter;
     } command_stage_t;
 
-    // Unpack the aggregate links at the midend boundary.
+    /////////////////////////
+    // Host stream buffers //
+    /////////////////////////
+
+    // Buffer the protocol-neutral host streams at the midend boundary.
     host_cmd_t                  host_cmd_i;
     logic                       host_req_valid_i;
     logic                       host_req_ready_o;
@@ -170,10 +175,13 @@ module hyperbus_midend #(
         .ready_i    ( host_link_req_i.wrsp_ready    )
     );
 
+    //////////////////
+    // Backend link //
+    //////////////////
 
-    hyper_rx_t                  rx_i;
-    hyper_tx_t                  tx_o;
-    hyper_cmd_t                 cmd_o;
+    hyper_rx_t  rx_i;
+    hyper_tx_t  tx_o;
+    hyper_cmd_t cmd_o;
     logic       rx_valid_i, rx_ready_o;
     logic       tx_valid_o, tx_ready_i;
     logic       wrsp_error_i, wrsp_valid_i, wrsp_ready_o;
@@ -195,6 +203,9 @@ module hyperbus_midend #(
     assign hyper_link_req_o.cmd        = command_stage_out.cmd;
     assign hyper_link_req_o.cmd_valid  = command_stage_valid;
 
+    ///////////////////////
+    // Request selection //
+    ///////////////////////
 
     host_cmd_t cmd_req;
     logic      normal_req;
@@ -206,22 +217,30 @@ module hyperbus_midend #(
     logic      normal_cmd_valid;
     logic      normal_req_ready;
 
-    chip_sel_idx_t              cmd_chip_sel_idx;
-    chip_sel_idx_t              cmd_end_chip_sel_idx;
+    ////////////////////
+    // Address decode //
+    ////////////////////
+
+    chip_sel_idx_t             cmd_chip_sel_idx;
+    chip_sel_idx_t             cmd_end_chip_sel_idx;
     host_addr_t                req_phy_first_addr;
     host_addr_t                req_phy_last_addr;
-    host_ext_addr_t             req_phy_first_ext;
-    host_ext_addr_t             req_phy_end_addr;
-    host_ext_addr_t             req_last_addr;
-    host_ext_addr_t             req_phy_bytes;
+    host_ext_addr_t            req_phy_first_ext;
+    host_ext_addr_t            req_phy_end_addr;
+    host_ext_addr_t            req_last_addr;
+    host_ext_addr_t            req_phy_bytes;
     host_ext_addr_t            cmd_rule_end_addr;
-    hyperbus_pkg::hyper_blen_t  req_phy_burst;
+    hyperbus_pkg::hyper_blen_t req_phy_burst;
     logic                      cmd_dec_valid;
     logic                      cmd_end_dec_valid;
-    logic                       req_addr_overflow;
+    logic                      req_addr_overflow;
     logic                      req_range_valid;
     logic                      req_decode_error;
-    logic                       atomic_range_valid;
+    logic                      atomic_range_valid;
+
+    //////////////////////////
+    // Command segmentation //
+    //////////////////////////
 
     host_cmd_t                  segment_req_d, segment_req_q;
     hyperbus_pkg::hyper_blen_t  segment_remaining_d, segment_remaining_q;
@@ -234,10 +253,12 @@ module hyperbus_midend #(
     logic                       segment_wrsp_error_d, segment_wrsp_error_q;
     logic                       cmd_segment_final;
     logic                       normal_segment_complete;
-    // Atomic requests use the same command and data adapters as normal traffic.
     logic                       normal_read_segment_complete;
     logic                       normal_write_segment_complete;
 
+    //////////////////
+    // Atomic path //
+    //////////////////
 
     host_cmd_t  atomic_cmd;
     host_w_t    atomic_host_w;
@@ -245,23 +266,28 @@ module hyperbus_midend #(
     host_wrsp_t atomic_host_wrsp;
     logic       atomic_req_accepted;
     logic       atomic_request_error;
-    logic                       atomic_cmd_valid;
-    logic                       atomic_active;
-    logic                       atomic_completed;
+    logic       atomic_cmd_valid;
+    logic       atomic_active;
+    logic       atomic_completed;
     logic       atomic_request_valid;
-    logic                       atomic_host_w_valid, atomic_host_w_ready;
-    logic                       atomic_host_r_valid;
-    logic                       atomic_host_wrsp_valid;
-    logic                       atomic_read_ready, atomic_wrsp_ready;
+    logic       atomic_host_w_valid, atomic_host_w_ready;
+    logic       atomic_host_r_valid;
+    logic       atomic_host_wrsp_valid;
+    logic       atomic_read_ready, atomic_wrsp_ready;
 
+    ///////////////////
+    // Data adapters //
+    ///////////////////
 
     host_r_t converted_host_r;
     host_w_t converted_host_w;
     logic    converted_host_r_valid, converted_host_r_ready;
     logic    converted_host_w_valid, converted_host_w_ready;
+    logic    adapter_rx_last;
 
-    logic                       adapter_rx_last;
-
+    /////////////////////
+    // Error responses //
+    /////////////////////
 
     typedef enum logic [1:0] {
         ErrorIdle,
@@ -274,9 +300,12 @@ module hyperbus_midend #(
     logic [ErrorBeatWidth-1:0] error_beats_d, error_beats_q;
     logic                      error_req_accepted;
 
+    //////////////////////////
+    // Transaction lifetime //
+    //////////////////////////
 
-    logic                       trans_active_d, trans_active_q;
-    logic                       trans_active_set, trans_active_reset;
+    logic trans_active_d, trans_active_q;
+    logic trans_active_set, trans_active_reset;
     logic normal_transaction_completed;
 
     assign normal_req = host_cmd_i.atomic_op == hyperbus_pkg::HyperAtomicNone;
@@ -294,11 +323,10 @@ module hyperbus_midend #(
           ((host_cmd_i.addr & host_addr_t'((1 << host_cmd_i.size) - 1)) == '0))) &&
         atomic_range_valid;
     assign normal_cmd_valid = host_req_valid_i && !trans_active_q && cmd_dec_valid &&
-                          req_range_valid && normal_req;
+                              req_range_valid && normal_req;
     assign normal_req_ready = req_decode_error || (cmd_dec_valid && command_stage_ready);
     assign cmd_valid_o      = atomic_cmd_valid || segment_pending_q || normal_cmd_valid;
-    assign host_req_ready_o = !trans_active_q &&
-                              (!normal_req || normal_req_ready);
+    assign host_req_ready_o = !trans_active_q && (!normal_req || normal_req_ready);
     assign host_req_accepted   = host_req_valid_i && host_req_ready_o;
     assign command_accepted    = cmd_valid_o && command_stage_ready;
     assign backend_command_accepted = command_stage_valid && cmd_ready_i;
@@ -308,7 +336,7 @@ module hyperbus_midend #(
     assign atomic_req_accepted = host_req_accepted && !normal_req;
     assign atomic_request_error = atomic_req_accepted && !atomic_request_valid;
     assign decode_error_o = error_req_accepted || atomic_request_error;
-    assign trans_active_o   = trans_active_q || host_req_valid_i || host_w_valid_i ||
+    assign trans_active_o = trans_active_q || host_req_valid_i || host_w_valid_i ||
                             host_link_rsp_o.r_valid || host_link_rsp_o.wrsp_valid ||
                             command_stage_valid;
 
@@ -321,7 +349,8 @@ module hyperbus_midend #(
 
     always_comb begin : proc_cmd_req
         cmd_req = host_cmd_i;
-        // Compare's memory target is half the size of its outbound operand pair.
+        // Validate only the memory target of Compare, not its outbound operand
+        // pair. The handler's backend commands already carry this half size.
         if ((host_cmd_i.atomic_op == hyperbus_pkg::HyperAtomicCompare) &&
             (host_cmd_i.size != '0)) begin
             cmd_req.size = host_cmd_i.size - 1'b1;
@@ -384,11 +413,12 @@ module hyperbus_midend #(
 
     // Software keeps ranges ordered and non-overlapping; transactions may cross contiguous ranges.
     always_comb begin : proc_req_rule_range
-        cmd_rule_end_addr    = req_phy_first_ext;
+        cmd_rule_end_addr = req_phy_first_ext;
         if (cmd_dec_valid) begin
             cmd_rule_end_addr = (chip_rules_i[cmd_chip_sel_idx].end_addr == '0) ?
-                       (host_ext_addr_t'(1) << HostAddrWidth) :
-                       host_ext_addr_t'(chip_rules_i[cmd_chip_sel_idx].end_addr);
+                                (host_ext_addr_t'(1) << HostAddrWidth) :
+                                host_ext_addr_t'(
+                                    chip_rules_i[cmd_chip_sel_idx].end_addr);
         end
 
         req_range_valid = !req_addr_overflow && cmd_dec_valid && cmd_end_dec_valid &&
@@ -416,7 +446,7 @@ module hyperbus_midend #(
 
     always_comb begin : proc_cmd_address
         masked_req_address = req_phy_first_addr &
-           ((host_addr_t'(1) << frontend_cfg_i.address_mask_msb) - 1);
+                             ((host_addr_t'(1) << frontend_cfg_i.address_mask_msb) - 1);
         cmd_phy_address = masked_req_address >> 1;
         if (NumPhys == 2) begin
             cmd_phy_address = masked_req_address >> 2;
@@ -481,19 +511,19 @@ module hyperbus_midend #(
     ) i_read_adapter (
         .clk_i,
         .rst_ni,
-        .size_i       ( command_stage_out.size                          ),
-        .start_i      ( adapter_started && !command_stage_out.write     ),
-        .dual_phy_i   ( frontend_cfg_i.dual_phy               ),
+        .size_i       ( command_stage_out.size                   ),
+        .start_i      ( adapter_started && !command_stage_out.write ),
+        .dual_phy_i   ( frontend_cfg_i.dual_phy                  ),
         .start_addr_i ( command_stage_out.start_addr             ),
-        .burst_len_i  ( command_stage_out.beats                         ),
-        .phy_valid_i  ( rx_valid_i                            ),
-        .phy_ready_o  ( rx_ready_o                            ),
-        .data_i       ( rx_i.data                             ),
-        .last_i       ( adapter_rx_last                       ),
-        .error_i      ( rx_i.error                            ),
-        .host_valid_o ( converted_host_r_valid               ),
-        .host_ready_i ( converted_host_r_ready               ),
-        .data_o       ( converted_host_r                     )
+        .burst_len_i  ( command_stage_out.beats                  ),
+        .phy_valid_i  ( rx_valid_i                               ),
+        .phy_ready_o  ( rx_ready_o                               ),
+        .data_i       ( rx_i.data                                ),
+        .last_i       ( adapter_rx_last                          ),
+        .error_i      ( rx_i.error                               ),
+        .host_valid_o ( converted_host_r_valid                  ),
+        .host_ready_i ( converted_host_r_ready                  ),
+        .data_o       ( converted_host_r                        )
     );
 
     hyperbus_write_adapter #(
@@ -503,18 +533,18 @@ module hyperbus_midend #(
     ) i_write_adapter (
         .clk_i,
         .rst_ni,
-        .size_i       ( command_stage_out.size                          ),
-        .start_i      ( adapter_started && command_stage_out.write      ),
-        .dual_phy_i   ( frontend_cfg_i.dual_phy               ),
+        .size_i       ( command_stage_out.size                  ),
+        .start_i      ( adapter_started && command_stage_out.write ),
+        .dual_phy_i   ( frontend_cfg_i.dual_phy                 ),
         .start_addr_i ( command_stage_out.start_addr            ),
-        .data_i       ( converted_host_w                      ),
-        .host_valid_i ( converted_host_w_valid                ),
-        .host_ready_o ( converted_host_w_ready                ),
-        .data_o       ( tx_o.data                             ),
-        .last_o       ( tx_o.last                             ),
-        .strb_o       ( tx_o.strb                             ),
-        .phy_valid_o  ( tx_valid_o                            ),
-        .phy_ready_i  ( tx_ready_i                            )
+        .data_i       ( converted_host_w                        ),
+        .host_valid_i ( converted_host_w_valid                  ),
+        .host_ready_o ( converted_host_w_ready                  ),
+        .data_o       ( tx_o.data                               ),
+        .last_o       ( tx_o.last                               ),
+        .strb_o       ( tx_o.strb                               ),
+        .phy_valid_o  ( tx_valid_o                              ),
+        .phy_ready_i  ( tx_ready_i                              )
     );
 
     hyperbus_atomic_handler #(
@@ -598,12 +628,14 @@ module hyperbus_midend #(
         error_beats_d = error_beats_q;
 
         unique case (error_state_q)
+            // Capture a rejected command and select its response stream.
             ErrorIdle: begin
                 if (error_req_accepted) begin
                     error_beats_d = host_cmd_i.beats;
                     error_state_d = host_cmd_i.write ? ErrorWrite : ErrorRead;
                 end
             end
+            // Return one decode-error beat per requested read beat.
             ErrorRead: begin
                 if (host_r_valid_o && host_r_ready_i) begin
                     error_beats_d = error_beats_q - 1'b1;
@@ -612,11 +644,13 @@ module hyperbus_midend #(
                     end
                 end
             end
+            // Drain all write data belonging to a rejected write command.
             ErrorWrite: begin
                 if (host_w_valid_i && host_w_ready_o && host_w_i.last) begin
                     error_state_d = ErrorWriteResp;
                 end
             end
+            // Return the final decode-error write response.
             ErrorWriteResp: begin
                 if (host_wrsp_valid_o && host_wrsp_ready_i) begin
                     error_state_d = ErrorIdle;
@@ -683,7 +717,7 @@ module hyperbus_midend #(
                                 error_req_accepted || atomic_req_accepted;
     assign normal_transaction_completed =
         (host_r_valid_o && host_r_ready_i && host_r_o.last) ||
-         (host_wrsp_valid_o && host_wrsp_ready_i);
+        (host_wrsp_valid_o && host_wrsp_ready_i);
     assign trans_active_reset = (atomic_active && atomic_completed) ||
                                 (!atomic_active && normal_transaction_completed);
 
@@ -714,6 +748,7 @@ module hyperbus_midend #(
     // Invalid atomics are deliberately accepted, drained, and returned as errors.
     `ASSERT(HostReqAtomicWrite, (host_req_accepted &&
         (host_cmd_i.atomic_op != hyperbus_pkg::HyperAtomicNone)) |-> host_cmd_i.write)
-    `ASSERT(BackendBurstNonzero, backend_command_accepted |-> (command_stage_out.cmd.trans.burst != '0))
+    `ASSERT(BackendBurstNonzero, backend_command_accepted |->
+        (command_stage_out.cmd.trans.burst != '0))
 
 endmodule

@@ -25,7 +25,7 @@ module hyperbus_cfg_regs #(
 
     output hyperbus_pkg::frontend_cfg_t frontend_cfg_o,
     output hyperbus_pkg::phy_cfg_t      phy_cfg_o,
-    output addr_rule_t [hyperbus_pkg::HyperNumChips-1:0]   chip_rules_o,
+    output addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules_o,
     input  logic                        decode_error_i
 );
     `include "common_cells/registers.svh"

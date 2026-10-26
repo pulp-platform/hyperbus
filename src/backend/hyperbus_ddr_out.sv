@@ -7,7 +7,7 @@
 
 module hyperbus_ddr_out #(
     parameter logic Init = 1'b0
-)(
+) (
     input  logic clk_i,
     input  logic rst_ni,
     input  logic d0_i,
@@ -18,9 +18,8 @@ module hyperbus_ddr_out #(
     logic q1;
 
 `ifdef FPGA_EMUL
-       always_comb
-      begin
-        if(clk_i == 1'b0) begin
+    always_comb begin
+        if (clk_i == 1'b0) begin
             q_o = q1;
         end else begin
             q_o = q0;
@@ -33,7 +32,7 @@ module hyperbus_ddr_out #(
         .clk1_i    ( q0    ),
         .clk_sel_i ( clk_i )
     );
-`endif // !`ifdef FPGA_EMUL
+`endif
 
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin

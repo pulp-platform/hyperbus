@@ -19,7 +19,7 @@ module hyperbus_trx #(
     input  logic       test_mode_i,
 
     // Transceiver control: facing controller
-    input  logic [hyperbus_pkg::HyperNumChips-1:0]    cs_i,
+    input  logic [hyperbus_pkg::HyperNumChips-1:0] cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
     input  logic                   rwds_sample_ena_i,
@@ -37,7 +37,7 @@ module hyperbus_trx #(
     output logic                   rx_valid_o,
     input  logic                   rx_ready_i,
     // Physical interface: facing HyperBus
-    output logic [hyperbus_pkg::HyperNumChips-1:0]    hyper_cs_no,
+    output logic [hyperbus_pkg::HyperNumChips-1:0] hyper_cs_no,
     output logic                   hyper_ck_o,
     output logic                   hyper_ck_no,
     output logic                   hyper_rwds_o,
@@ -52,12 +52,11 @@ module hyperbus_trx #(
     // Feed through async reset
     assign hyper_reset_no = rst_ni;
 
+    //////////////////
+    // TX and control //
+    //////////////////
 
     logic tx_clk_ena_q;
-
-    // =================
-    //    TX + control
-    // =================
 
     // The delayed differential output clock samples output bytes centrally.
     // TODO: tx_clk_ena_q must arrive before clk_tx_i to avoid disturbing clock gating.
@@ -112,6 +111,9 @@ module hyperbus_trx #(
         end
     end
 
+    /////////////////////
+    // RX data capture //
+    /////////////////////
 
     logic        rx_rwds_90;
     logic        rx_rwds_clk_ena;
@@ -163,8 +165,8 @@ module hyperbus_trx #(
         .clk_o      ( rx_rwds_clk_orig  )
     );
 
-     // Reset RX state on async reset or on gated clock (whenever inactive)
-     // TODO: is this safe? Replace with tech cells?
+    // Reset RX state on async reset or on gated clock (whenever inactive)
+    // TODO: is this safe? Replace with tech cells?
     assign rx_capture_rst = !rst_ni || (!rx_rwds_clk_ena && !test_mode_i);
 
     // RX data is valid one cycle after each RX soft reset

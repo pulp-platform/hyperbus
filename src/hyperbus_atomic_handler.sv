@@ -4,6 +4,7 @@
 
 `include "common_cells/registers.svh"
 
+/// Execute one atomic request as an exclusive backend read-modify-write sequence.
 module hyperbus_atomic_handler #(
     parameter int unsigned HostAddrWidth = -1,
     parameter int unsigned HostDataWidth = -1,
@@ -70,6 +71,9 @@ module hyperbus_atomic_handler #(
         logic                            atomic_return;
     } atomic_request_t;
 
+    //////////////////////
+    // Persistent state //
+    //////////////////////
     atomic_state_e             state_d, state_q;
     atomic_request_t           request_d, request_q;
     host_data_t                operand_d, operand_q;
@@ -78,6 +82,9 @@ module hyperbus_atomic_handler #(
     logic                      read_pending_d, read_pending_q;
     logic                      write_pending_d, write_pending_q;
 
+    ////////////////////////
+    // Request sequencing //
+    ////////////////////////
     atomic_request_t request_in;
     logic operation_valid;
     hyperbus_pkg::hyper_resp_e initial_response, backend_write_response;
@@ -129,6 +136,10 @@ module hyperbus_atomic_handler #(
     assign active_o        = state_q != Idle;
     assign command_valid_o = (state_q == ReadCommand) || (state_q == WriteCommand);
 
+    //////////////////////
+    // Backend commands //
+    //////////////////////
+    // Atomic commands are converted into one backend read followed by one write.
     always_comb begin : proc_command
         command_o               = '0;
         command_o.write         = state_q == WriteCommand;
@@ -143,6 +154,9 @@ module hyperbus_atomic_handler #(
         command_o.ordered       = 1'b1;
     end
 
+    ////////////////
+    // Atomic ALU //
+    ////////////////
     // The operation works on one contiguous byte-lane range within the host data word.
     host_data_t write_mask;
     host_data_t alu_operand_a,  alu_operand_b;
@@ -157,9 +171,9 @@ module hyperbus_atomic_handler #(
     // carry. Compare replacement bytes come from the
     // paired half and are mapped directly onto the target lanes.
     always_comb begin : proc_alu_operands
-        byte_offset  = 0;
+        byte_offset   = 0;
         operand_bytes = 1;
-        operand_bits = 8;
+        operand_bits  = 8;
         write_mask    = '0;
         alu_operand_a = '0;
         alu_operand_b = '0;
@@ -169,18 +183,18 @@ module hyperbus_atomic_handler #(
             byte_offset = unsigned'(request_q.addr[HostBusAddrWidth-1:0]);
             operand_bytes = 1 << ((request_q.atomic_op == hyperbus_pkg::HyperAtomicCompare) ?
                                   request_q.size - 1'b1 : request_q.size);
-            operand_bits = operand_bytes * 8;
+            operand_bits  = operand_bytes * 8;
             for (int unsigned i = 0; i < HostDataBytes; i++) begin
                 if ((i >= byte_offset) && (i < byte_offset + operand_bytes)) begin
                     write_mask[i*8 +: 8] = '1;
-            end
+                end
             end
             alu_operand_a = read_data_q & write_mask;
             compare_value = operand_q & write_mask;
             for (int unsigned i = 0; i < HostDataBytes; i++) begin
                 if ((i >= byte_offset) && (i < byte_offset + operand_bytes)) begin
                     if (request_q.atomic_op == hyperbus_pkg::HyperAtomicCompare)
-                        alu_operand_b[i* 8 +: 8] = operand_q[(i ^ operand_bytes) * 8 +: 8];
+                        alu_operand_b[i*8 +: 8] = operand_q[(i ^ operand_bytes)*8 +: 8];
                     else
                         alu_operand_b[i*8 +: 8] = operand_q[i*8 +: 8];
                 end
@@ -225,19 +239,26 @@ module hyperbus_atomic_handler #(
     assign preserved_data     = read_data_q & ~write_mask;
     assign write_data         = alu_enable ? preserved_data | (alu_result & write_mask) : read_data_q;
 
+    ////////////////////
+    // Stream outputs //
+    ////////////////////
     always_comb begin : proc_outputs
         host_w_ready_o    = state_q == WaitWriteData;
+
         host_r_o          = '0;
         host_r_o.data     = read_data_q;
         host_r_o.resp     = response_q;
         host_r_o.last     = 1'b1;
         host_r_o.atomic_ok = response_q == hyperbus_pkg::HyperRespOkay;
         host_r_valid_o    = (state_q == ReturnResponse) && read_pending_q;
+
         host_wrsp_o       = '0;
         host_wrsp_o.resp  = response_q;
         host_wrsp_o.atomic_ok = response_q == hyperbus_pkg::HyperRespOkay;
         host_wrsp_valid_o = (state_q == ReturnResponse) && write_pending_q;
+
         read_ready_o      = state_q == ReadData;
+
         write_o           = '0;
         write_o.data      = write_data;
         write_o.last      = 1'b1;
@@ -245,9 +266,15 @@ module hyperbus_atomic_handler #(
             write_o.strb[i] = (i >= byte_offset) && (i < byte_offset + operand_bytes);
         end
         write_valid_o     = state_q == WriteData;
+
         write_rsp_ready_o = state_q == WriteResponse;
     end
 
+    ///////////////////////////
+    // Control state machine //
+    ///////////////////////////
+    // A valid request consumes one operand, reads the old value, writes the ALU result, and
+    // returns both responses. Invalid requests drain their operands; backend errors return early.
     always_comb begin : proc_state
         state_d         = state_q;
         request_d       = request_q;
@@ -258,26 +285,28 @@ module hyperbus_atomic_handler #(
         write_pending_d = write_pending_q;
 
         unique case (state_q)
+            // Capture one validated or rejected atomic request.
             Idle: begin
                 if (atomic_started) begin
                     request_d  = request_in;
                     response_d = initial_response;
-                    state_d = WaitWriteData;
+                    state_d    = WaitWriteData;
                 end
             end
+            // Buffer the operand, or drain an invalid request through its final beat.
             WaitWriteData: begin
                 if (operand_accepted) begin
                     operand_d = host_w_i.data;
                 end
                 if (valid_operand_accepted) begin
-                        state_d = ReadCommand;
-                    end
-                if (invalid_operand_completed) begin
-                        read_pending_d  = request_q.atomic_return;
-                        write_pending_d = 1'b1;
-                        state_d = ReturnResponse;
-                    end
+                    state_d = ReadCommand;
                 end
+                if (invalid_operand_completed) begin
+                    read_pending_d  = request_q.atomic_return;
+                    write_pending_d = 1'b1;
+                    state_d         = ReturnResponse;
+                end
+            end
             // Issue the backend read for the target word.
             ReadCommand: begin
                 if (command_accepted) begin
@@ -290,15 +319,15 @@ module hyperbus_atomic_handler #(
                     read_data_d = read_i.data;
                 end
                 if (backend_read_succeeded) begin
-                        state_d = WriteCommand;
-                    end
-                if (backend_read_failed) begin
-                        response_d      = read_i.resp;
-                        read_pending_d  = request_q.atomic_return;
-                        write_pending_d = 1'b1;
-                        state_d         = ReturnResponse;
-                    end
+                    state_d = WriteCommand;
                 end
+                if (backend_read_failed) begin
+                    response_d      = read_i.resp;
+                    read_pending_d  = request_q.atomic_return;
+                    write_pending_d = 1'b1;
+                    state_d         = ReturnResponse;
+                end
+            end
             // Issue the backend write for the updated word.
             WriteCommand: begin
                 if (command_accepted) begin
@@ -314,12 +343,13 @@ module hyperbus_atomic_handler #(
             // Collect the backend write status.
             WriteResponse: begin
                 if (backend_write_rsp_accepted) begin
-                    response_d = backend_write_response;
+                    response_d      = backend_write_response;
                     read_pending_d  = request_q.atomic_return;
                     write_pending_d = 1'b1;
-                    state_d = ReturnResponse;
+                    state_d         = ReturnResponse;
                 end
             end
+            // Hold the host read and write responses until independently accepted.
             ReturnResponse: begin
                 if (host_read_accepted) begin
                     read_pending_d = 1'b0;
@@ -335,6 +365,9 @@ module hyperbus_atomic_handler #(
         endcase
     end
 
+    /////////////////////
+    // State registers //
+    /////////////////////
     `FFARN(state_q, state_d, Idle, clk_i, rst_ni)
     `FFARN(request_q, request_d, '0, clk_i, rst_ni)
     `FFARN(operand_q, operand_d, '0, clk_i, rst_ni)

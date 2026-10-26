@@ -20,7 +20,7 @@ module hyperbus_delay (
     // Additional delay can be added for debug purposes,
     // the upper 3 bits are reserved for this optional additional delay
     configurable_delay #(
-      .NUM_STEPS(32)
+        .NUM_STEPS ( 32 )
     ) i_delay (
         .clk_i      ( in_i         ),
         .delay_i    ( delay_i[4:0] ),

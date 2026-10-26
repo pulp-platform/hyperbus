@@ -7,22 +7,22 @@
 `include "common_cells/registers.svh"
 
 module hyperbus_isochronous #(
-    parameter int unsigned  NumPhys          = 2,
-    parameter int unsigned  AxiAddrWidth     = -1,
-    parameter int unsigned  AxiDataWidth     = -1,
-    parameter int unsigned  AxiIdWidth       = -1,
-    parameter int unsigned  AxiUserWidth     = -1,
-    parameter type          axi_req_t        = logic,
-    parameter type          axi_rsp_t        = logic,
-    parameter int unsigned  RegDataWidth     = -1,
-    parameter type          reg_req_t        = logic,
-    parameter type          reg_rsp_t        = logic,
-    parameter type          axi_rule_t       = logic,
+    parameter int unsigned  NumPhys               = 2,
+    parameter int unsigned  AxiAddrWidth          = -1,
+    parameter int unsigned  AxiDataWidth          = -1,
+    parameter int unsigned  AxiIdWidth            = -1,
+    parameter int unsigned  AxiUserWidth          = -1,
+    parameter type          axi_req_t             = logic,
+    parameter type          axi_rsp_t             = logic,
+    parameter int unsigned  RegDataWidth          = -1,
+    parameter type          reg_req_t             = logic,
+    parameter type          reg_rsp_t             = logic,
+    parameter type          axi_rule_t            = logic,
     parameter int unsigned  AxiMaxReadTxns        = 4,
     parameter int unsigned  AxiMaxWriteTxns       = 4,
     parameter int unsigned  HostWriteBufferBytes  = 64,
-    parameter int unsigned  PhyStartupCycles = 300 * 200,
-    parameter int unsigned  SyncStages       = 2
+    parameter int unsigned  PhyStartupCycles      = 300 * 200,
+    parameter int unsigned  SyncStages            = 2
 ) (
     input  logic                        clk_sys_i,
     input  logic                        rst_sys_ni,
@@ -60,8 +60,17 @@ module hyperbus_isochronous #(
     `HYPERBUS_TYPEDEF_HOST_ALL_CT(host, host_addr_t, host_data_t, host_strb_t)
     `HYPERBUS_TYPEDEF_LINK_ALL_CT(hyper, NumPhys)
 
-    logic                      clk_backend;
-    logic                      rst_backend_n;
+    /////////////////////
+    // Clock and reset //
+    /////////////////////
+
+    logic clk_backend;
+    logic rst_backend_n;
+
+    ////////////////////////
+    // Configuration path //
+    ////////////////////////
+
     hyperbus_pkg::phy_cfg_t    frontend_cfg_apply;
     logic                      frontend_cfg_apply_valid;
     logic                      frontend_cfg_apply_ready;
@@ -77,7 +86,11 @@ module hyperbus_isochronous #(
     logic                      backend_cfg_apply_ready;
 
     hyperbus_pkg::frontend_cfg_t frontend_cfg;
-    axi_rule_t [hyperbus_pkg::HyperNumChips-1:0]    frontend_chip_rules;
+    axi_rule_t [hyperbus_pkg::HyperNumChips-1:0] frontend_chip_rules;
+
+    ////////////////////
+    // Dataflow links //
+    ////////////////////
 
     host_req_t                host_req;
     host_rsp_t                host_rsp;
@@ -88,6 +101,10 @@ module hyperbus_isochronous #(
     hyper_req_t               backend_req;
     hyper_rsp_t               backend_rsp;
 
+    //////////////////////////
+    // Backend clock divider //
+    //////////////////////////
+
     logic                      clock_div_req_valid;
     logic                      clock_div_update_accepted;
     logic                      clock_div_update_pending_d;
@@ -96,15 +113,15 @@ module hyperbus_isochronous #(
     logic                      backend_busy;
     logic                      backend_busy_sys;
 
-    // The frontend drain prevents new work while the PHY finishes recovery timing.
+    // The frontend drain prevents new work while the PHY finishes its recovery timing.
     sync #(
-        .STAGES     ( 2    ),
-        .ResetValue ( 1'b1 )
+        .STAGES     ( 2          ),
+        .ResetValue ( 1'b1       )
     ) i_backend_busy_sync (
-        .clk_i    ( clk_sys_i                    ),
-        .rst_ni   ( rst_sys_ni                   ),
+        .clk_i    ( clk_sys_i                       ),
+        .rst_ni   ( rst_sys_ni                      ),
         .serial_i ( backend_busy || !rst_backend_n ),
-        .serial_o ( backend_busy_sys             )
+        .serial_o ( backend_busy_sys                )
     );
 
     assign clock_div_req_valid = frontend_clock_div_apply_valid &&
@@ -166,6 +183,10 @@ module hyperbus_isochronous #(
         .init_no     (                )
     );
 
+    ////////////////////////////
+    // Configuration frontend //
+    ////////////////////////////
+
     hyperbus_cfg_frontend #(
         .NumPhys       ( NumPhys       ),
         .reg_req_t     ( reg_req_t     ),
@@ -196,18 +217,22 @@ module hyperbus_isochronous #(
         .decode_error_i     ( midend_decode_error    )
     );
 
+    //////////////////
+    // AXI frontend //
+    //////////////////
+
     hyperbus_axi_frontend #(
-        .AxiDataWidth ( AxiDataWidth ),
-        .AxiAddrWidth ( AxiAddrWidth ),
-        .AxiIdWidth   ( AxiIdWidth   ),
-        .AxiUserWidth ( AxiUserWidth ),
+        .AxiDataWidth      ( AxiDataWidth                          ),
+        .AxiAddrWidth      ( AxiAddrWidth                          ),
+        .AxiIdWidth        ( AxiIdWidth                            ),
+        .AxiUserWidth      ( AxiUserWidth                          ),
         .AxiMaxReadTxns    ( AxiMaxReadTxns                        ),
         .AxiMaxWriteTxns   ( AxiMaxWriteTxns                       ),
         .MaxWriteDataBeats ( HostWriteBufferBytes / AxiDataBytes  ),
-        .axi_req_t    ( axi_req_t    ),
-        .axi_rsp_t    ( axi_rsp_t    ),
-        .host_req_t   ( host_req_t   ),
-        .host_rsp_t   ( host_rsp_t   )
+        .axi_req_t         ( axi_req_t                              ),
+        .axi_rsp_t         ( axi_rsp_t                              ),
+        .host_req_t        ( host_req_t                             ),
+        .host_rsp_t        ( host_rsp_t                             )
     ) i_axi_frontend (
         .clk_i             ( clk_sys_i      ),
         .rst_ni            ( rst_sys_ni     ),
@@ -219,24 +244,28 @@ module hyperbus_isochronous #(
         .host_rsp_i         ( host_rsp       )
     );
 
+    ////////////
+    // Midend //
+    ////////////
+
     hyperbus_midend #(
-        .HostAddrWidth ( AxiAddrWidth        ),
-        .HostDataWidth ( AxiDataWidth        ),
+        .HostAddrWidth        ( AxiAddrWidth        ),
+        .HostDataWidth        ( AxiDataWidth        ),
         .NumPhys              ( NumPhys             ),
         .HostWriteBufferBytes ( HostWriteBufferBytes ),
         .MaxHostBurstBeats    ( 256                  ),
-        .host_cmd_t    ( host_cmd_t          ),
-        .host_w_t      ( host_w_t            ),
-        .host_r_t      ( host_r_t            ),
-        .host_wrsp_t   ( host_wrsp_t         ),
-        .host_req_t    ( host_req_t          ),
-        .host_rsp_t    ( host_rsp_t          ),
-        .hyper_rx_t    ( hyper_rx_t          ),
-        .hyper_tx_t    ( hyper_tx_t          ),
-        .hyper_cmd_t   ( hyper_cmd_t         ),
-        .hyper_req_t   ( hyper_req_t         ),
-        .hyper_rsp_t   ( hyper_rsp_t         ),
-        .rule_t        ( axi_rule_t          )
+        .host_cmd_t            ( host_cmd_t          ),
+        .host_w_t              ( host_w_t            ),
+        .host_r_t              ( host_r_t            ),
+        .host_wrsp_t           ( host_wrsp_t         ),
+        .host_req_t            ( host_req_t          ),
+        .host_rsp_t            ( host_rsp_t          ),
+        .hyper_rx_t            ( hyper_rx_t          ),
+        .hyper_tx_t            ( hyper_tx_t          ),
+        .hyper_cmd_t           ( hyper_cmd_t         ),
+        .hyper_req_t           ( hyper_req_t         ),
+        .hyper_rsp_t           ( hyper_rsp_t         ),
+        .rule_t                ( axi_rule_t          )
     ) i_midend (
         .clk_i             ( clk_sys_i              ),
         .rst_ni            ( rst_sys_ni             ),
@@ -249,6 +278,10 @@ module hyperbus_isochronous #(
         .hyper_link_req_o  ( midend_req             ),
         .hyper_link_rsp_i  ( midend_rsp             )
     );
+
+    ////////////////////////
+    // Isochronous bridge //
+    ////////////////////////
 
     hyperbus_iso_bridge #(
         .hyper_rx_t     ( hyper_rx_t     ),
@@ -274,6 +307,10 @@ module hyperbus_isochronous #(
         .cfg_apply_valid_o        ( backend_cfg_apply_valid   ),
         .cfg_apply_ready_i        ( backend_cfg_apply_ready   )
     );
+
+    /////////////
+    // Backend //
+    /////////////
 
     hyperbus_backend #(
         .NumPhys          ( NumPhys           ),
