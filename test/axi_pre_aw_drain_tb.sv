@@ -27,7 +27,7 @@ module axi_pre_aw_drain_tb;
   bit partial_w_done;
 
   fixture_hyperbus #(
-      .NumChips   ( 2                      ),
+      .NumConnectedChips   ( 2                      ),
       .NumPhys             ( 2                      ),
       .DutVariant          ( 1                      ),
       .HostWriteBufferBytes( HostWriteBufferBytes    ),

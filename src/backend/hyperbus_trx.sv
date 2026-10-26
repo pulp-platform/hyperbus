@@ -9,7 +9,6 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_trx #(
-    parameter int unsigned NumChips        = 2,
     parameter int unsigned RxFifoLogDepth  = 3,
     parameter int unsigned SyncStages      = 2
 )(
@@ -20,7 +19,7 @@ module hyperbus_trx #(
     input  logic       test_mode_i,
 
     // Transceiver control: facing controller
-    input  logic [NumChips-1:0]    cs_i,
+    input  logic [hyperbus_pkg::HyperNumChips-1:0]    cs_i,
     input  logic                   cs_ena_i,
     output logic                   rwds_sample_o,
     input  logic                   rwds_sample_ena_i,
@@ -38,7 +37,7 @@ module hyperbus_trx #(
     output logic                   rx_valid_o,
     input  logic                   rx_ready_i,
     // Physical interface: facing HyperBus
-    output logic [NumChips-1:0]    hyper_cs_no,
+    output logic [hyperbus_pkg::HyperNumChips-1:0]    hyper_cs_no,
     output logic                   hyper_ck_o,
     output logic                   hyper_ck_no,
     output logic                   hyper_rwds_o,
@@ -50,23 +49,11 @@ module hyperbus_trx #(
     output logic                   hyper_reset_no
 );
 
-    logic tx_clk_ena_q;
-    logic rx_rwds_90;
-
-    // Delayed clock enable synchronous with data
-
-    // Intermediate RX signals for RWDS domain
-    logic           rx_rwds_clk_ena;
-    logic           rx_rwds_clk_orig;
-    logic           rx_rwds_clk;
-    logic           rx_rwds_clk_n;
-    logic           rx_capture_rst;
-    logic [15:0]    rx_rwds_fifo_in;
-    logic           rx_rwds_fifo_valid;
-    logic           rx_rwds_fifo_ready;
-
     // Feed through async reset
     assign hyper_reset_no = rst_ni;
+
+
+    logic tx_clk_ena_q;
 
     // =================
     //    TX + control
@@ -125,9 +112,16 @@ module hyperbus_trx #(
         end
     end
 
-    // ========
-    //    RX
-    // ========
+
+    logic        rx_rwds_90;
+    logic        rx_rwds_clk_ena;
+    logic        rx_rwds_clk_orig;
+    logic        rx_rwds_clk;
+    logic        rx_rwds_clk_n;
+    logic        rx_capture_rst;
+    logic [15:0] rx_rwds_fifo_in;
+    logic        rx_rwds_fifo_valid;
+    logic        rx_rwds_fifo_ready;
 
     // Sample RWDS for extra latency determination.
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_ff_rwds_sample

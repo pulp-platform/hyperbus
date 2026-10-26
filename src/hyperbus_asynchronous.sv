@@ -6,7 +6,6 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_asynchronous #(
-    parameter int unsigned  NumChips         = -1,
     parameter int unsigned  NumPhys          = 2,
     parameter int unsigned  AxiAddrWidth     = -1,
     parameter int unsigned  AxiDataWidth     = -1,
@@ -42,7 +41,7 @@ module hyperbus_asynchronous #(
     input  reg_req_t                    reg_req_i,
     output reg_rsp_t                    reg_rsp_o,
 
-    output logic [NumPhys-1:0][NumChips-1:0] hyper_cs_no,
+    output logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_no,
     output logic [NumPhys-1:0]               hyper_ck_o,
     output logic [NumPhys-1:0]               hyper_ck_no,
     output logic [NumPhys-1:0]               hyper_rwds_o,
@@ -63,7 +62,7 @@ module hyperbus_asynchronous #(
     typedef logic [AxiDataWidth/8-1:0] host_strb_t;
     localparam int unsigned AxiDataBytes = AxiDataWidth / 8;
     `HYPERBUS_TYPEDEF_HOST_ALL_CT(host, host_addr_t, host_data_t, host_strb_t)
-    `HYPERBUS_TYPEDEF_LINK_ALL_CT(hyper, NumPhys, NumChips)
+    `HYPERBUS_TYPEDEF_LINK_ALL_CT(hyper, NumPhys)
 
     logic                      clk_backend;
     logic                      rst_backend_n;
@@ -80,7 +79,7 @@ module hyperbus_asynchronous #(
     logic                      backend_cfg_apply_ready;
 
     hyperbus_pkg::frontend_cfg_t frontend_cfg;
-    axi_rule_t [NumChips-1:0]    frontend_chip_rules;
+    axi_rule_t [hyperbus_pkg::HyperNumChips-1:0]    frontend_chip_rules;
 
     host_req_t                host_req;
     host_rsp_t                host_rsp;
@@ -107,7 +106,6 @@ module hyperbus_asynchronous #(
     );
 
     hyperbus_cfg_frontend #(
-        .NumChips ( NumChips ),
         .NumPhys       ( NumPhys       ),
         .reg_req_t     ( reg_req_t     ),
         .reg_rsp_t     ( reg_rsp_t     ),
@@ -158,11 +156,11 @@ module hyperbus_asynchronous #(
     );
 
     hyperbus_midend #(
-        .NumChips ( NumChips ),
         .HostAddrWidth ( AxiAddrWidth        ),
         .HostDataWidth ( AxiDataWidth        ),
         .NumPhys              ( NumPhys             ),
         .HostWriteBufferBytes ( HostWriteBufferBytes ),
+        .MaxHostBurstBeats    ( 256                  ),
         .host_cmd_t    ( host_cmd_t          ),
         .host_w_t      ( host_w_t            ),
         .host_r_t      ( host_r_t            ),
@@ -217,7 +215,6 @@ module hyperbus_asynchronous #(
     );
 
     hyperbus_backend #(
-        .NumChips ( NumChips ),
         .NumPhys          ( NumPhys           ),
         .StartupCycles    ( PhyStartupCycles  ),
         .SyncStages       ( SyncStages        ),

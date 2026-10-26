@@ -7,7 +7,7 @@
 module axi_hyper_tb
   import axi_pkg::*;
 #(
-  parameter int unsigned NumChips = 2,
+  parameter int unsigned NumConnectedChips = 2,
   parameter int unsigned NumPhys = 2,
   parameter int unsigned IsClockODelayed = 0,
   parameter int unsigned NB_CH = 1,
@@ -76,7 +76,7 @@ module axi_hyper_tb
 
   logic                  end_of_sim;
   logic [31:0]           segment_start_count;
-  logic [NumPhys-1:0][NumChips-1:0][31:0] cs_start_count;
+  logic [NumPhys-1:0][NumConnectedChips-1:0][31:0] cs_start_count;
   bit performance_only;
   bit functional_only;
   logic [63:0]           cycle_count;
@@ -821,10 +821,10 @@ module axi_hyper_tb
     localparam axi_addr_t Boundary = axi_addr_t'(32'h8040_0000);
     localparam axi_addr_t BurstAddr = Boundary - 16;
     logic [31:0] segment_start_snapshot;
-    logic [31:0] cs_count_snapshot [NumPhys][NumChips];
+    logic [31:0] cs_count_snapshot [NumPhys][NumConnectedChips];
     logic reg_error;
 
-    if (NumChips < 2) begin
+    if (NumConnectedChips < 2) begin
       return;
     end
 
@@ -839,11 +839,11 @@ module axi_hyper_tb
 
     segment_start_snapshot = segment_start_count;
     for (int p = 0; p < NumPhys; p++)
-      for (int c = 0; c < NumChips; c++)
+      for (int c = 0; c < NumConnectedChips; c++)
         cs_count_snapshot[p][c] = cs_start_count[p][c];
     axi_write_slow(axi_drv, BurstAddr, 4, 0);
     axi_read_slow_check(axi_drv, BurstAddr, 4, 0);
-    for (int c = 0; c < NumChips; c++) begin
+    for (int c = 0; c < NumConnectedChips; c++) begin
       int unsigned selected_count;
       selected_count = 0;
       for (int p = 0; p < NumPhys; p++) begin
@@ -897,7 +897,7 @@ module axi_hyper_tb
     axi_ctrl_master_t::r_beat_t r;
     logic reg_error;
 
-    if (NumChips < 2) begin
+    if (NumConnectedChips < 2) begin
       return;
     end
 
@@ -931,7 +931,9 @@ module axi_hyper_tb
     if (reg_error != 1'b0) $error("unexpected error");
   endtask
 
-  task automatic check_atomic_add(input axi_ctrl_master_t axi_drv);
+  task automatic check_atomic_add(input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
     localparam axi_addr_t AtomicAddr = axi_addr_t'(32'h8000_0200);
     localparam logic [31:0] InitialValue = 32'h1234_5678;
     localparam logic [31:0] Addend = 32'h0102_0304;
@@ -939,6 +941,8 @@ module axi_hyper_tb
     axi_ctrl_master_t::w_beat_t w = new();
     axi_ctrl_master_t::b_beat_t b;
     axi_ctrl_master_t::r_beat_t r;
+    logic [31:0] status;
+    logic reg_error;
 
     $display("===========================");
     $display("= Atomic add              =");
@@ -985,6 +989,12 @@ module axi_hyper_tb
       $error("[ATOMIC] Unsupported operation returned rresp=%0d bresp=%0d",
              r.r_resp, b.b_resp);
     end
+    reg_drv.send_read(32'h010, status, reg_error);
+    if ((reg_error != 1'b0) || !status[0]) begin
+      $error("[ATOMIC] Unsupported operation did not set sticky error status");
+    end
+    reg_drv.send_write(32'h010, 32'h1, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
     axi_check_subword(axi_drv, AtomicAddr, InitialValue + Addend, 2);
 
     // A malformed multi-beat atomic must drain all W beats before returning an error.
@@ -1007,6 +1017,12 @@ module axi_hyper_tb
       $error("[ATOMIC] Multi-beat operation returned rresp=%0d bresp=%0d",
              r.r_resp, b.b_resp);
     end
+    reg_drv.send_read(32'h010, status, reg_error);
+    if ((reg_error != 1'b0) || !status[0]) begin
+      $error("[ATOMIC] Malformed operation did not set sticky error status");
+    end
+    reg_drv.send_write(32'h010, 32'h1, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
     axi_write_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
     axi_check_subword(axi_drv, AtomicAddr, 32'h89ab_cdef, 2);
   endtask
@@ -1027,7 +1043,7 @@ module axi_hyper_tb
     logic [31:0] segment_start_snapshot;
     logic reg_error;
 
-    if (NumChips < 2) begin
+    if (NumConnectedChips < 2) begin
       return;
     end
 
@@ -1120,7 +1136,7 @@ module axi_hyper_tb
     mst_scoreboard.monitor();
 
     // Map each chip to a distinct 16 MiB host-address window.
-    if (NumChips > 1) begin
+    if (NumConnectedChips > 1) begin
       reg_master.send_write(32'h444, 32'h8200_0000, '1, s_reg_error);
       if (s_reg_error != 1'b0) $error("unexpected error");
       reg_master.send_write(32'h440, 32'h8100_0000, '1, s_reg_error);
@@ -1182,7 +1198,7 @@ module axi_hyper_tb
     check_cross_chip_burst(axi_ctrl_mst, reg_master);
     check_large_rule_distance(axi_ctrl_mst);
     check_range_edges(axi_ctrl_mst, reg_master);
-    check_atomic_add(axi_ctrl_mst);
+    check_atomic_add(axi_ctrl_mst, reg_master);
     check_atomic_range_errors(axi_ctrl_mst, reg_master);
 
     if (TbDutVariant == 0) begin
@@ -1292,7 +1308,7 @@ module axi_hyper_tb
     .RegAw           ( RegBusAW           ),
     .RegDw           ( RegBusDW           ),
 
-    .NumChips ( NumChips ),
+    .NumConnectedChips ( NumConnectedChips ),
     .NumPhys         ( NumPhys            ),
     .AnnotateSdf     ( TbAnnotateSdf      ),
     .IsClockODelayed ( IsClockODelayed    ),

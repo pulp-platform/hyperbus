@@ -274,6 +274,9 @@ module hyperbus_axi_frontend #(
                                   hyperbus_pkg::HyperBurstFixed :
                                   hyperbus_pkg::HyperBurstIncr;
 
+    logic atomic_arithmetic_class;
+    logic atomic_endian_sensitive;
+    logic atomic_big_endian_unsupported;
     logic atomic_encoding_valid, atomic_compare_wrap;
     int unsigned atomic_operand_bytes;
 
@@ -284,7 +287,7 @@ module hyperbus_axi_frontend #(
         atomic_compare_wrap = 1'b0;
         atomic_encoding_valid = selected_ax.write && !selected_ax.ax_data.lock &&
             (selected_ax.ax_data.len == '0) &&
-            (selected_ax.ax_data.size <= $clog2((AxiDataWidth / 8)));
+            (selected_ax.ax_data.size <= $clog2(AxiDataWidth / 8));
         if (selected_ax.ax_data.atop == axi_pkg::ATOP_ATOMICCMP) begin
             atomic_operand_bytes = atomic_operand_bytes >> 1;
             atomic_encoding_valid &= (selected_ax.ax_data.size >= 1) &&
@@ -306,6 +309,15 @@ module hyperbus_axi_frontend #(
                                (selected_ax.ax_data.atop == axi_pkg::ATOP_ATOMICCMP);
     end
 
+    assign atomic_arithmetic_class =
+        (selected_ax.ax_data.atop[5:4] == axi_pkg::ATOP_ATOMICSTORE) ||
+        (selected_ax.ax_data.atop[5:4] == axi_pkg::ATOP_ATOMICLOAD);
+    assign atomic_endian_sensitive =
+        (selected_ax.ax_data.atop[2:0] == axi_pkg::ATOP_ADD) ||
+        (selected_ax.ax_data.atop[2:0] >= axi_pkg::ATOP_SMAX);
+    assign atomic_big_endian_unsupported =
+        selected_ax.ax_data.atop[3] && atomic_endian_sensitive;
+
     always_comb begin : proc_atomic_decode
         host_req_o.cmd.atomic_op = (selected_ax.ax_data.atop == '0) ?
                                    hyperbus_pkg::HyperAtomicNone :
@@ -316,8 +328,7 @@ module hyperbus_axi_frontend #(
             axi_pkg::ATOP_ATOMICCMP:
                 host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicCompare;
             default: begin
-                if ((selected_ax.ax_data.atop[5:4] == axi_pkg::ATOP_ATOMICSTORE) ||
-                    (selected_ax.ax_data.atop[5:4] == axi_pkg::ATOP_ATOMICLOAD)) begin
+                if (atomic_arithmetic_class) begin
                     unique case (selected_ax.ax_data.atop[2:0])
                         axi_pkg::ATOP_ADD:
                             host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicAdd;
@@ -338,9 +349,7 @@ module hyperbus_axi_frontend #(
                         default:;
                     endcase
                     // AXI defines bit 3 as endianness for arithmetic atomics.
-                    if (selected_ax.ax_data.atop[3] &&
-                        ((selected_ax.ax_data.atop[2:0] == axi_pkg::ATOP_ADD) ||
-                         (selected_ax.ax_data.atop[2:0] >= axi_pkg::ATOP_SMAX))) begin
+                    if (atomic_big_endian_unsupported) begin
                         host_req_o.cmd.atomic_op = hyperbus_pkg::HyperAtomicInvalid;
                     end
                 end

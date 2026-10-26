@@ -144,6 +144,7 @@ module hyperbus_atomic_handler_tb #(
                     carry = (old_value[i] && operand[i]) ||
                             (carry && (old_value[i] || operand[i]));
                 end
+            hyperbus_pkg::HyperAtomicAnd: result = old_value & operand;
             hyperbus_pkg::HyperAtomicClear: result = old_value & ~operand;
             hyperbus_pkg::HyperAtomicXor: result = old_value ^ operand;
             hyperbus_pkg::HyperAtomicSet: result = old_value | operand;
@@ -548,6 +549,8 @@ module hyperbus_atomic_handler_tb #(
                         32'h1234_5678, 32'h8765_4321, 32'h1234_5678, 32'hfeed_cafe, 1'b1);
         check_operation(hyperbus_pkg::HyperAtomicAdd,
                         32'h1234_5678, 32'h0102_0304, 32'h1336_597c);
+        check_operation(hyperbus_pkg::HyperAtomicAnd,
+                        32'hf0f0_55aa, 32'h0ff0_f00f, 32'h00f0_500a);
         check_operation(hyperbus_pkg::HyperAtomicClear,
                         32'hffff_55aa, 32'h0ff0_f00f, 32'hf00f_05a0);
         check_operation(hyperbus_pkg::HyperAtomicXor,

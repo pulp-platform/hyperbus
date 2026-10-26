@@ -23,9 +23,10 @@ module hyperbus_clock_diff_out
 
        always_latch
        begin
-         if (in_i == 1'b0)
-           en_sync <= en_i;
-       end
+         if (in_i == 1'b0) begin
+            en_sync <= en_i;
+        end
+    end
 
        assign out_o = in_i & en_sync;
        assign out_no = ~out_o;
