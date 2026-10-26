@@ -12,6 +12,9 @@ all: build run
 
 clean: sim_clean
 
+update-regs:
+	bash scripts/gen_regs.sh
+
 # Ensure half-built targets are purged
 .DELETE_ON_ERROR:
 

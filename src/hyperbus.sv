@@ -21,18 +21,13 @@ module hyperbus #(
     parameter type          axi_ar_chan_t    = logic,
     parameter type          axi_r_chan_t     = logic,
     parameter type          axi_aw_chan_t    = logic,
-    parameter int unsigned  RegAddrWidth     = -1,
     parameter int unsigned  RegDataWidth     = -1,
-    parameter int unsigned  MinFreqMHz      = 100,
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          axi_rule_t       = logic,
     // The below have sensible defaults, but should be set on integration!
     parameter int unsigned  RxFifoLogDepth   = 3,
     parameter int unsigned  TxFifoLogDepth   = 3,
-    parameter logic [RegDataWidth-1:0]  RstChipBase  = 'h0,      // Base address for all chips
-    parameter logic [RegDataWidth-1:0]  RstChipSpace = 'h1_0000, // 64 KiB: Current maximum HyperBus device size
-    parameter hyperbus_pkg::hyper_cfg_t RstCfg       = hyperbus_pkg::gen_RstCfg(NumPhys,MinFreqMHz),
     parameter int unsigned  PhyStartupCycles = 300 * 200, /* us*MHz */ // Conservative maximum frequency estimate
     parameter int unsigned  SyncStages  = 2
 ) (
@@ -85,9 +80,10 @@ module hyperbus #(
     logic                       clk_phy_0, clk_phy_90, rst_phy;
 
     // Register file
-    hyperbus_pkg::hyper_cfg_t   cfg;
-    axi_rule_t [NumChips-1:0]   chip_rules;
-    logic                       trans_active;
+    hyperbus_pkg::frontend_cfg_t frontend_cfg;
+    hyperbus_pkg::phy_cfg_t      phy_cfg;
+    axi_rule_t [NumChips-1:0]    chip_rules;
+    logic                        trans_active;
 
     // AXI slave
     hyper_rx_t                  axi_rx;
@@ -121,20 +117,17 @@ module hyperbus #(
     hyperbus_cfg_regs #(
         .NumChips       ( NumChips      ),
         .NumPhys        ( NumPhys       ),
-        .RegAddrWidth   ( RegAddrWidth  ),
         .RegDataWidth   ( RegDataWidth  ),
         .reg_req_t      ( reg_req_t     ),
         .reg_rsp_t      ( reg_rsp_t     ),
-        .rule_t         ( axi_rule_t    ),
-        .RstChipBase    ( RstChipBase   ),
-        .RstChipSpace   ( RstChipSpace  ),
-        .RstCfg         ( RstCfg        )
+        .rule_t         ( axi_rule_t    )
     ) i_cfg_regs (
         .clk_i          ( clk_sys_i     ),
         .rst_ni         ( rst_sys_ni    ),
         .reg_req_i      ( reg_req_i     ),
         .reg_rsp_o      ( reg_rsp_o     ),
-        .cfg_o          ( cfg           ),
+        .frontend_cfg_o ( frontend_cfg  ),
+        .phy_cfg_o      ( phy_cfg       ),
         .chip_rules_o   ( chip_rules    ),
         .trans_active_i ( trans_active  )
     );
@@ -173,11 +166,8 @@ module hyperbus #(
         .trans_valid_o   ( axi_trans_valid      ),
         .trans_ready_i   ( axi_trans_ready      ),
 
+        .frontend_cfg_i  ( frontend_cfg         ),
         .chip_rules_i    ( chip_rules           ),
-        .which_phy_i     ( cfg.which_phy        ),
-        .phys_in_use_i   ( cfg.phys_in_use      ),
-        .addr_mask_msb_i ( cfg.address_mask_msb ),
-        .addr_space_i    ( cfg.address_space    ),
         .trans_active_o  ( trans_active         )
     );
 
@@ -214,7 +204,7 @@ module hyperbus #(
         .rst_phy_ni     ( rst_phy           ),
         .test_mode_i    ( test_mode_i       ),
 
-        .cfg_i          ( cfg               ),
+        .cfg_i          ( phy_cfg           ),
 
         .rx_o           ( phy_rx            ),
         .rx_valid_o     ( phy_rx_valid      ),

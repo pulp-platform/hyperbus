@@ -180,7 +180,6 @@ module fixture_hyperbus #(
         .axi_b_chan_t   ( b_chan_t    ),
         .axi_ar_chan_t  ( ar_chan_t   ),
         .axi_r_chan_t   ( r_chan_t    ),
-        .RegAddrWidth   ( RegAw       ),
         .RegDataWidth   ( RegDw       ),
         .reg_req_t      ( reg_req_t   ),
         .reg_rsp_t      ( reg_rsp_t   ),
