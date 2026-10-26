@@ -4,6 +4,9 @@
 
 package hyperbus_pkg;
 
+    // The register map and physical interface expose every supported chip select.
+    localparam int unsigned HyperNumChips = 8;
+
     // Maximal burst size: 2^8 1024-bit words as 16-bit words (plus one as not decremented)
     localparam unsigned HyperBurstWidth = 8 + $clog2(1024/16) + 1;
     typedef logic [HyperBurstWidth-1:0] hyper_blen_t;
@@ -21,6 +24,7 @@ package hyperbus_pkg;
         HyperAtomicSwap,
         HyperAtomicCompare,
         HyperAtomicAdd,
+        HyperAtomicAnd,
         HyperAtomicClear,
         HyperAtomicXor,
         HyperAtomicSet,

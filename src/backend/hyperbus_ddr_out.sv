@@ -20,11 +20,12 @@ module hyperbus_ddr_out #(
 `ifdef FPGA_EMUL
        always_comb
       begin
-        if(clk_i == 1'b0)
-           q_o = q1;
-        else
-           q_o = q0;
-      end
+        if(clk_i == 1'b0) begin
+            q_o = q1;
+        end else begin
+            q_o = q0;
+        end
+    end
 `else
     tc_clk_mux2 i_ddrmux (
         .clk_o     ( q_o   ),

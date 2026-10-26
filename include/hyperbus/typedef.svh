@@ -68,7 +68,7 @@
   `HYPERBUS_TYPEDEF_HOST_RSP_T(__name``_rsp_t, __name``_r_t,              \
                                __name``_wrsp_t)
 
-`define HYPERBUS_TYPEDEF_LINK_ALL_CT(__name, __num_phys, __num_chips) \
+`define HYPERBUS_TYPEDEF_LINK_ALL_CT(__name, __num_phys) \
   typedef struct packed {                                             \
     logic [(16*__num_phys)-1:0] data;                                 \
     logic                       last;                                 \
@@ -84,7 +84,7 @@
   } __name``_wrsp_t;                                                  \
   typedef struct packed {                                             \
     hyperbus_pkg::hyper_tf_t trans;                                   \
-    logic [__num_chips-1:0]  cs;                                      \
+    logic [hyperbus_pkg::HyperNumChips-1:0]  cs;                                      \
   } __name``_cmd_t;                                                   \
   typedef struct packed {                                             \
     __name``_cmd_t  cmd;                                              \

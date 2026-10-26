@@ -10,7 +10,6 @@
 `include "common_cells/assertions.svh"
 
 module hyperbus_phy import hyperbus_pkg::*; #(
-    parameter int unsigned NumChips         = 2,
     parameter int unsigned NumPhys          = -1,
     parameter int unsigned TimerWidth       = 16,
     parameter int unsigned RxFifoLogDepth   = 3,
@@ -29,7 +28,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     input  logic                trans_valid_i,
     output logic                trans_ready_o,
     input  hyper_tf_t           trans_i,            // TODO: increase burst width!
-    input  logic [NumChips-1:0] trans_cs_i,
+    input  logic [HyperNumChips-1:0] trans_cs_i,
     // Transmitting channel
     input  logic                tx_valid_i,
     output logic                tx_ready_o,
@@ -47,7 +46,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     input  logic                b_ready_i,
     output logic                b_error_o,
     // Physical interface
-    output logic [NumChips-1:0] hyper_cs_no,
+    output logic [HyperNumChips-1:0] hyper_cs_no,
     output logic                hyper_ck_o,
     output logic                hyper_ck_no,
     output logic                hyper_rwds_o,
@@ -75,7 +74,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     hyper_phy_state_t       state_d,    state_q;
     logic [TimerWidth-1:0]  timer_d,    timer_q;
     hyper_tf_t              tf_d,       tf_q;
-    logic [NumChips-1:0]    cs_d,       cs_q;
+    logic [HyperNumChips-1:0]    cs_d,       cs_q;
     logic                   add_latency_d, add_latency_q;
 
     // Whether B response is pending
@@ -125,7 +124,6 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // =================
 
     hyperbus_trx #(
-        .NumChips       ( NumChips          ),
         .RxFifoLogDepth ( RxFifoLogDepth    ),
         .SyncStages     ( SyncStages        )
     ) i_trx (
@@ -265,7 +263,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         trx_tx_rwds_oe = 1'b0;
         trx_tx_data_oe = 1'b0;
         // State-dependent logic
-        case (state_q)
+        unique case (state_q)
             Startup: begin
                 trx_cs_ena  = 1'b0;
                 // Timer resets to parameterized startup delay
@@ -444,6 +442,15 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                         trx_tx_data_oe = 1'b1;
                     end
                 end
+            end
+            // Recover safely from an invalid state through the normal startup sequence.
+            default: begin
+                state_d       = Startup;
+                timer_d       = StartupCycles;
+                tf_d          = hyper_tf_t'{burst_type: 1'b1, default: '0};
+                cs_d          = '0;
+                add_latency_d = 1'b0;
+                trx_cs_ena    = 1'b0;
             end
         endcase
     end

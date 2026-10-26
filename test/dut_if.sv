@@ -22,7 +22,7 @@ module dut_if
   parameter int  RegAw           = -1,
   parameter int  RegDw           = -1,
                  
-  parameter int  NumChips        = -1,
+  parameter int  NumConnectedChips = 2,
   parameter int  NumPhys         = -1,
   parameter bit  AnnotateSdf     = 1'b1,
   parameter int  IsClockODelayed = -1,
@@ -34,7 +34,7 @@ module dut_if
  input logic rst_ni,
  input logic end_sim_i,
  output logic [31:0] segment_start_count_o,
- output logic [NumPhys-1:0][NumChips-1:0][31:0] cs_start_count,
+ output logic [NumPhys-1:0][NumConnectedChips-1:0][31:0] cs_start_count,
 
  AXI_BUS.Slave axi_slv_if,
  REG_BUS.in    reg_slv_if
@@ -210,7 +210,7 @@ module dut_if
   `REG_BUS_ASSIGN_FROM_RSP(reg_slv_if,reg_resp)   
    
 
-    logic [NumPhys-1:0][NumChips-1:0] hyper_cs_n_wire;
+    logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_wire;
     logic [NumPhys-1:0]               hyper_ck_wire;
     logic [NumPhys-1:0]               hyper_ck_n_wire;
     logic [NumPhys-1:0]               hyper_rwds_o;
@@ -221,10 +221,10 @@ module dut_if
     logic [NumPhys-1:0]               hyper_dq_oe;
     logic [NumPhys-1:0]               hyper_reset_n_wire;
     logic                             phy_clk;
-    logic [NumPhys-1:0][NumChips-1:0] hyper_cs_n_q;
+    logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_q;
     logic                             segment_start;
              
-    wire  [NumPhys-1:0][NumChips-1:0]  pad_hyper_csn;
+    wire  [NumPhys-1:0][NumConnectedChips-1:0]  pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
     wire  [NumPhys-1:0]                pad_hyper_ckn;
     wire  [NumPhys-1:0]                pad_hyper_rwds;
@@ -286,7 +286,7 @@ module dut_if
                 segment_start_count_o <= segment_start_count_o + 1;
             end
             for (int p = 0; p < NumPhys; p++) begin
-                for (int c = 0; c < NumChips; c++) begin
+                for (int c = 0; c < NumConnectedChips; c++) begin
                     if (hyper_cs_n_q[p][c] && !hyper_cs_n_wire[p][c])
                         cs_start_count[p][c] <= cs_start_count[p][c] + 1'b1;
                 end
@@ -297,7 +297,6 @@ module dut_if
     // DUT
     hyperbus_test_dut #(
         .DutVariant       ( DutVariant   ),
-        .NumChips         ( NumChips      ),
         .NumPhys          ( NumPhys       ),
         .AxiAddrWidth     ( AxiAddrWidth  ),
         .AxiDataWidth     ( AxiDataWidth  ),
@@ -339,7 +338,7 @@ module dut_if
     
     generate
        for (genvar i=0; i<NumPhys; i++) begin : hyperrams
-          for (genvar j=0; j<NumChips; j++) begin : chips
+          for (genvar j=0; j<NumConnectedChips; j++) begin : chips
 
              s27ks0641 #(
                /*.mem_file_name ( "s27ks0641.mem"    ),*/
@@ -365,7 +364,7 @@ module dut_if
    
     if (AnnotateSdf) begin : gen_sdf_annotation
        for (genvar p=0; p<NumPhys; p++) begin : sdf_annotation
-          for (genvar l=0; l<NumChips; l++) begin : sdf_annotation
+          for (genvar l=0; l<NumConnectedChips; l++) begin : sdf_annotation
              initial begin
                 string sdf_file_path;
                 if (!$value$plusargs("HYPERRAM_SDF=%s", sdf_file_path)) begin
@@ -379,7 +378,7 @@ module dut_if
     end
 
    for (genvar i = 0 ; i<NumPhys; i++) begin: pad_gen
-    for (genvar j = 0; j<NumChips; j++) begin
+    for (genvar j = 0; j<NumConnectedChips; j++) begin
        pad_functional_pd padinst_hyper_csno   (.OEN( 1'b0            ), .I( hyper_cs_n_wire[i][j] ), .O(                  ), .PAD( pad_hyper_csn[i][j] ), .PEN( 1'b0 ));
     end
     pad_functional_pd padinst_hyper_ck     (.OEN( 1'b0            ), .I( hyper_ck_wire[i]      ), .O(                  ), .PAD( pad_hyper_ck[i]     ), .PEN( 1'b0 ) );
