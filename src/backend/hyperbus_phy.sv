@@ -14,7 +14,8 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     parameter int unsigned TimerWidth       = 16,
     parameter int unsigned RxFifoLogDepth   = 3,
     parameter int unsigned SyncStages       = 2,
-    parameter int unsigned StartupCycles    = 300 /*us*/ * 200 /*MHz*/ // Conservative maximum frequency estimate
+    // Conservative startup delay: 300 us at 200 MHz.
+    parameter int unsigned StartupCycles    = 300 * 200
 )(
     input  logic                clk_i,
     input  logic                clk_tx_i,
@@ -70,11 +71,14 @@ module hyperbus_phy import hyperbus_pkg::*; #(
 
     assign words_per_beat = (NumPhys == 2 && cfg_i.dual_phy) ? 2 : 1;
 
-    // PHY state
+    //////////////////////
+    // Persistent state //
+    //////////////////////
+
     hyper_phy_state_t       state_d,    state_q;
     logic [TimerWidth-1:0]  timer_d,    timer_q;
     hyper_tf_t              tf_d,       tf_q;
-    logic [HyperNumChips-1:0]    cs_d,       cs_q;
+    logic [HyperNumChips-1:0] cs_d, cs_q;
     logic                   add_latency_d, add_latency_q;
 
     // Whether B response is pending
@@ -87,7 +91,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic                       r_outstand_inc;
     logic                       r_outstand_dec;
 
-    // Auxiliar control signals
+    // Auxiliary control signals
     logic ctl_write_zero_lat;
     logic ctl_add_latency;
     logic ctl_tf_burst_last;
@@ -104,7 +108,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     // Command-address
     hyper_phy_ca_t  ca;
 
-    // Transciever IO
+    // Transceiver I/O
     logic           trx_clk_ena;
     logic           trx_cs_ena;
     logic           trx_rwds_sample;
@@ -119,9 +123,9 @@ module hyperbus_phy import hyperbus_pkg::*; #(
     logic           trx_rx_valid;
     logic           trx_rx_ready;
 
-    // =================
-    //    Transciever
-    // =================
+    //////////////////////
+    // Transceiver I/O //
+    //////////////////////
 
     hyperbus_trx #(
         .RxFifoLogDepth ( RxFifoLogDepth    ),
@@ -158,9 +162,9 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         .hyper_reset_no
     );
 
-    // ==============
-    //    Dataflow
-    // ==============
+    //////////////
+    // Dataflow //
+    //////////////
 
     // Command-address
     assign ca = hyper_phy_ca_t '{
@@ -224,9 +228,9 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         else if (r_outstand_dec & ~r_outstand_inc)  r_outstand_q <= r_outstand_q - 1;
     end
 
-    // =============
-    //    Control
-    // =============
+    /////////////
+    // Control //
+    /////////////
 
     // Auxiliary control signals
     assign ctl_write_zero_lat   = tf_q.address_space & tf_q.write;
@@ -264,6 +268,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
         trx_tx_data_oe = 1'b0;
         // State-dependent logic
         unique case (state_q)
+            // Hold chip select inactive until the startup delay expires.
             Startup: begin
                 trx_cs_ena  = 1'b0;
                 // Timer resets to parameterized startup delay
@@ -271,6 +276,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     state_d = Idle;
                 end
             end
+            // Accept a transfer only after all responses from the previous one have drained.
             Idle: begin
                 trx_cs_ena  = 1'b0;
                 timer_d     = timer_q;
@@ -300,6 +306,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     trx_tx_data_oe = 1'b1;
                 end
             end
+            // Assert chip select early when RWDS needs extra setup time before CK starts.
             DelayCK: begin
                 trx_clk_ena = 1'b0;
                 trx_rwds_sample_ena = ~ctl_write_zero_lat;
@@ -308,6 +315,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     state_d = SendCA;
                 end
             end
+            // Shift the three command/address words onto DQ.
             SendCA: begin
                 // Dataflow handled outside FSM
                 trx_clk_ena         = 1'b1;
@@ -324,6 +332,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     end
                 end
             end
+            // Wait one access-latency interval and sample the additional-latency request.
             WaitLatAccess: begin
                 trx_clk_ena = 1'b1;
                 trx_tx_data_oe = 1'b1;
@@ -359,6 +368,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     add_latency_d = 1'b0;
                 end
             end
+            // Complete the requested second access-latency interval.
             WaitAddLatAccess: begin
                 // Same as WaitLatAccess but without possibility
                 // of adding another latency count
@@ -377,6 +387,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     end
                 end
             end
+            // Capture read data until this segment completes or reaches its time limit.
             Read: begin
                 // Dataflow handled outside FSM
                 trx_rx_clk_set = 1'b1;
@@ -396,6 +407,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     state_d = WaitXfer;
                 end
             end
+            // Transmit write data until this segment completes or reaches its time limit.
             Write: begin
                 // Drive DQ lines in write mode
                 trx_tx_data_oe = 1'b1;
@@ -418,6 +430,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     state_d = WaitXfer;
                 end
             end
+            // Keep chip select asserted until the final generated clock edge has settled.
             WaitXfer: begin
                 // Wait for FFed Clock and output to stop
                 // May have to be prolonged for potential future devices with t_CSH > 0
@@ -426,6 +439,7 @@ module hyperbus_phy import hyperbus_pkg::*; #(
                     state_d = WaitRWR;
                 end
             end
+            // Enforce read/write recovery, then continue a split transfer or return idle.
             WaitRWR: begin
                 trx_cs_ena = 1'b0;
                 if (ctl_timer_rwr_done) begin

@@ -48,12 +48,21 @@ module hyperbus_read_adapter #(
         EmitHost
     } read_adapter_state_e;
 
+    //////////////////////
+    // Persistent state //
+    //////////////////////
+
     read_adapter_state_e          state_d, state_q;
     logic [CounterWidth-1:0]      byte_host_addr_d, byte_host_addr_q;
     logic [CounterWidth-1:0]      byte_phy_cnt_d, byte_phy_cnt_q;
     logic [CounterWidth-1:0]      last_addr_d, last_addr_q;
     logic [3:0]                   size_d, size_q;
     T                             data_buffer_d, data_buffer_q;
+
+    //////////////////////
+    // Address tracking //
+    //////////////////////
+
     logic [WordCntWidth-1:0]      word_cnt;
     logic                         enough_data;
     logic                         enough_data_q;
@@ -77,6 +86,10 @@ module hyperbus_read_adapter #(
     assign host_last           = data_buffer_q.last && (last_addr_q == next_host_addr);
     assign host_accepted       = host_valid_o && host_ready_i;
     assign converted_accepted  = converted_valid && converted_ready;
+
+    //////////////////////
+    // Host read output //
+    //////////////////////
 
     assign data_o.data      = data_buffer_q.data;
     assign data_o.resp      = data_buffer_q.resp;
@@ -105,6 +118,10 @@ module hyperbus_read_adapter #(
         end
     end
 
+    /////////////////////
+    // Beat assembly //
+    /////////////////////
+
     always_comb begin : proc_sample
         data_buffer_d = data_buffer_q;
 
@@ -126,12 +143,17 @@ module hyperbus_read_adapter #(
         end
     end
 
+    ///////////////////////////
+    // Adapter state machine //
+    ///////////////////////////
+
     always_comb begin : proc_fsm
         state_d      = state_q;
         host_valid_o = 1'b0;
         converted_ready = 1'b0;
 
         unique case (state_q)
+            // Wait for a command to initialize address tracking.
             Idle: begin
                 if (start_i) begin
                     state_d = WaitPhy;
@@ -146,7 +168,7 @@ module hyperbus_read_adapter #(
             end
             // Accumulate physical words until one complete host beat is available.
             CollectPhy: begin
-                // The first physical word may already complete a minimum-width host beat.
+                // The first word can already complete a minimum-width host beat.
                 converted_ready = !enough_data_q;
                 if (enough_data) begin
                     state_d = EmitHost;
@@ -170,6 +192,10 @@ module hyperbus_read_adapter #(
             end
         endcase
     end
+
+    //////////////////////////
+    // Physical-width adapter //
+    //////////////////////////
 
     if (NumPhys == 2) begin : gen_dual_phy
         logic [15:0] lower_data_d, lower_data_q;
@@ -219,6 +245,10 @@ module hyperbus_read_adapter #(
             phy_ready_o      = converted_ready;
         end
     end
+
+    /////////////////////
+    // State registers //
+    /////////////////////
 
     `FFARN(state_q, state_d, Idle, clk_i, rst_ni)
     `FFARN(data_buffer_q, data_buffer_d, '0, clk_i, rst_ni)

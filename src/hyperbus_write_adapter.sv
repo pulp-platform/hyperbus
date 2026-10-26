@@ -48,6 +48,10 @@ module hyperbus_write_adapter #(
         logic                       last;
     } write_buffer_t;
 
+    //////////////////////
+    // Persistent state //
+    //////////////////////
+
     write_adapter_state_e          state_d, state_q;
     write_buffer_t                 data_buffer_d, data_buffer_q;
     logic                          first_tx_d, first_tx_q;
@@ -56,6 +60,9 @@ module hyperbus_write_adapter #(
     logic [3:0]                    size_d, size_q;
     logic [AddrWidth-1:0]          cnt_data_phy_d, cnt_data_phy_q;
 
+    //////////////////////
+    // Address tracking //
+    //////////////////////
 
     logic                          upsize;
     logic                          enough_data;
@@ -85,6 +92,9 @@ module hyperbus_write_adapter #(
     assign host_accepted      = host_valid_i && host_ready_o;
     assign converted_accepted = converted_valid && converted_ready;
 
+    ////////////////////////
+    // Control conditions //
+    ////////////////////////
 
     logic collect_complete;
     logic collect_partial_last;
@@ -131,6 +141,10 @@ module hyperbus_write_adapter #(
         end
     end
 
+    ///////////////////
+    // Beat assembly //
+    ///////////////////
+
     always_comb begin : proc_sample
         data_buffer_d = data_buffer_q;
 
@@ -162,19 +176,23 @@ module hyperbus_write_adapter #(
         end
     end
 
+    // Mask bytes beyond a short final host beat.
     always_comb begin : proc_mask_strobe
-        mask_strobe_d  = mask_strobe_q;
+        mask_strobe_d = mask_strobe_q;
 
         if (state_q == Idle) begin
-                mask_strobe_d = '1;
+            mask_strobe_d = '1;
         end
         if (collect_partial_last) begin
             for (int unsigned i = 0; i < NumPhys * 2; i++) begin
-                                mask_strobe_d[i] = i < byte_idx_d[NumPhys-1:0];
-                            end
-                        end
-                    end
+                mask_strobe_d[i] = i < byte_idx_d[NumPhys-1:0];
+            end
+        end
+    end
 
+    ///////////////////////////
+    // Adapter state machine //
+    ///////////////////////////
 
     always_comb begin : proc_fsm
         state_d         = state_q;
@@ -185,9 +203,9 @@ module hyperbus_write_adapter #(
             // Wait for a command to initialize address tracking.
             Idle: begin
                 if (start_i) begin
-                        state_d = CollectHost;
-                    end
+                    state_d = CollectHost;
                 end
+            end
             // Gather enough host bytes to form the next physical word.
             CollectHost: begin
                 host_ready_o = 1'b1;
@@ -199,20 +217,20 @@ module hyperbus_write_adapter #(
             EmitPhy: begin
                 converted_valid = 1'b1;
                 if (phy_last_accepted && start_i) begin
-                        state_d = CollectHost;
+                    state_d = CollectHost;
                 end else if (phy_last_accepted) begin
                     state_d = Idle;
-                    end else if (wide_host_word_can_emit) begin
-                            host_ready_o = 1'b1;
-                            state_d = EmitPhy;
+                end else if (wide_host_word_can_emit) begin
+                    host_ready_o = 1'b1;
+                    state_d = EmitPhy;
                 end else if (wide_host_word_needs_collect) begin
                     host_ready_o = 1'b1;
                     state_d = CollectHost;
                 end else if (wide_host_word_without_data) begin
                     state_d = CollectHost;
                 end else if (narrow_group_emitted) begin
-                        host_ready_o = !upsize;
-                        state_d = CollectHost;
+                    host_ready_o = !upsize;
+                    state_d = CollectHost;
                 end
             end
             default: begin
@@ -220,6 +238,10 @@ module hyperbus_write_adapter #(
             end
         endcase
     end
+
+    //////////////////////////
+    // Physical-width adapter //
+    //////////////////////////
 
     if (NumPhys == 2) begin : gen_dual_phy
         logic split_d, split_q;
@@ -260,6 +282,10 @@ module hyperbus_write_adapter #(
             converted_ready = phy_ready_i;
         end
     end
+
+    /////////////////////
+    // State registers //
+    /////////////////////
 
     `FFARN(state_q, state_d, Idle, clk_i, rst_ni)
     `FFARN(data_buffer_q, data_buffer_d, '0, clk_i, rst_ni)

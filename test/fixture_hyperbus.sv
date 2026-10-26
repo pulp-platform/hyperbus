@@ -12,11 +12,11 @@
 
 module fixture_hyperbus #(
     parameter int unsigned NumConnectedChips    = 2,
-    parameter int unsigned NumPhys = 2,
-    parameter int unsigned DutVariant = 0,
+    parameter int unsigned NumPhys              = 2,
+    parameter int unsigned DutVariant           = 0,
     parameter int unsigned HostWriteBufferBytes = 64,
     parameter time        SysClkPeriod          = 4ns,
-    parameter bit AnnotateSdf = 1'b1
+    parameter bit         AnnotateSdf           = 1'b1
 );
 
    
@@ -162,7 +162,7 @@ module fixture_hyperbus #(
     logic [NumPhys-1:0]               hyper_dq_oe;
     logic [NumPhys-1:0]               hyper_reset_n_wire;
              
-    wire  [NumPhys-1:0][NumConnectedChips-1:0]  pad_hyper_csn;
+    wire  [NumPhys-1:0][NumConnectedChips-1:0] pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
     wire  [NumPhys-1:0]                pad_hyper_ckn;
     wire  [NumPhys-1:0]                pad_hyper_rwds;

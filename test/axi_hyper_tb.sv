@@ -49,10 +49,16 @@ module axi_hyper_tb
   parameter bit          TbRunPerformance = 1'b1
 );
   import hyperbus_tb_pkg::*;
+  /////////////////////////////
+  // Axi channel definitions //
+  /////////////////////////////
   `include "axi/typedef.svh"
   `include "axi/assign.svh"
 
 
+  /////////////////////////
+  // Clock and Reset gen //
+  /////////////////////////
   logic clk, rst_n;
   clk_rst_gen #(
     .ClkPeriod     ( TbCyclTime ),
@@ -97,6 +103,9 @@ module axi_hyper_tb
   end
 
 
+  ///////////////////////
+  // AXI Random Master //
+  ///////////////////////
   // AXI master for random data transactions
   typedef axi_test::axi_rand_master #(
     .AW                   ( TbAxiAddrWidthFull ),
@@ -158,6 +167,9 @@ module axi_hyper_tb
 
 
 
+  ////////////////////////
+  // AXI Control Master //
+  ////////////////////////
 
   AXI_BUS_DV #(
     .AXI_ADDR_WIDTH ( TbAxiAddrWidthFull ),
@@ -187,6 +199,9 @@ module axi_hyper_tb
 
   `AXI_ASSIGN(axi_ctrl_intf, axi_ctrl_intf_dv)
 
+  //////////////////////////////
+  // AXI Control Master Tasks //
+  //////////////////////////////
   task automatic axi_write_32(
     input axi_addr_t  addr,
     input bit [31:0] data
@@ -212,6 +227,9 @@ module axi_hyper_tb
   endtask
 
 
+  ///////////////////
+  // Regbus Master //
+  ///////////////////
   typedef reg_test::reg_driver #(
     .AW ( RegBusAW   ),
     .DW ( RegBusDW   ),
@@ -227,6 +245,9 @@ module axi_hyper_tb
 
 
 
+  ////////////////////
+  // AXI Master MUX //
+  ////////////////////
 
   AXI_BUS #(
     .AXI_ADDR_WIDTH ( TbAxiAddrWidthFull  ),
@@ -251,6 +272,9 @@ module axi_hyper_tb
   );
 
 
+  ////////////////////
+  // Address Ranges //
+  ////////////////////
   localparam axi_addr_t MemRegionStart  = axi_addr_t'(32'h8000_0000);
   localparam axi_addr_t MemRegionLength = axi_addr_t'(TbDramDataWidth * TbDramLenWidth);
 
@@ -931,7 +955,8 @@ module axi_hyper_tb
     if (reg_error != 1'b0) $error("unexpected error");
   endtask
 
-  task automatic check_atomic_add(input axi_ctrl_master_t axi_drv,
+  task automatic check_atomic_add(
+    input axi_ctrl_master_t axi_drv,
     input reg_bus_master_t reg_drv
   );
     localparam axi_addr_t AtomicAddr = axi_addr_t'(32'h8000_0200);
@@ -1298,6 +1323,9 @@ module axi_hyper_tb
     $finish();
   end
 
+  ///////////////////////
+  // Design under test //
+  ///////////////////////
   dut_if  #(
     .TbTestTime      ( TbTestTime         ),
     .AxiDataWidth    ( TbAxiDataWidthFull ),

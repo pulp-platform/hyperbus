@@ -224,7 +224,7 @@ module dut_if
     logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_q;
     logic                             segment_start;
              
-    wire  [NumPhys-1:0][NumConnectedChips-1:0]  pad_hyper_csn;
+    wire  [NumPhys-1:0][NumConnectedChips-1:0] pad_hyper_csn;
     wire  [NumPhys-1:0]                pad_hyper_ck;
     wire  [NumPhys-1:0]                pad_hyper_ckn;
     wire  [NumPhys-1:0]                pad_hyper_rwds;

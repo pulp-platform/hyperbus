@@ -42,10 +42,14 @@ module hyperbus_backend #(
     output logic [NumPhys-1:0]               hyper_reset_no
 );
 
+    /////////////////////////////
+    // Configuration and clock //
+    /////////////////////////////
+
     hyperbus_pkg::phy_cfg_t cfg_q;
-    logic                     cfg_apply_accepted;
-    logic                     phy_busy_any;
-    logic                     clk_tx;
+    logic                   cfg_apply_accepted;
+    logic                   phy_busy_any;
+    logic                   clk_tx;
 
     `ASSERT_INIT(NumPhysValid, NumPhys == 1 || NumPhys == 2)
     `ASSERT_INIT(SyncStagesValid, SyncStages >= 2)
@@ -66,6 +70,10 @@ module hyperbus_backend #(
         .delay_i ( cfg_q.t_tx_clk_delay ),
         .out_o   ( clk_tx               )
     );
+
+    /////////////////////
+    // Physical lanes //
+    /////////////////////
 
     if (NumPhys == 2) begin : gen_dual_phy
         hyperbus_pkg::phy_rx_t [NumPhys-1:0] phy_rx;

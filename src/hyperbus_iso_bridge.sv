@@ -32,10 +32,14 @@ module hyperbus_iso_bridge #(
     input  logic                     cfg_apply_ready_i
 );
 
-    hyperbus_pkg::phy_cfg_t      cfg_apply_data_q;
-    logic                        cfg_apply_accepted;
-    logic                        cfg_apply_pending_d;
-    logic                        cfg_apply_pending_q;
+    ////////////////////////////
+    // Configuration crossing //
+    ////////////////////////////
+
+    hyperbus_pkg::phy_cfg_t cfg_apply_data_q;
+    logic                   cfg_apply_accepted;
+    logic                   cfg_apply_pending_d;
+    logic                   cfg_apply_pending_q;
 
     assign cfg_apply_accepted = frontend_cfg_apply_valid_i && frontend_cfg_apply_ready_o;
     assign frontend_cfg_apply_done_o =
@@ -67,6 +71,9 @@ module hyperbus_iso_bridge #(
 
     assign cfg_apply_o = cfg_apply_data_q;
 
+    //////////////////////
+    // Command crossing //
+    //////////////////////
 
     hyper_cmd_t cmd_data_q;
     logic       cmd_accepted;
@@ -87,6 +94,9 @@ module hyperbus_iso_bridge #(
 
     assign backend_req_o.cmd = cmd_data_q;
 
+    /////////////////////////////
+    // Write-response crossing //
+    /////////////////////////////
 
     hyper_wrsp_t wrsp_data_q;
     logic        wrsp_accepted;
@@ -107,6 +117,9 @@ module hyperbus_iso_bridge #(
 
     assign frontend_rsp_o.wrsp = wrsp_data_q;
 
+    ///////////////////////
+    // TX data crossing //
+    ///////////////////////
 
     isochronous_spill_register #(
         .T ( hyper_tx_t )
@@ -123,6 +136,9 @@ module hyperbus_iso_bridge #(
         .dst_data_o  ( backend_req_o.tx        )
     );
 
+    ///////////////////////
+    // RX data crossing //
+    ///////////////////////
 
     isochronous_spill_register #(
         .T ( hyper_rx_t )

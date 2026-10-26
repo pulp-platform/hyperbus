@@ -30,7 +30,7 @@ module hyperbus_cfg_regs_tb;
     reg_rsp_t                          reg_rsp;
     hyperbus_pkg::frontend_cfg_t       frontend_cfg;
     hyperbus_pkg::phy_cfg_t            phy_cfg;
-    addr_rule_t [hyperbus_pkg::HyperNumChips-1:0]         chip_rules;
+    addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules;
     logic                              decode_error;
 
     task automatic reg_write(
