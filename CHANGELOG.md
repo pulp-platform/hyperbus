@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 Historical entries cover tags with or without GitHub releases. Dates use tag
 timestamps for annotated tags, otherwise the tagged commit date.
 
+## [0.1.0] - 2026-10-26
+
+Controller redesign; not a drop-in replacement for 0.0.x.
+
+### Added
+
+- Separate synchronous, isochronous and asynchronous tops.
+- PeakRDL-generated registers, C header and register map.
+- Per-chip staged configuration (APPLY/FLUSH) and quiescent asynchronous PHY-reset replay.
+- RWDS sampling/OE timing controls and device-specific retained DQ drive.
+- Functional, parameter, performance and pad-delay regressions.
+
+### Changed
+
+- Separate frontend, configuration, midend and backend; move host buffering into the midend.
+- Narrow counters/registers and remove duplicate configuration storage.
+
+### Fixed
+
+- Atomic validation and Compare operand pairing.
+- Narrow/generic read accounting and address overflow checks.
+- Wait for backend recovery before divider updates; preserve CS setup on segment restarts.
+
+### Compatibility
+
+- Replace legacy `hyperbus` instantiations and migrate parameters/ports.
+- Use the new 32-bit, 4 KiB Regbus map; update firmware and APPLY staged settings.
+- Limit each PHY to four chip-select ranks; chip ranges must be 4 MiB-aligned, ordered and non-overlapping.
+- Remove `hyper_reset_no`; drive memory reset from the platform.
+
 ## [0.0.10] - 2026-10-26
 
 Final legacy HyperBus v2 release, retaining `hyperbus`, shared timing registers
@@ -124,6 +154,7 @@ Initial release of HyperBus v2.
 - *2021/2022*: Improvements and additions.
 - *February 2023*: Initial release.
 
+[0.1.0]: https://github.com/pulp-platform/hyperbus/compare/v0.0.10...v0.1.0
 [0.0.10]: https://github.com/pulp-platform/hyperbus/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/pulp-platform/hyperbus/compare/v0.0.8...v0.0.9
 [0.0.8]: https://github.com/pulp-platform/hyperbus/compare/v0.0.7...v0.0.8

@@ -2,6 +2,7 @@
 
 AXI4 controller for [HyperBus](https://www.cypress.com/file/213356/download),
 part of the [PULP platform](https://pulp-platform.org/). Tested with HyperRAM.
+`v0.1.0` introduces separate clocking tops and per-chip configuration.
 `v0.0.10` is the final legacy release; see [CHANGELOG.md](CHANGELOG.md).
 
 ## Features
