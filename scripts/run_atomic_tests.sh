@@ -20,7 +20,7 @@ integration_sources=("$cc/src/cf_math_pkg.sv" "$axi/src/axi_pkg.sv"
     src/regs/hyperbus_cfg_regblock_pkg.sv src/hyperbus_pkg.sv
     src/hyperbus_atomic_handler.sv src/hyperbus_axi_frontend.sv
     src/hyperbus_read_adapter.sv src/hyperbus_write_adapter.sv src/hyperbus_midend.sv
-    test/hyperbus_axi_atomic_tb.sv)
+    test/hyperbus_link_mem.sv test/hyperbus_axi_atomic_tb.sv)
 
 for width in 16 32 64 128 256 512 1024; do
     dir="$build_root/unit-$width"

@@ -74,6 +74,7 @@ sources:
         - test/hyperbus_test_dut.sv
         - test/fixture_hyperbus.sv
         - test/hyperbus_atomic_handler_tb.sv
+        - test/hyperbus_link_mem.sv
         - test/hyperbus_axi_atomic_tb.sv
         - test/hyperbus_read_counter_tb.sv
         - test/hyperbus_burst_bound_tb.sv

@@ -39,7 +39,7 @@ sources=("$cc/src/cf_math_pkg.sv" "$axi/src/axi_pkg.sv"
     src/regs/hyperbus_cfg_regblock.sv src/hyperbus_cfg_regs.sv src/hyperbus_cfg_frontend.sv
     src/hyperbus_atomic_handler.sv "$frontend_source"
     src/hyperbus_read_adapter.sv src/hyperbus_write_adapter.sv src/hyperbus_midend.sv
-    test/hyperbus_axi_barrier_tb.sv)
+    test/hyperbus_link_mem.sv test/hyperbus_axi_barrier_tb.sv)
 
 for profile in "${profiles[@]}"; do
     read -r reads writes beats <<< "$profile"

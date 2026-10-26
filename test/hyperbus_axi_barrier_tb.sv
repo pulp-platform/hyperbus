@@ -5,6 +5,7 @@
 `include "axi/typedef.svh"
 `include "hyperbus/typedef.svh"
 `include "common_cells/assertions.svh"
+`include "register_interface/typedef.svh"
 
 module hyperbus_axi_barrier_tb #(
     parameter int unsigned AxiMaxReadTxns = 4,
@@ -23,18 +24,8 @@ module hyperbus_axi_barrier_tb #(
         addr_t end_addr;
         logic [2:0] idx;
     } rule_t;
-    typedef struct packed {
-        addr_t addr;
-        logic write;
-        logic [31:0] wdata;
-        logic [3:0] wstrb;
-        logic valid;
-    } reg_req_t;
-    typedef struct packed {
-        logic [31:0] rdata;
-        logic error;
-        logic ready;
-    } reg_rsp_t;
+    `REG_BUS_TYPEDEF_REQ(reg_req_t, addr_t, logic [31:0], logic [3:0])
+    `REG_BUS_TYPEDEF_RSP(reg_rsp_t, logic [31:0])
     `AXI_TYPEDEF_ALL(axi, addr_t, id_t, data_t, strb_t, user_t)
     `HYPERBUS_TYPEDEF_HOST_ALL_CT(host, addr_t, data_t, strb_t)
     `HYPERBUS_TYPEDEF_LINK_ALL_CT(link, 1)
@@ -56,7 +47,6 @@ module hyperbus_axi_barrier_tb #(
     logic cfg_valid, cfg_ready, cfg_done;
     logic apply_pending;
     int unsigned apply_delay, apply_count, cycle;
-    byte unsigned memory [128];
     int unsigned aw_count [16], ar_count [16], r_count [16], b_count [16];
     int unsigned aw_goal [16], ar_goal [16], atomic_count [16], atomic_goal [16];
     int unsigned w_count, w_goal, read_peak, write_peak;
@@ -142,67 +132,16 @@ module hyperbus_axi_barrier_tb #(
         end
     end
 
-    // Physical addresses are independently interpreted as 16-bit word addresses.
-    typedef enum logic [2:0] { BackendIdle, ReadDelay, BackendRead,
-        BackendWrite, ResponseDelay, BackendResponse } backend_state_e;
-    backend_state_e backend_state;
-    int unsigned address, remaining, delay_cycles;
-    always_comb begin
-        link_rsp = '0;
-        link_rsp.cmd_ready = backend_state == BackendIdle && cycle % 4 == 0;
-        link_rsp.tx_ready = backend_state == BackendWrite && cycle % 3 != 0;
-        link_rsp.rx_valid = backend_state == BackendRead;
-        link_rsp.rx.data = {memory[address+1], memory[address]};
-        link_rsp.rx.last = remaining == 1;
-        link_rsp.wrsp_valid = backend_state == BackendResponse;
-    end
+    hyperbus_link_mem #(
+        .link_req_t(link_req_t), .link_rsp_t(link_rsp_t)
+    ) i_link_mem (
+        .clk_i(clk), .rst_ni(rst_n), .cycle_i(cycle),
+        .inject_write_fault_i(1'b0), .link_req_i(link_req), .link_rsp_o(link_rsp)
+    );
+
     always @(posedge clk) begin
-        if (!rst_n) begin
-            cycle <= 0;
-            backend_state <= BackendIdle;
-            address <= 0;
-            remaining <= 0;
-            delay_cycles <= 0;
-        end else begin
-            cycle <= cycle + 1;
-            case (backend_state)
-                BackendIdle: if (link_req.cmd_valid && link_rsp.cmd_ready) begin
-                    if (link_req.cmd.cs != 1 || !link_req.cmd.trans.burst_type ||
-                        int'(link_req.cmd.trans.address)*2 +
-                        int'(link_req.cmd.trans.burst)*2 > 128)
-                        $fatal(1, "Physical command outside the independent memory model");
-                    address <= int'(link_req.cmd.trans.address)*2;
-                    remaining <= int'(link_req.cmd.trans.burst);
-                    delay_cycles <= 2;
-                    backend_state <= link_req.cmd.trans.write ? BackendWrite : ReadDelay;
-                end
-                ReadDelay: if (delay_cycles == 0) backend_state <= BackendRead;
-                           else delay_cycles <= delay_cycles - 1;
-                BackendRead: if (link_req.rx_ready) begin
-                    address <= address + 2;
-                    remaining <= remaining - 1;
-                    delay_cycles <= cycle % 3;
-                    backend_state <= remaining == 1 ? BackendIdle : ReadDelay;
-                end
-                BackendWrite: if (link_req.tx_valid && link_rsp.tx_ready) begin
-                    for (int lane = 0; lane < 2; lane++)
-                        if (link_req.tx.strb[lane])
-                            memory[address+lane] <= link_req.tx.data[lane*8 +: 8];
-                    if (link_req.tx.last != (remaining == 1))
-                        $fatal(1, "Physical write LAST mismatch");
-                    address <= address + 2;
-                    remaining <= remaining - 1;
-                    if (remaining == 1) begin
-                        delay_cycles <= 3;
-                        backend_state <= ResponseDelay;
-                    end
-                end
-                ResponseDelay: if (delay_cycles == 0) backend_state <= BackendResponse;
-                               else delay_cycles <= delay_cycles - 1;
-                BackendResponse: if (link_req.wrsp_ready) backend_state <= BackendIdle;
-                default: $fatal(1, "Invalid independent backend state");
-            endcase
-        end
+        if (!rst_n) cycle <= 0;
+        else cycle <= cycle + 1;
     end
 
     // Check presentation as well as acceptance: an unaccepted atomic must not
@@ -352,7 +291,7 @@ module hyperbus_axi_barrier_tb #(
         @(negedge clk);
         for (int i = 0; i < 128; i++) begin
             original[i] = 8'(32'h31 + 13*i + 7*w_order + int'(apply_command));
-            memory[i] = original[i];
+            i_link_mem.write_byte(i, original[i]);
         end
         expected_read[1] = '0;
         for (int lane = 0; lane < 8; lane++)
@@ -506,12 +445,12 @@ module hyperbus_axi_barrier_tb #(
             $fatal(1, "Barrier acceptance/response counts or nonvacuity mismatch");
         for (int i = 0; i < 128; i++) begin
             if (i < 4) begin
-                if (memory[i] != AtomicReplacement[i*8 +: 8])
+                if (i_link_mem.read_byte(i) != AtomicReplacement[i*8 +: 8])
                     $fatal(1, "Atomic SWAP write mismatch at byte %0d", i);
             end else if (i >= 64 && i < 72) begin
-                if (memory[i] != late_write[(i-64)*8 +: 8])
+                if (i_link_mem.read_byte(i) != late_write[(i-64)*8 +: 8])
                     $fatal(1, "Late ordinary write mismatch at byte %0d", i);
-            end else if (memory[i] != original[i])
+            end else if (i_link_mem.read_byte(i) != original[i])
                 $fatal(1, "Barrier traffic changed neighboring byte %0d", i);
         end
         if (apply_command && (cfg.chip[0].address_mask_msb != next_mask ||
@@ -543,7 +482,7 @@ module hyperbus_axi_barrier_tb #(
         @(negedge clk);
         for (int i = 0; i < 128; i++) begin
             expected_memory[i] = 8'(32'h47 + 19*i + 11*pattern);
-            memory[i] = expected_memory[i];
+            i_link_mem.write_byte(i, expected_memory[i]);
         end
         queue_apply_tracking = 1;
     endtask
@@ -598,9 +537,9 @@ module hyperbus_axi_barrier_tb #(
                 atomic_count[id] != atomic_goal[id])
                 $fatal(1, "%s: accepted request count mismatch ID=%0d", name, id);
         for (int i = 0; i < 128; i++)
-            if (memory[i] != expected_memory[i])
+            if (i_link_mem.read_byte(i) != expected_memory[i])
                 $fatal(1, "%s: memory/neighbor mismatch byte=%0d got=%h expected=%h",
-                    name, i, memory[i], expected_memory[i]);
+                    name, i, i_link_mem.read_byte(i), expected_memory[i]);
         if (cfg.chip[0].address_mask_msb != queue_next_mask ||
             accepted_cfg.phy[0].tx_delay != queue_next_delay)
             $fatal(1, "%s: APPLY did not publish the staged settings", name);
@@ -776,7 +715,7 @@ module hyperbus_axi_barrier_tb #(
         previous_mask = 0;
         atomic_r_baseline = 0;
         atomic_b_baseline = 0;
-        for (int i = 0; i < 128; i++) memory[i] = 8'(i);
+        for (int i = 0; i < 128; i++) i_link_mem.write_byte(i, 8'(i));
         repeat (4) @(negedge clk);
         rst_n = 1;
         wait (!drain);
