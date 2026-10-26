@@ -11,10 +11,12 @@ module hyperbus_cfg_regs #(
     parameter int unsigned  NumPhys         = -1,
     parameter int unsigned  RegDataWidth    = -1,
     parameter int unsigned  RegAddrWidth    = 32,
-    parameter logic [7:0]   CapabilityFeatures = '0,
+    // Capability bits are supplied by the selected top-level clocking
+    // implementation.  The register map itself remains stable across tops.
+    parameter logic [7:0]   CapabilityFeatures = 8'b0010_0000,
     parameter type          reg_req_t       = logic,
     parameter type          reg_rsp_t       = logic,
-    parameter type          rule_t          = logic
+    parameter type          addr_rule_t     = logic
 ) (
     input  logic     clk_i,
     input  logic     rst_ni,
@@ -24,13 +26,8 @@ module hyperbus_cfg_regs #(
 
     output hyperbus_pkg::frontend_cfg_t frontend_cfg_o,
     output hyperbus_pkg::phy_cfg_t      phy_cfg_o,
-    output rule_t [NumChips-1:0]        chip_rules_o,
-    input  logic                        trans_active_i,
-    input  logic                        cfg_busy_i,
-    input  logic                        decode_error_i,
-    input  logic                        cfg_dirty_i,
-    output logic                        flush_req_o,
-    output logic                        apply_req_o
+    output addr_rule_t [NumChips-1:0]   chip_rules_o,
+    input  logic                        decode_error_i
 );
     `include "common_cells/registers.svh"
 
@@ -76,7 +73,7 @@ module hyperbus_cfg_regs #(
 
     hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__out_t cfg_hwif_out;
     hyperbus_cfg_regblock_pkg::hyperbus_cfg_regs__in_t  cfg_hwif_in;
-    rule_t [NumChipsMax-1:0] chip_rules_all;
+    addr_rule_t [NumChipsMax-1:0] chip_rules_all;
 
     cfg_addr_t cfg_addr;
     logic cfg_addr_in_window;
@@ -123,7 +120,9 @@ module hyperbus_cfg_regs #(
                                (cfg_addr == (12'h418 + i * 12'h40)));
         end
     end
-    assign cfg_access_open = ~trans_active_i | cfg_access_active_q | cfg_status_access;
+    // The configuration frontend owns draining and automatic apply sequencing.
+    // Keep this wrapper purely responsible for the stable register-map access.
+    assign cfg_access_open = 1'b1;
 
     always_comb begin : proc_cfg_value_valid
         cfg_value_valid = 1'b1;
@@ -223,10 +222,10 @@ module hyperbus_cfg_regs #(
     assign cfg_hwif_in.global_cfg.status.decode_error.next  =
         cfg_hwif_out.global_cfg.status.decode_error.value;
     assign cfg_hwif_in.global_cfg.status.decode_error.hwset = decode_error_i;
-    assign cfg_hwif_in.global_cfg.status.busy.next          = cfg_busy_i;
-    assign cfg_hwif_in.global_cfg.status.dirty.next         = cfg_dirty_i;
-    assign flush_req_o = cfg_hwif_out.global_cfg.command.flush.value;
-    assign apply_req_o = cfg_hwif_out.global_cfg.command.apply.value;
+    assign cfg_hwif_in.global_cfg.status.busy.next          = 1'b0;
+    assign cfg_hwif_in.global_cfg.status.dirty.next         = 1'b0;
+    // COMMAND fields are intentionally left unconsumed until staged apply is
+    // implemented.  STATUS busy/dirty likewise have no point-3 source.
 
     reg_to_apb #(
         .reg_req_t ( cfg_reg_req_t ),
@@ -265,9 +264,9 @@ module hyperbus_cfg_regs #(
 
         frontend_cfg_o.address_mask_msb = cfg_hwif_out.chip_0.address_cfg.address_mask_msb.value;
         frontend_cfg_o.address_space    = cfg_hwif_out.chip_0.address_cfg.address_space.value[0];
-        frontend_cfg_o.phys_in_use      = (NumPhys == 2) &&
+        frontend_cfg_o.dual_phy         = (NumPhys == 2) &&
             cfg_hwif_out.frontend.frontend_cfg.dual_phy.value;
-        frontend_cfg_o.which_phy        = 1'b0;
+        frontend_cfg_o.phy_clock_div    = cfg_hwif_out.backend.clock_cfg.divider.value;
 
         phy_cfg_o.chip.t_latency_access      = cfg_hwif_out.chip_0.latency_cfg.t_latency_access.value;
         phy_cfg_o.chip.en_latency_additional = cfg_hwif_out.chip_0.latency_cfg.en_latency_additional.value;
@@ -277,9 +276,8 @@ module hyperbus_cfg_regs #(
         phy_cfg_o.chip.t_csh_cycles          = cfg_hwif_out.chip_0.chip_timing.t_csh_cycles.value;
         phy_cfg_o.chip.csn_to_ck_cycles      = cfg_hwif_out.chip_0.chip_timing.csn_to_ck_cycles.value;
         phy_cfg_o.t_tx_clk_delay             = cfg_hwif_out.phy_0.tx_delay.value.value;
-        phy_cfg_o.phys_in_use                = (NumPhys == 2) &&
+        phy_cfg_o.dual_phy                   = (NumPhys == 2) &&
             cfg_hwif_out.frontend.frontend_cfg.dual_phy.value;
-        phy_cfg_o.which_phy                  = 1'b0;
     end
 
     // The legacy PR34 interface has no destinations for these newer fields.
