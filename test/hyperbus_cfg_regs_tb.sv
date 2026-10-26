@@ -89,7 +89,7 @@ module hyperbus_cfg_regs_tb;
         rst_n = 1'b1;
 
         reg_read(32'h000, data);
-        if (data != 32'h0000_0900) $fatal(1, "IP version reset mismatch: %h", data);
+        if (data != 32'h0001_0000) $fatal(1, "IP version reset mismatch: %h", data);
         reg_read(32'h004, data);
         if (data != 32'h0001_0000) $error("REG_IF version reset mismatch: %h", data);
         reg_read(32'h008, data);

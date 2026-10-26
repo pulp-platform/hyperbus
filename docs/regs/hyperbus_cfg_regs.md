@@ -51,8 +51,8 @@ Don't override. Generated from: hyperbus_cfg_regs
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
 | 7:0 | revision |   r  | 0x0 |  — |
-| 15:8|   patch  |   r  | 0x9 |  — |
-|23:16|   minor  |   r  | 0x0 |  — |
+| 15:8|   patch  |   r  | 0x0 |  — |
+|23:16|   minor  |   r  | 0x1 |  — |
 |31:24|   major  |   r  | 0x0 |  — |
 
 ### reg_if_version register

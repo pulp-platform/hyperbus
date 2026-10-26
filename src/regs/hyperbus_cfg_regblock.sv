@@ -944,8 +944,8 @@ module hyperbus_cfg_regblock (
     field_storage_t field_storage;
 
     assign hwif_out.global_cfg.ip_version.revision.value = 8'h0;
-    assign hwif_out.global_cfg.ip_version.patch.value = 8'h9;
-    assign hwif_out.global_cfg.ip_version.minor.value = 8'h0;
+    assign hwif_out.global_cfg.ip_version.patch.value = 8'h0;
+    assign hwif_out.global_cfg.ip_version.minor.value = 8'h1;
     assign hwif_out.global_cfg.ip_version.major.value = 8'h0;
     assign hwif_out.global_cfg.reg_if_version.minor.value = 16'h0;
     assign hwif_out.global_cfg.reg_if_version.major.value = 16'h1;
@@ -2756,8 +2756,8 @@ module hyperbus_cfg_regblock (
         readback_data_var = '0;
         if(rd_mux_addr == 12'h0) begin
             readback_data_var[7:0] = 8'h0;
-            readback_data_var[15:8] = 8'h9;
-            readback_data_var[23:16] = 8'h0;
+            readback_data_var[15:8] = 8'h0;
+            readback_data_var[23:16] = 8'h1;
             readback_data_var[31:24] = 8'h0;
         end
         if(rd_mux_addr == 12'h4) begin

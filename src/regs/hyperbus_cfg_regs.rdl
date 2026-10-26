@@ -4,8 +4,8 @@ addrmap hyperbus_cfg_regs {
     reg ip_version {
         desc = "IP version (major.minor.patch.revision).";
         field { sw = r; hw = r; reset = 8'd0; } major[31:24];
-        field { sw = r; hw = r; reset = 8'd0; } minor[23:16];
-        field { sw = r; hw = r; reset = 8'd9; } patch[15:8];
+        field { sw = r; hw = r; reset = 8'd1; } minor[23:16];
+        field { sw = r; hw = r; reset = 8'd0; } patch[15:8];
         field { sw = r; hw = r; reset = 8'd0; } revision[7:0];
     };
     reg reg_if_version {
