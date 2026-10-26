@@ -32,9 +32,11 @@ module dut_if
   parameter int unsigned DutVariant = 0,
   parameter time PhyCyclTime     = 6ns,
   parameter time PadDelayTickCyclTime = 5ns,
+  parameter bit SanitizeRegInputs = 1'b0,
   parameter type axi_rule_t      = logic
 )(
  input logic clk_i,
+ input logic clk_phy_i,
  input logic rst_ni,
  input logic end_sim_i,
  output logic [31:0] segment_start_count_o,
@@ -191,6 +193,8 @@ module dut_if
   end
 
   always @(posedge end_sim_i) begin : proc_axi_end_check
+    // Sample after the protocol monitor accounts for the final handshake.
+    #1ps;
     if (aw_head != aw_tail || w_head != w_tail || w_current_beats != 0)
       $fatal(1, "[AXI-PROTOCOL] Test ended with incomplete write traffic");
     for (int i = 0; i < NumAxiIds; i++) begin
@@ -211,7 +215,17 @@ module dut_if
   reg_req_t reg_req;
   reg_rsp_t reg_resp;
 
-  `REG_BUS_ASSIGN_TO_REQ(reg_req,reg_slv_if)
+  if (SanitizeRegInputs) begin : gen_sanitize_reg_inputs
+    assign reg_req = reg_req_t'{
+      addr:   $isunknown(reg_slv_if.addr ) ? 1'b0 : reg_slv_if.addr,
+      write:  $isunknown(reg_slv_if.write) ? 1'b0 : reg_slv_if.write,
+      wdata:  $isunknown(reg_slv_if.wdata) ? 1'b0 : reg_slv_if.wdata,
+      wstrb:  $isunknown(reg_slv_if.wstrb) ? 1'b0 : reg_slv_if.wstrb,
+      valid:  $isunknown(reg_slv_if.valid) ? 1'b0 : reg_slv_if.valid
+    };
+  end else begin : gen_reg_inputs
+    `REG_BUS_ASSIGN_TO_REQ(reg_req,reg_slv_if)
+  end
   `REG_BUS_ASSIGN_FROM_RSP(reg_slv_if,reg_resp)   
    
 
@@ -224,7 +238,6 @@ module dut_if
     logic [NumPhys-1:0][7:0]          hyper_dq_i;
     logic [NumPhys-1:0][7:0]          hyper_dq_o;
     logic [NumPhys-1:0]               hyper_dq_oe;
-    logic                             phy_clk;
     logic                             pad_delay_tick_clk;
     logic [NumPhys-1:0][hyperbus_pkg::HyperNumChips-1:0] hyper_cs_n_q;
     logic                             segment_start;
@@ -347,14 +360,6 @@ module dut_if
      );
 
     initial begin
-        phy_clk = 1'b0;
-        forever begin
-            #(PhyCyclTime/2);
-            phy_clk = ~phy_clk;
-        end
-    end
-
-    initial begin
         real tick_interval;
         // The adapter consumes both edges. Matrix ticks are one quarter PHY
         // cycle; preserve the existing reference clock for ordinary suites.
@@ -410,7 +415,7 @@ module dut_if
     ) i_dut (
         .clk_sys_i              ( clk_i              ),
         .rst_sys_ni             ( rst_ni             ),
-        .clk_phy_i              ( phy_clk            ),
+        .clk_phy_i              ( clk_phy_i          ),
         .rst_phy_ni             ( rst_ni             ),
 `ifdef TARGET_XILINX
         .clk_ref200_i           ( clk_i              ),
