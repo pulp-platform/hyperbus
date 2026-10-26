@@ -184,7 +184,7 @@ module fixture_hyperbus #(
         .RegDataWidth   ( RegDw       ),
         .reg_req_t      ( reg_req_t   ),
         .reg_rsp_t      ( reg_rsp_t   ),
-        .IsClockODelayed( 0           ),
+        .UsePhyClkDivider( 1'b1       ),
         .axi_rule_t     ( rule_t      )
     ) i_dut (
         .clk_phy_i              ( phy_clk            ),

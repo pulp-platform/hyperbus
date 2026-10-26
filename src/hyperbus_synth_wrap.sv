@@ -133,7 +133,7 @@ module hyperbus_lint_wrap #(
     hyperbus #(
         .NumChips        ( NumChips        ),
         .NumPhys         ( NumPhys         ),
-        .IsClockODelayed ( IsClockODelayed ),
+        .UsePhyClkDivider ( IsClockODelayed == 0 ),
         .AxiAddrWidth    ( AxiAddrWidth    ),
         .AxiDataWidth    ( AxiDataWidth    ),
         .AxiIdWidth      ( AxiIdWidth      ),
