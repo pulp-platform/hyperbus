@@ -18,6 +18,9 @@ module hyperbus_asynchronous #(
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          axi_rule_t       = logic,
+    parameter int unsigned  AxiMaxReadTxns        = 4,
+    parameter int unsigned  AxiMaxWriteTxns       = 4,
+    parameter int unsigned  HostWriteBufferBytes  = 64,
     parameter int unsigned  RxFifoLogDepth   = 3,
     parameter int unsigned  TxFifoLogDepth   = 3,
     parameter int unsigned  PhyStartupCycles = 300 * 200,
@@ -52,15 +55,19 @@ module hyperbus_asynchronous #(
 );
 
     `ASSERT_INIT(AxiAddrWidthValid, AxiAddrWidth >= $clog2(AxiDataWidth / 8))
+    `ASSERT_INIT(AxiMaxReadTxnsValid, AxiMaxReadTxns >= 1)
+    `ASSERT_INIT(AxiMaxWriteTxnsValid, AxiMaxWriteTxns >= 1)
 
     typedef logic [AxiAddrWidth-1:0]   host_addr_t;
     typedef logic [AxiDataWidth-1:0]   host_data_t;
     typedef logic [AxiDataWidth/8-1:0] host_strb_t;
+    localparam int unsigned AxiDataBytes = AxiDataWidth / 8;
     `HYPERBUS_TYPEDEF_HOST_ALL_CT(host, host_addr_t, host_data_t, host_strb_t)
     `HYPERBUS_TYPEDEF_LINK_ALL_CT(hyper, NumPhys, NumChips)
 
     logic                      clk_backend;
     logic                      rst_backend_n;
+    logic rst_phy_async_n;
     hyperbus_pkg::phy_cfg_t    frontend_cfg_apply;
     logic                      frontend_cfg_apply_valid;
     logic                      frontend_cfg_apply_ready;
@@ -84,8 +91,6 @@ module hyperbus_asynchronous #(
     hyper_req_t               backend_req;
     hyper_rsp_t               backend_rsp;
 
-    logic                      rst_phy_async_n;
-
     // Clearable CDCs permit an independent PHY reset without creating phantom
     // transfers. Such a reset can discard a pending transfer and is therefore
     // only a supported software operation while the controller is idle.
@@ -102,7 +107,7 @@ module hyperbus_asynchronous #(
     );
 
     hyperbus_cfg_frontend #(
-        .NumChips      ( NumChips      ),
+        .NumChips ( NumChips ),
         .NumPhys       ( NumPhys       ),
         .reg_req_t     ( reg_req_t     ),
         .reg_rsp_t     ( reg_rsp_t     ),
@@ -134,6 +139,9 @@ module hyperbus_asynchronous #(
         .AxiAddrWidth ( AxiAddrWidth ),
         .AxiIdWidth   ( AxiIdWidth   ),
         .AxiUserWidth ( AxiUserWidth ),
+        .AxiMaxReadTxns    ( AxiMaxReadTxns                        ),
+        .AxiMaxWriteTxns   ( AxiMaxWriteTxns                       ),
+        .MaxWriteDataBeats ( HostWriteBufferBytes / AxiDataBytes  ),
         .axi_req_t    ( axi_req_t    ),
         .axi_rsp_t    ( axi_rsp_t    ),
         .host_req_t   ( host_req_t   ),
@@ -150,10 +158,11 @@ module hyperbus_asynchronous #(
     );
 
     hyperbus_midend #(
+        .NumChips ( NumChips ),
         .HostAddrWidth ( AxiAddrWidth        ),
         .HostDataWidth ( AxiDataWidth        ),
-        .NumChips      ( NumChips            ),
-        .NumPhys       ( NumPhys             ),
+        .NumPhys              ( NumPhys             ),
+        .HostWriteBufferBytes ( HostWriteBufferBytes ),
         .host_cmd_t    ( host_cmd_t          ),
         .host_w_t      ( host_w_t            ),
         .host_r_t      ( host_r_t            ),
@@ -208,7 +217,7 @@ module hyperbus_asynchronous #(
     );
 
     hyperbus_backend #(
-        .NumChips         ( NumChips          ),
+        .NumChips ( NumChips ),
         .NumPhys          ( NumPhys           ),
         .StartupCycles    ( PhyStartupCycles  ),
         .SyncStages       ( SyncStages        ),
