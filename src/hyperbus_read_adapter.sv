@@ -41,11 +41,11 @@ module hyperbus_read_adapter #(
     `ASSERT_INIT(CounterWidthValid, CounterWidth > AddrWidth)
     `ASSERT(StartSizeValid, start_i |-> size_i <= $clog2(NumHostBytes))
 
-    typedef enum logic [2:0] {
+    typedef enum logic [1:0] {
         Idle,
-        WaitData,
-        Sample,
-        CntReady
+        WaitPhy,
+        CollectPhy,
+        EmitHost
     } read_adapter_state_e;
 
     read_adapter_state_e          state_d, state_q;
@@ -60,6 +60,8 @@ module hyperbus_read_adapter #(
     logic                         sent_available_data;
     logic [CounterWidth-1:0]      next_host_addr;
     logic                         host_last;
+    logic                         host_accepted;
+    logic                         converted_accepted;
     logic [16*NumPhys-1:0]        converted_data;
     logic                         converted_last;
     logic                         converted_error;
@@ -73,6 +75,8 @@ module hyperbus_read_adapter #(
     assign enough_data_q       = byte_phy_cnt_q >= next_host_addr;
     assign sent_available_data = byte_host_addr_d >= byte_phy_cnt_q;
     assign host_last           = data_buffer_q.last && (last_addr_q == next_host_addr);
+    assign host_accepted       = host_valid_o && host_ready_i;
+    assign converted_accepted  = converted_valid && converted_ready;
 
     assign data_o.data      = data_buffer_q.data;
     assign data_o.resp      = data_buffer_q.resp;
@@ -93,10 +97,10 @@ module hyperbus_read_adapter #(
             last_addr_d = ((start_addr_i >> size_i) << size_i) + (burst_len_i << size_i);
             size_d = size_i;
         end
-        if (host_valid_o && host_ready_i) begin
+        if (host_accepted) begin
             byte_host_addr_d = ((byte_host_addr_q >> size_q) << size_q) + (1 << size_q);
         end
-        if (converted_valid && converted_ready) begin
+        if (converted_accepted) begin
             byte_phy_cnt_d = byte_phy_cnt_q + NumPhys * 2;
         end
     end
@@ -104,15 +108,15 @@ module hyperbus_read_adapter #(
     always_comb begin : proc_sample
         data_buffer_d = data_buffer_q;
 
-        if (state_d == Idle) begin
+        if (state_q == Idle) begin
             data_buffer_d.last = 1'b0;
             data_buffer_d.data = '0;
             data_buffer_d.resp = hyperbus_pkg::HyperRespOkay;
         end else begin
-            if (host_valid_o && host_ready_i) begin
+            if (host_accepted) begin
                 data_buffer_d.resp = hyperbus_pkg::HyperRespOkay;
             end
-            if (converted_ready && converted_valid) begin
+            if (converted_accepted) begin
                 data_buffer_d.data[word_cnt*(16*NumPhys) +: (16*NumPhys)] = converted_data;
                 if (converted_error) begin
                     data_buffer_d.resp = hyperbus_pkg::HyperRespAccessError;
@@ -130,31 +134,34 @@ module hyperbus_read_adapter #(
         unique case (state_q)
             Idle: begin
                 if (start_i) begin
-                    state_d = WaitData;
+                    state_d = WaitPhy;
                 end
             end
-            WaitData: begin
+            // Accept the first physical word of the host beat.
+            WaitPhy: begin
                 converted_ready = 1'b1;
                 if (converted_valid) begin
-                    state_d = Sample;
+                    state_d = CollectPhy;
                 end
             end
-            Sample: begin
+            // Accumulate physical words until one complete host beat is available.
+            CollectPhy: begin
                 // The first physical word may already complete a minimum-width host beat.
                 converted_ready = !enough_data_q;
                 if (enough_data) begin
-                    state_d = CntReady;
+                    state_d = EmitHost;
                 end
             end
-            CntReady: begin
+            // Hold the assembled host beat until accepted.
+            EmitHost: begin
                 host_valid_o = enough_data_q;
                 converted_ready = !enough_data_q;
-                if (host_valid_o && host_ready_i) begin
+                if (host_accepted) begin
                     if (data_o.last || (last_addr_q == byte_host_addr_d)) begin
                         state_d = Idle;
                     end else if (sent_available_data) begin
                         converted_ready = 1'b1;
-                        state_d = converted_valid ? Sample : WaitData;
+                        state_d = converted_valid ? CollectPhy : WaitPhy;
                     end
                 end
             end

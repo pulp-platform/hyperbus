@@ -13,6 +13,7 @@ module hyperbus_test_dut #(
     parameter type          axi_req_t        = logic,
     parameter type          axi_rsp_t        = logic,
     parameter int unsigned  RegDataWidth     = -1,
+    parameter int unsigned  HostWriteBufferBytes = 64,
     parameter type          reg_req_t        = logic,
     parameter type          reg_rsp_t        = logic,
     parameter type          axi_rule_t       = logic
@@ -50,8 +51,9 @@ module hyperbus_test_dut #(
 
     if (DutVariant == VariantIsochronous) begin : gen_isochronous
         hyperbus_isochronous #(
-            .NumChips       ( NumChips      ),
+            .NumChips ( NumChips ),
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -86,8 +88,9 @@ module hyperbus_test_dut #(
         );
     end else if (DutVariant == VariantSynchronous) begin : gen_synchronous
         hyperbus_synchronous #(
-            .NumChips       ( NumChips      ),
+            .NumChips ( NumChips ),
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),
@@ -122,8 +125,9 @@ module hyperbus_test_dut #(
         );
     end else if (DutVariant == VariantAsynchronous) begin : gen_asynchronous
         hyperbus_asynchronous #(
-            .NumChips       ( NumChips      ),
+            .NumChips ( NumChips ),
             .NumPhys        ( NumPhys       ),
+            .HostWriteBufferBytes ( HostWriteBufferBytes ),
             .AxiAddrWidth   ( AxiAddrWidth  ),
             .AxiDataWidth   ( AxiDataWidth  ),
             .AxiIdWidth     ( AxiIdWidth    ),

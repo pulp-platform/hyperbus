@@ -62,6 +62,9 @@ if {$suite in {all integration}} {
         run_test axi_hyper_tb_$variant functional_$variant {[AXI-TEST] passed} +HYPERBUS_FUNCTIONAL_ONLY
     }
 }
+if {$suite in {all integration}} {
+    run_test axi_pre_aw_drain_tb pre_aw_drain {Pre-AW W drain regressions passed}
+}
 if {$suite in {all performance}} {
     foreach variant {isochronous synchronous asynchronous synchronous_one_phy} {
         run_test axi_hyper_tb_$variant performance_$variant {[AXI-TEST] passed} +HYPERBUS_PERFORMANCE_ONLY

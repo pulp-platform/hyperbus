@@ -49,16 +49,10 @@ module axi_hyper_tb
   parameter bit          TbRunPerformance = 1'b1
 );
   import hyperbus_tb_pkg::*;
-  /////////////////////////////
-  // Axi channel definitions //
-  /////////////////////////////
   `include "axi/typedef.svh"
   `include "axi/assign.svh"
 
 
-  /////////////////////////
-  // Clock and Reset gen //
-  /////////////////////////
   logic clk, rst_n;
   clk_rst_gen #(
     .ClkPeriod     ( TbCyclTime ),
@@ -103,9 +97,6 @@ module axi_hyper_tb
   end
 
 
-  ///////////////////////
-  // AXI Random Master //
-  ///////////////////////
   // AXI master for random data transactions
   typedef axi_test::axi_rand_master #(
     .AW                   ( TbAxiAddrWidthFull ),
@@ -167,9 +158,6 @@ module axi_hyper_tb
 
 
 
-  ////////////////////////
-  // AXI Control Master //
-  ////////////////////////
 
   AXI_BUS_DV #(
     .AXI_ADDR_WIDTH ( TbAxiAddrWidthFull ),
@@ -199,9 +187,6 @@ module axi_hyper_tb
 
   `AXI_ASSIGN(axi_ctrl_intf, axi_ctrl_intf_dv)
 
-  //////////////////////////////
-  // AXI Control Master Tasks //
-  //////////////////////////////
   task automatic axi_write_32(
     input axi_addr_t  addr,
     input bit [31:0] data
@@ -227,9 +212,6 @@ module axi_hyper_tb
   endtask
 
 
-  ///////////////////
-  // Regbus Master //
-  ///////////////////
   typedef reg_test::reg_driver #(
     .AW ( RegBusAW   ),
     .DW ( RegBusDW   ),
@@ -245,9 +227,6 @@ module axi_hyper_tb
 
 
 
-  ////////////////////
-  // AXI Master MUX //
-  ////////////////////
 
   AXI_BUS #(
     .AXI_ADDR_WIDTH ( TbAxiAddrWidthFull  ),
@@ -272,9 +251,6 @@ module axi_hyper_tb
   );
 
 
-  ////////////////////
-  // Address Ranges //
-  ////////////////////
   localparam axi_addr_t MemRegionStart  = axi_addr_t'(32'h8000_0000);
   localparam axi_addr_t MemRegionLength = axi_addr_t'(TbDramDataWidth * TbDramLenWidth);
 
@@ -509,6 +485,108 @@ module axi_hyper_tb
                beat, addr, r.r_data, r.r_last, r.r_resp, expected, beat == (num_beats - 1));
       end
     end
+  endtask
+
+  task automatic check_midend_buffering(input axi_ctrl_master_t axi_drv);
+    localparam int unsigned NumTransactions = 6;
+    localparam int unsigned WriteBeats = 4;
+    localparam axi_addr_t BufferBaseAddr = axi_addr_t'(32'h8000_2000);
+    axi_ctrl_master_t::ax_beat_t ax;
+    axi_ctrl_master_t::w_beat_t w;
+    axi_ctrl_master_t::b_beat_t b;
+    axi_ctrl_master_t::r_beat_t r;
+    axi_addr_t transaction_addr;
+    int unsigned ids [NumTransactions] = '{1, 2, 1, 3, 4, 2};
+    int unsigned read_beats_seen [NumTransactions];
+    bit [NumTransactions-1:0] write_seen;
+
+    $display("===========================");
+    $display("= Midend queue buffering  =");
+    $display("===========================");
+
+    foreach (write_seen[i]) write_seen[i] = 1'b0;
+    // AW and W are independent legal producers; responses are collected while they run.
+    fork
+      begin
+        for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+          ax = new();
+          ax.ax_addr  = BufferBaseAddr + axi_addr_t'(transaction * WriteBeats * (TbAxiDataWidthFull / 8));
+          ax.ax_id    = TbAxiIdWidthFull'(ids[transaction]);
+          ax.ax_len   = WriteBeats - 1;
+          ax.ax_size  = $clog2(TbAxiDataWidthFull / 8);
+          ax.ax_burst = axi_pkg::BURST_INCR;
+          axi_drv.send_aw(ax);
+        end
+      end
+      begin
+        for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+          transaction_addr = BufferBaseAddr + axi_addr_t'(transaction * WriteBeats * (TbAxiDataWidthFull / 8));
+          for (int unsigned beat = 0; beat < WriteBeats; beat++) begin
+            w = new();
+            w.w_data = slow_stress_data(transaction_addr, beat);
+            w.w_strb = '1;
+            w.w_last = beat == WriteBeats - 1;
+            axi_drv.send_w(w);
+          end
+        end
+      end
+      begin
+        repeat (8) @(posedge clk);
+        for (int unsigned response = 0; response < NumTransactions; response++) begin
+          axi_drv.recv_b(b);
+          if (b.b_resp != axi_pkg::RESP_OKAY) $error("[MIDEND-BUFFER] B response %0d: resp=%0d", response, b.b_resp);
+          for (int unsigned i = 0; i < NumTransactions; i++) begin
+            if (!write_seen[i] && ids[i] == b.b_id) begin
+              write_seen[i] = 1'b1;
+              break;
+            end
+          end
+        end
+      end
+    join
+    foreach (write_seen[i]) if (!write_seen[i]) $error("[MIDEND-BUFFER] Missing write response for id=%0d occurrence=%0d", ids[i], i);
+
+    // Read back every written beat; same-ID transactions remain ordered while IDs may reorder.
+    foreach (read_beats_seen[i]) read_beats_seen[i] = 0;
+    fork
+      begin
+        for (int unsigned transaction = 0; transaction < NumTransactions; transaction++) begin
+          ax = new();
+          ax.ax_addr  = BufferBaseAddr + axi_addr_t'(transaction * WriteBeats * (TbAxiDataWidthFull / 8));
+          ax.ax_id    = TbAxiIdWidthFull'(ids[transaction]);
+          ax.ax_len   = WriteBeats - 1;
+          ax.ax_size  = $clog2(TbAxiDataWidthFull / 8);
+          ax.ax_burst = axi_pkg::BURST_INCR;
+          axi_drv.send_ar(ax);
+        end
+      end
+      begin
+        repeat (8) @(posedge clk);
+        for (int unsigned response = 0; response < NumTransactions * WriteBeats; response++) begin
+          axi_drv.recv_r(r);
+          begin : match_read
+            bit matched;
+            matched = 1'b0;
+            for (int unsigned i = 0; i < NumTransactions; i++) begin
+              if (!matched && ids[i] == r.r_id && read_beats_seen[i] < WriteBeats) begin
+                int unsigned beat;
+                beat = read_beats_seen[i];
+                transaction_addr = BufferBaseAddr + axi_addr_t'(i * WriteBeats * (TbAxiDataWidthFull / 8));
+                if ((r.r_resp != axi_pkg::RESP_OKAY) ||
+                    (r.r_last != (beat == WriteBeats - 1)) ||
+                    (r.r_data != slow_stress_data(transaction_addr, beat))) begin
+                  $error("[MIDEND-BUFFER] Read id=%0d beat=%0d expected_addr=0x%08x data=0x%016x last=%0b resp=%0d",
+                         r.r_id, beat, transaction_addr, r.r_data, r.r_last, r.r_resp);
+                end
+                read_beats_seen[i]++;
+                matched = 1'b1;
+              end
+            end
+            if (!matched) $error("[MIDEND-BUFFER] Unmatched or duplicate R id=%0d", r.r_id);
+          end
+        end
+      end
+    join
   endtask
 
   task automatic run_performance_smoke(input axi_ctrl_master_t axi_drv);
@@ -1096,6 +1174,7 @@ module axi_hyper_tb
       end
     end
 
+    check_midend_buffering(axi_ctrl_mst);
     if (TbRunPerformance && !functional_only) run_performance_smoke(axi_ctrl_mst);
     run_slow_backpressure_test(axi_ctrl_mst, reg_master);
     check_config_barrier(axi_ctrl_mst, reg_master);
@@ -1203,9 +1282,6 @@ module axi_hyper_tb
     $finish();
   end
 
-  ///////////////////////
-  // Design under test //
-  ///////////////////////
   dut_if  #(
     .TbTestTime      ( TbTestTime         ),
     .AxiDataWidth    ( TbAxiDataWidthFull ),
@@ -1216,7 +1292,7 @@ module axi_hyper_tb
     .RegAw           ( RegBusAW           ),
     .RegDw           ( RegBusDW           ),
 
-    .NumChips        ( NumChips           ),
+    .NumChips ( NumChips ),
     .NumPhys         ( NumPhys            ),
     .AnnotateSdf     ( TbAnnotateSdf      ),
     .IsClockODelayed ( IsClockODelayed    ),
