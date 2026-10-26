@@ -34,6 +34,7 @@ module dut_if
  input logic rst_ni,
  input logic end_sim_i,
  output logic [31:0] segment_start_count_o,
+ output logic [NumPhys-1:0][NumChips-1:0][31:0] cs_start_count,
 
  AXI_BUS.Slave axi_slv_if,
  REG_BUS.in    reg_slv_if
@@ -59,6 +60,141 @@ module dut_if
      
   `AXI_ASSIGN_TO_REQ(axi_req, axi_slv_if)
   `AXI_ASSIGN_FROM_RESP(axi_slv_if, axi_resp)
+
+  // Check handshakes at the DUT boundary, independently of the test drivers.
+  localparam int unsigned NumAxiIds = 1 << AxiIdWidth;
+  localparam int unsigned MonitorDepth = 256;
+  axi_id_t aw_id_fifo [MonitorDepth];
+  int unsigned aw_beats_fifo [MonitorDepth];
+  int unsigned aw_head, aw_tail;
+  int unsigned w_beats_fifo [MonitorDepth];
+  int unsigned w_head, w_tail, w_current_beats;
+  int unsigned write_complete_count [NumAxiIds];
+  int unsigned b_response_count [NumAxiIds];
+  int unsigned read_len_fifo [NumAxiIds][MonitorDepth];
+  int unsigned read_head [NumAxiIds];
+  int unsigned read_tail [NumAxiIds];
+  bit aw_stalled_q, w_stalled_q, ar_stalled_q, b_stalled_q, r_stalled_q;
+  axi_aw_chan_t aw_hold_q;
+  axi_w_chan_t w_hold_q;
+  axi_ar_chan_t ar_hold_q;
+  axi_b_chan_t b_hold_q;
+  axi_r_chan_t r_hold_q;
+  always @(posedge clk_i or negedge rst_ni) begin : proc_axi_protocol_monitor
+    int unsigned id;
+    if (!rst_ni) begin
+      aw_head = 0;
+      aw_tail = 0;
+      w_head = 0;
+      w_tail = 0;
+      w_current_beats = 0;
+      aw_stalled_q = 0;
+      w_stalled_q = 0;
+      ar_stalled_q = 0;
+      b_stalled_q = 0;
+      r_stalled_q = 0;
+      for (int i = 0; i < NumAxiIds; i++) begin
+        write_complete_count[i] = 0;
+        b_response_count[i] = 0;
+        read_head[i] = 0;
+        read_tail[i] = 0;
+      end
+    end else begin
+      if (aw_stalled_q && (axi_req.aw_valid !== 1'b1 || axi_req.aw !== aw_hold_q))
+        $fatal(1, "[AXI-PROTOCOL] AW changed while stalled");
+      if (w_stalled_q && (axi_req.w_valid !== 1'b1 || axi_req.w !== w_hold_q))
+        $fatal(1, "[AXI-PROTOCOL] W changed while stalled");
+      if (ar_stalled_q && (axi_req.ar_valid !== 1'b1 || axi_req.ar !== ar_hold_q))
+        $fatal(1, "[AXI-PROTOCOL] AR changed while stalled");
+      if (b_stalled_q && (axi_resp.b_valid !== 1'b1 || axi_resp.b !== b_hold_q))
+        $fatal(1, "[AXI-PROTOCOL] B changed while stalled");
+      if (r_stalled_q && (axi_resp.r_valid !== 1'b1 || axi_resp.r !== r_hold_q))
+        $fatal(1, "[AXI-PROTOCOL] R changed while stalled");
+
+      aw_stalled_q = axi_req.aw_valid && !axi_resp.aw_ready;
+      w_stalled_q = axi_req.w_valid && !axi_resp.w_ready;
+      ar_stalled_q = axi_req.ar_valid && !axi_resp.ar_ready;
+      b_stalled_q = axi_resp.b_valid && !axi_req.b_ready;
+      r_stalled_q = axi_resp.r_valid && !axi_req.r_ready;
+      aw_hold_q = axi_req.aw;
+      w_hold_q = axi_req.w;
+      ar_hold_q = axi_req.ar;
+      b_hold_q = axi_resp.b;
+      r_hold_q = axi_resp.r;
+
+      // BVALID must depend on write handshakes from earlier clock edges.
+      if (axi_resp.b_valid) begin
+        id = int'(axi_resp.b.id);
+        if (b_response_count[id] >= write_complete_count[id])
+          $fatal(1, "[AXI-PROTOCOL] BVALID id=%0d preceded W completion or exceeded accepted writes", id);
+      end
+      if (axi_resp.b_valid && axi_req.b_ready) begin
+        id = int'(axi_resp.b.id);
+        b_response_count[id]++;
+      end
+
+      if (axi_req.aw_valid && axi_resp.aw_ready) begin
+        if (aw_tail - aw_head >= MonitorDepth) $fatal(1, "[AXI-PROTOCOL] AW monitor queue overflow");
+        aw_id_fifo[aw_tail % MonitorDepth] = axi_req.aw.id;
+        aw_beats_fifo[aw_tail % MonitorDepth] = int'(axi_req.aw.len) + 1;
+        aw_tail++;
+        if (axi_req.aw.atop[axi_pkg::ATOP_R_RESP]) begin
+          id = int'(axi_req.aw.id);
+          if (read_tail[id] - read_head[id] >= MonitorDepth)
+            $fatal(1, "[AXI-PROTOCOL] Atomic R monitor queue overflow for id=%0d", id);
+          // AXI atomics return one old-value beat even when malformed AWLEN is drained.
+          read_len_fifo[id][read_tail[id] % MonitorDepth] = 1;
+          read_tail[id]++;
+        end
+      end
+      if (axi_req.w_valid && axi_resp.w_ready) begin
+        w_current_beats++;
+        if (axi_req.w.last) begin
+          if (w_tail - w_head >= MonitorDepth) $fatal(1, "[AXI-PROTOCOL] W monitor queue overflow");
+          w_beats_fifo[w_tail % MonitorDepth] = w_current_beats;
+          w_tail++;
+          w_current_beats = 0;
+        end
+      end
+      while (aw_head < aw_tail && w_head < w_tail) begin
+        if (aw_beats_fifo[aw_head % MonitorDepth] != w_beats_fifo[w_head % MonitorDepth])
+          $fatal(1, "[AXI-PROTOCOL] W beat count does not match accepted AW length");
+        id = int'(aw_id_fifo[aw_head % MonitorDepth]);
+        write_complete_count[id]++;
+        aw_head++;
+        w_head++;
+      end
+      if (axi_req.ar_valid && axi_resp.ar_ready) begin
+        id = int'(axi_req.ar.id);
+        if (read_tail[id] - read_head[id] >= MonitorDepth)
+          $fatal(1, "[AXI-PROTOCOL] AR monitor queue overflow for id=%0d", id);
+        read_len_fifo[id][read_tail[id] % MonitorDepth] = int'(axi_req.ar.len) + 1;
+        read_tail[id]++;
+      end
+      if (axi_resp.r_valid) begin
+        id = int'(axi_resp.r.id);
+        if (read_head[id] == read_tail[id])
+          $fatal(1, "[AXI-PROTOCOL] RVALID id=%0d has no accepted AR or atomic read request", id);
+        if ((read_len_fifo[id][read_head[id] % MonitorDepth] == 1) != axi_resp.r.last)
+          $fatal(1, "[AXI-PROTOCOL] RLAST mismatch for id=%0d", id);
+        if (axi_req.r_ready) begin
+          if (axi_resp.r.last) read_head[id]++;
+          else read_len_fifo[id][read_head[id] % MonitorDepth]--;
+        end
+      end
+    end
+  end
+
+  always @(posedge end_sim_i) begin : proc_axi_end_check
+    if (aw_head != aw_tail || w_head != w_tail || w_current_beats != 0)
+      $fatal(1, "[AXI-PROTOCOL] Test ended with incomplete write traffic");
+    for (int i = 0; i < NumAxiIds; i++) begin
+      if (b_response_count[i] != write_complete_count[i])
+        $fatal(1, "[AXI-PROTOCOL] Test ended with unmatched B count for id=%0d", i);
+      if (read_head[i] != read_tail[i])
+        $fatal(1, "[AXI-PROTOCOL] Test ended with unmatched R count for id=%0d", i);
+    end
+  end
    
   typedef logic [RegAw-1:0]   reg_addr_t;
   typedef logic [RegDw-1:0]   reg_data_t;
@@ -143,10 +279,17 @@ module dut_if
         if (!rst_ni) begin
             hyper_cs_n_q          <= '1;
             segment_start_count_o <= '0;
+            cs_start_count        <= '0;
         end else begin
             hyper_cs_n_q <= hyper_cs_n_wire;
             if (segment_start) begin
                 segment_start_count_o <= segment_start_count_o + 1;
+            end
+            for (int p = 0; p < NumPhys; p++) begin
+                for (int c = 0; c < NumChips; c++) begin
+                    if (hyper_cs_n_q[p][c] && !hyper_cs_n_wire[p][c])
+                        cs_start_count[p][c] <= cs_start_count[p][c] + 1'b1;
+                end
             end
         end
     end
@@ -225,7 +368,9 @@ module dut_if
           for (genvar l=0; l<NumChips; l++) begin : sdf_annotation
              initial begin
                 string sdf_file_path;
-                sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
+                if (!$value$plusargs("HYPERRAM_SDF=%s", sdf_file_path)) begin
+                  sdf_file_path = "./models/s27ks0641/s27ks0641.sdf";
+                end
                 $sdf_annotate(sdf_file_path, hyperrams[p].chips[l].dut);
                 $display("Mem (%d,%d)", p, l);
              end

@@ -44,7 +44,9 @@ module axi_hyper_tb
   /// Maximum system-clock cycles before a stalled regression is terminated.
   parameter longint unsigned TbTimeoutCycles = 5_000_000,
   /// Annotate the HyperRAM timing SDF. Disable for fast RTL regressions.
-  parameter bit          TbAnnotateSdf = 1'b1
+  parameter bit          TbAnnotateSdf = 1'b1,
+  /// Run the deliberate latency/throughput budget task.
+  parameter bit          TbRunPerformance = 1'b1
 );
   import hyperbus_tb_pkg::*;
   /////////////////////////////
@@ -80,6 +82,9 @@ module axi_hyper_tb
 
   logic                  end_of_sim;
   logic [31:0]           segment_start_count;
+  logic [NumPhys-1:0][NumChips-1:0][31:0] cs_start_count;
+  bit performance_only;
+  bit functional_only;
   logic [63:0]           cycle_count;
 
   sim_timeout #(
@@ -114,11 +119,11 @@ module axi_hyper_tb
     .MAX_READ_TXNS        ( 8                  ),
     .MAX_WRITE_TXNS       ( 8                  ),
     .AX_MIN_WAIT_CYCLES   ( 0                  ),
-    .AX_MAX_WAIT_CYCLES   ( 0                  ),
+    .AX_MAX_WAIT_CYCLES   ( 3                  ),
     .W_MIN_WAIT_CYCLES    ( 0                  ),
-    .W_MAX_WAIT_CYCLES    ( 0                  ),
+    .W_MAX_WAIT_CYCLES    ( 5                  ),
     .RESP_MIN_WAIT_CYCLES ( 0                  ),
-    .RESP_MAX_WAIT_CYCLES ( 0                  ),
+    .RESP_MAX_WAIT_CYCLES ( 4                  ),
     .AXI_BURST_FIXED      ( 1'b0               ),
     .AXI_BURST_INCR       ( 1'b1               ),
     .AXI_BURST_WRAP       ( 1'b0               )
@@ -506,6 +511,139 @@ module axi_hyper_tb
     end
   endtask
 
+  task automatic run_performance_smoke(input axi_ctrl_master_t axi_drv);
+    localparam int unsigned NumCases = 5;
+    localparam axi_addr_t PerfBaseAddr = axi_addr_t'(32'h8000_8000);
+    int unsigned burst_beats [NumCases] = '{1, 4, 16, 64, 256};
+    int unsigned write_baseline [NumCases];
+    int unsigned read_baseline [NumCases];
+    logic [63:0] write_cycles [NumCases];
+    logic [63:0] read_cycles [NumCases];
+    logic [63:0] cycle_snapshot;
+    logic [31:0] segment_snapshot;
+    logic [31:0] write_segments;
+    logic [31:0] read_segments;
+    axi_addr_t burst_addr;
+    int unsigned write_cycle_limit;
+    int unsigned read_cycle_limit;
+    real backend_cycles_per_system_cycle;
+    real write_bits_per_phy_cycle;
+    real read_bits_per_phy_cycle;
+
+    backend_cycles_per_system_cycle = 1.0;
+    if (TbDutVariant == 0) begin
+      backend_cycles_per_system_cycle = 0.5;
+    end else if (TbDutVariant == 2) begin
+      backend_cycles_per_system_cycle = real'(TbCyclTime) / real'(TbPhyCyclTime);
+    end
+
+    // Default-configuration baselines in system-clock cycles for each supported top.
+    write_baseline = '{44, 55, 103, 295, 1103};
+    read_baseline = '{59, 71, 119, 311, 1119};
+    if (TbDutVariant == 1) begin
+      write_baseline = '{22, 28, 52, 148, 552};
+      read_baseline = '{29, 35, 59, 155, 559};
+    end else if (TbDutVariant == 2) begin
+      write_baseline = '{36, 42, 71, 186, 671};
+      read_baseline = '{43, 49, 78, 193, 678};
+    end
+    if (NumPhys == 1) begin
+      write_baseline = '{24, 36, 84, 276, 1084};
+      read_baseline = '{30, 42, 90, 282, 1090};
+    end
+
+    $display("===========================");
+    $display("= AXI performance smoke   =");
+    $display("===========================");
+
+    for (int unsigned test_idx = 0; test_idx < NumCases; test_idx++) begin
+      burst_addr = PerfBaseAddr + axi_addr_t'(test_idx * 32'h1000);
+
+      cycle_snapshot = cycle_count;
+      segment_snapshot = segment_start_count;
+      axi_write_slow(axi_drv, burst_addr, burst_beats[test_idx], 0);
+      write_cycles[test_idx] = cycle_count - cycle_snapshot;
+      write_segments = segment_start_count - segment_snapshot;
+
+      cycle_snapshot = cycle_count;
+      segment_snapshot = segment_start_count;
+      axi_read_slow_check(axi_drv, burst_addr, burst_beats[test_idx], 0);
+      read_cycles[test_idx] = cycle_count - cycle_snapshot;
+      read_segments = segment_start_count - segment_snapshot;
+
+      $display("[PERF] variant=%0d phys=%0d beats=%0d write_cycles=%0d read_cycles=%0d write_segments=%0d read_segments=%0d",
+               TbDutVariant, NumPhys, burst_beats[test_idx], write_cycles[test_idx],
+               read_cycles[test_idx], write_segments, read_segments);
+
+      if (burst_beats[test_idx] == 256) begin
+        write_bits_per_phy_cycle = real'(burst_beats[test_idx] * TbAxiDataWidthFull) /
+            real'(NumPhys * write_cycles[test_idx]) / backend_cycles_per_system_cycle;
+        read_bits_per_phy_cycle = real'(burst_beats[test_idx] * TbAxiDataWidthFull) /
+            real'(NumPhys * read_cycles[test_idx]) / backend_cycles_per_system_cycle;
+        $display("[PERF-MAX] variant=%0d write_bits_per_phy_cycle=%0.3f read_bits_per_phy_cycle=%0.3f",
+                 TbDutVariant, write_bits_per_phy_cycle, read_bits_per_phy_cycle);
+      end
+
+      write_cycle_limit = write_baseline[test_idx] + write_baseline[test_idx] / 5 + 2;
+      read_cycle_limit = read_baseline[test_idx] + read_baseline[test_idx] / 5 + 2;
+      if (write_cycles[test_idx] > write_cycle_limit) begin
+        $error("[PERF] %0d-beat write took %0d cycles, limit is %0d",
+               burst_beats[test_idx], write_cycles[test_idx], write_cycle_limit);
+      end
+      if (read_cycles[test_idx] > read_cycle_limit) begin
+        $error("[PERF] %0d-beat read took %0d cycles, limit is %0d",
+               burst_beats[test_idx], read_cycles[test_idx], read_cycle_limit);
+      end
+    end
+  endtask
+
+  task automatic run_slow_backpressure_test(
+    input axi_ctrl_master_t axi_drv,
+    input reg_bus_master_t reg_drv
+  );
+    localparam axi_addr_t SlowBaseAddr = axi_addr_t'(32'h8000_4000);
+    logic [RegBusDW-1:0] saved_t_burst_max;
+    logic [31:0] write_segment_starts;
+    logic [31:0] read_segment_starts;
+    logic [31:0] segment_start_snapshot;
+    logic reg_error;
+
+    $display("===========================");
+    $display("= Slow AXI backpressure   =");
+    $display("===========================");
+
+    reg_drv.send_read(32'h410, saved_t_burst_max, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+
+    reg_drv.send_write(32'h410, TbSlowBurstMax, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+
+    segment_start_snapshot = segment_start_count;
+    axi_write_slow(axi_drv, SlowBaseAddr, TbSlowNumBeats, TbSlowGapCycles);
+    write_segment_starts = segment_start_count - segment_start_snapshot;
+    if (write_segment_starts <= 1) begin
+      $error("[AXI-SLOW] Write observed %0d HyperBus segment start(s), expected at least one restart",
+             write_segment_starts);
+    end else begin
+      $display("[AXI-SLOW] Write observed %0d HyperBus segment starts (%0d restarts)",
+               write_segment_starts, write_segment_starts - 1);
+    end
+
+    segment_start_snapshot = segment_start_count;
+    axi_read_slow_check(axi_drv, SlowBaseAddr, TbSlowNumBeats, TbSlowGapCycles);
+    read_segment_starts = segment_start_count - segment_start_snapshot;
+    if (read_segment_starts <= 1) begin
+      $error("[AXI-SLOW] Read observed %0d HyperBus segment start(s), expected at least one restart",
+             read_segment_starts);
+    end else begin
+      $display("[AXI-SLOW] Read observed %0d HyperBus segment starts (%0d restarts)",
+               read_segment_starts, read_segment_starts - 1);
+    end
+
+    reg_drv.send_write(32'h410, saved_t_burst_max, '1, reg_error);
+    if (reg_error != 1'b0) $error("unexpected error");
+  endtask
+
   task automatic check_config_barrier(
     input axi_ctrl_master_t axi_drv,
     input reg_bus_master_t reg_drv
@@ -605,6 +743,7 @@ module axi_hyper_tb
     localparam axi_addr_t Boundary = axi_addr_t'(32'h8040_0000);
     localparam axi_addr_t BurstAddr = Boundary - 16;
     logic [31:0] segment_start_snapshot;
+    logic [31:0] cs_count_snapshot [NumPhys][NumChips];
     logic reg_error;
 
     if (NumChips < 2) begin
@@ -621,12 +760,26 @@ module axi_hyper_tb
     if (reg_error != 1'b0) $error("unexpected error");
 
     segment_start_snapshot = segment_start_count;
+    for (int p = 0; p < NumPhys; p++)
+      for (int c = 0; c < NumChips; c++)
+        cs_count_snapshot[p][c] = cs_start_count[p][c];
     axi_write_slow(axi_drv, BurstAddr, 4, 0);
     axi_read_slow_check(axi_drv, BurstAddr, 4, 0);
-    if ((segment_start_count - segment_start_snapshot) < 4) begin
-      $error("[CROSS-CHIP] Observed %0d segment starts, expected at least four",
-             segment_start_count - segment_start_snapshot);
+    for (int c = 0; c < NumChips; c++) begin
+      int unsigned selected_count;
+      selected_count = 0;
+      for (int p = 0; p < NumPhys; p++) begin
+        int unsigned observed;
+        observed = cs_start_count[p][c] - cs_count_snapshot[p][c];
+        selected_count += observed;
+        $display("[CROSS-CHIP] phy=%0d chip=%0d CS selections=%0d", p, c, observed);
+      end
+      if (selected_count < 2)
+        $error("[CROSS-CHIP] Chip %0d selected %0d times; expected write and read selections",
+               c, selected_count);
     end
+    $display("[CROSS-CHIP] aggregate segment starts=%0d (statistics only)",
+             segment_start_count - segment_start_snapshot);
 
     reg_drv.send_write(32'h440, 32'h8100_0000, '1, reg_error);
     if (reg_error != 1'b0) $error("unexpected error");
@@ -866,9 +1019,15 @@ module axi_hyper_tb
     automatic logic [63:0] divider_cycle_snapshot;
     automatic logic [63:0] div2_write_cycles;
     automatic logic [63:0] div4_write_cycles;
+    automatic logic [31:0] iso_saved_t_burst_max;
+    automatic int unsigned iso_test_dividers[4] = '{2, 4, 8, 16};
 
     // Reset the AXI drivers and scoreboards
     end_of_sim = 1'b0;
+    functional_only = $test$plusargs("HYPERBUS_FUNCTIONAL_ONLY");
+    performance_only = $test$plusargs("HYPERBUS_PERFORMANCE_ONLY");
+    if (functional_only && performance_only)
+      $fatal(1, "Select either functional-only or performance-only mode");
     mst_scoreboard.reset();
     axi_rand_mst.reset();
     axi_ctrl_mst.reset_master();
@@ -907,7 +1066,10 @@ module axi_hyper_tb
     end
 
     #600350ns;
+    // Align time-based waits with the AXI driver's clock phase.
+    @(posedge clk);
 
+    if (!performance_only) begin
     if (TbDutVariant == 0) begin
       // The configuration barrier completes only after the divided clock resumes.
       reg_master.send_write(32'h200, 8'd4, '1, s_reg_error);
@@ -934,6 +1096,8 @@ module axi_hyper_tb
       end
     end
 
+    if (TbRunPerformance && !functional_only) run_performance_smoke(axi_ctrl_mst);
+    run_slow_backpressure_test(axi_ctrl_mst, reg_master);
     check_config_barrier(axi_ctrl_mst, reg_master);
     check_decode_errors(axi_ctrl_mst, reg_master);
     check_cross_chip_burst(axi_ctrl_mst, reg_master);
@@ -941,6 +1105,28 @@ module axi_hyper_tb
     check_range_edges(axi_ctrl_mst, reg_master);
     check_atomic_add(axi_ctrl_mst);
     check_atomic_range_errors(axi_ctrl_mst, reg_master);
+
+    if (TbDutVariant == 0) begin
+      $display("===========================");
+      $display("= Isochronous backpressure =");
+      $display("===========================");
+      reg_master.send_read(32'h410, iso_saved_t_burst_max, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected t_burst_max read error");
+      foreach (iso_test_dividers[i]) begin
+        // Keep each data phase near 2 us, leaving margin for CA and access latency.
+        reg_master.send_write(32'h410, 400 / iso_test_dividers[i], '1, s_reg_error);
+        if (s_reg_error != 1'b0) $error("unexpected t_burst_max update error");
+        reg_master.send_write(32'h200, iso_test_dividers[i], '1, s_reg_error);
+        if (s_reg_error != 1'b0) $error("unexpected divider update error");
+        axi_write_slow(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 0);
+        axi_read_slow_check(axi_ctrl_mst, 32'h8001_0000 + i * 32'h100, 16, 128);
+      end
+
+      reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected divider restore error");
+      reg_master.send_write(32'h410, iso_saved_t_burst_max, '1, s_reg_error);
+      if (s_reg_error != 1'b0) $error("unexpected t_burst_max restore error");
+    end
 
     if (NumPhys == 1) begin
       check_unaligned_word_access(axi_ctrl_mst);
@@ -973,6 +1159,7 @@ module axi_hyper_tb
     $display("===========================");
 
     #50ns;
+    @(posedge clk);
 
     if(NumPhys==2) begin
 
@@ -1000,8 +1187,19 @@ module axi_hyper_tb
        $display("===========================");
 
     end // if (NumPhys==2)
+    end else begin
+      if (TbDutVariant == 0) begin
+        reg_master.send_write(32'h200, 8'd2, '1, s_reg_error);
+        if (s_reg_error != 1'b0) $error("performance divider setup failed");
+      end
+      run_performance_smoke(axi_ctrl_mst);
+    end
 
+    @(negedge clk);
     end_of_sim = 1'b1;
+    @(negedge clk);
+    $display("[AXI-TEST] passed functional=%0d performance=%0d",
+             !performance_only, TbRunPerformance && !functional_only);
     $finish();
   end
 
@@ -1031,6 +1229,7 @@ module axi_hyper_tb
     .rst_ni     ( rst_n        ),
     .end_sim_i  ( end_of_sim   ),
     .segment_start_count_o ( segment_start_count ),
+    .cs_start_count        ( cs_start_count ),
     .axi_slv_if ( axi_dut_intf ),
     .reg_slv_if ( reg_bus_mst  )
   );
