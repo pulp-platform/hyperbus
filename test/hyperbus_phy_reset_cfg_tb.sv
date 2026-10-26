@@ -4,6 +4,7 @@
 
 `timescale 1ns/1ps
 `include "axi/typedef.svh"
+`include "register_interface/typedef.svh"
 
 module hyperbus_phy_reset_cfg_tb #(
     parameter int unsigned CdcSyncStages = 3,
@@ -15,18 +16,8 @@ module hyperbus_phy_reset_cfg_tb #(
     typedef logic [2:0] axi_id_t;
     typedef logic [0:0] axi_user_t;
     `AXI_TYPEDEF_ALL(axi, axi_addr_t, axi_id_t, axi_data_t, axi_strb_t, axi_user_t)
-    typedef struct packed {
-        logic [31:0] addr;
-        logic write;
-        logic [31:0] wdata;
-        logic [3:0] wstrb;
-        logic valid;
-    } reg_req_t;
-    typedef struct packed {
-        logic [31:0] rdata;
-        logic error;
-        logic ready;
-    } reg_rsp_t;
+    `REG_BUS_TYPEDEF_REQ(reg_req_t, logic [31:0], logic [31:0], logic [3:0])
+    `REG_BUS_TYPEDEF_RSP(reg_rsp_t, logic [31:0])
     typedef struct packed {
         logic [31:0] start_addr;
         logic [31:0] end_addr;

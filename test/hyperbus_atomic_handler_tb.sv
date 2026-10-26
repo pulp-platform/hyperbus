@@ -161,6 +161,111 @@ module hyperbus_atomic_handler_tb #(
         return result;
     endfunction
 
+    typedef struct packed {
+        tb_host_cmd_t request;
+        tb_host_w_t operand;
+        host_data_t read_data;
+        tb_host_w_t expected_write;
+        hyperbus_pkg::hyper_host_size_t command_size;
+        hyperbus_pkg::hyper_resp_e expected_response;
+        bit optional_writeback;
+        bit write_error;
+        int unsigned operand_delay;
+        int unsigned response_delay;
+        bit write_response_first;
+        bit check_completion;
+    } atomic_case_t;
+
+    task automatic execute_case(input atomic_case_t test_case, input string label);
+        @(negedge clk);
+        request = test_case.request;
+        request_valid = 1'b1;
+        start = 1'b1;
+        @(negedge clk);
+        start = 1'b0;
+        request_valid = 1'b0;
+        repeat (test_case.operand_delay) @(negedge clk);
+        send_host_w(test_case.operand);
+
+        wait (command_valid);
+        #1ps;
+        if (command.write || command.addr != request.addr ||
+            command.size != test_case.command_size)
+            $fatal(1, "%s issued an invalid read command", label);
+        send_read('{data: test_case.read_data, resp: hyperbus_pkg::HyperRespOkay,
+                   last: 1'b1, atomic_ok: 1'b0});
+
+        // Failed Compare may skip the write or write the unchanged active lanes.
+        if (test_case.optional_writeback)
+            wait (command_valid || (host_r_valid && host_wrsp_valid));
+        else
+            wait (command_valid);
+        if (command_valid) begin
+            #1ps;
+            if (!command.write || command.addr != request.addr ||
+                command.size != test_case.command_size)
+                $fatal(1, "%s issued an invalid write command", label);
+            wait (write_valid);
+            #1ps;
+            for (int lane = 0; lane < HostDataWidth/8; lane++)
+                if (test_case.expected_write.strb[lane] &&
+                    write.data[lane*8 +: 8] != test_case.expected_write.data[lane*8 +: 8])
+                    $fatal(1, "%s active write lane %0d mismatch", label, lane);
+            if (write.strb != test_case.expected_write.strb ||
+                write.last != test_case.expected_write.last)
+                $fatal(1, "%s invalid write strobes or LAST: got=%h/%h expected=%h/%h",
+                    label, write.data, write.strb,
+                    test_case.expected_write.data, test_case.expected_write.strb);
+            send_write_rsp(test_case.write_error);
+        end
+
+        wait (host_r_valid && host_wrsp_valid);
+        #1ps;
+        for (int lane = 0; lane < HostDataWidth/8; lane++)
+            if (test_case.expected_write.strb[lane] &&
+                host_r.data[lane*8 +: 8] != test_case.read_data[lane*8 +: 8])
+                $fatal(1, "%s returned incorrect active read lane %0d", label, lane);
+        if (!host_r.last || host_r.resp != test_case.expected_response ||
+            host_wrsp.resp != test_case.expected_response ||
+            host_r.atomic_ok != (test_case.expected_response == hyperbus_pkg::HyperRespOkay) ||
+            host_wrsp.atomic_ok != (test_case.expected_response == hyperbus_pkg::HyperRespOkay))
+            $fatal(1, "%s returned an invalid host response", label);
+
+        if (test_case.check_completion) begin
+            // Fixed vectors expose the final acceptance cycle to check completion.
+            @(negedge clk);
+            host_r_ready = 1'b1;
+            #1ps;
+            if (completed)
+                $fatal(1, "%s completed before both host responses were accepted", label);
+            @(negedge clk);
+            host_r_ready = 1'b0;
+            #1ps;
+            if (host_r_valid || !host_wrsp_valid || !active || completed)
+                $fatal(1, "%s did not hold its pending write response", label);
+            host_wrsp_ready = 1'b1;
+            #1ps;
+            if (!completed)
+                $fatal(1, "%s did not complete with its final response", label);
+            @(negedge clk);
+            host_wrsp_ready = 1'b0;
+        end else begin
+            // Lane cases delay responses and alternate which channel accepts first.
+            repeat (test_case.response_delay) @(negedge clk);
+            @(negedge clk);
+            if (test_case.write_response_first) host_wrsp_ready = 1'b1;
+            else host_r_ready = 1'b1;
+            @(negedge clk);
+            repeat (2) @(negedge clk);
+            host_wrsp_ready = 1'b1;
+            host_r_ready = 1'b1;
+            @(negedge clk);
+            host_wrsp_ready = 1'b0;
+            host_r_ready = 1'b0;
+        end
+        wait (!active);
+    endtask
+
     task automatic check_lanes(
         input hyperbus_pkg::hyper_atomic_op_e op,
         input int unsigned bytes, offset, pattern
@@ -171,6 +276,7 @@ module hyperbus_atomic_handler_tb #(
         int unsigned pair_base, replacement_offset;
         logic [31:0] seed;
         bit compare, failed_compare;
+        atomic_case_t test_case;
         compare = op == hyperbus_pkg::HyperAtomicCompare;
         old_value = '0;
         operand = '0;
@@ -233,82 +339,25 @@ module hyperbus_atomic_handler_tb #(
         expected_data = old_data;
         for (int i = 0; i < bytes; i++) expected_data[(offset+i)*8 +: 8] = result[i*8 +: 8];
 
-        @(negedge clk);
-        request = '0;
-        request.write = 1;
-        request.addr = 32'h8000_1000 + offset;
-        request.beats = 1;
-        request.size = 3'($clog2(bytes) + int'(compare));
-        request.burst = hyperbus_pkg::HyperBurstIncr;
-        request.atomic_op = op;
-        request.atomic_return = 1;
-        request_valid = 1;
-        start = 1;
-        @(negedge clk);
-        start = 0;
-        request_valid = 0;
-        repeat (pattern % 3) @(negedge clk);
-        send_host_w('{data: operand_data, strb: operand_strb, last: 1'b1});
-        wait (command_valid);
-        #1ps;
-        if (command.write || command.addr != request.addr || command.size != 3'($clog2(bytes)))
-            $fatal(1, "Invalid read command for %s/%0d/%0d", op.name(), bytes, offset);
-        send_read('{data: old_data, resp: hyperbus_pkg::HyperRespOkay,
-                   last: 1'b1, atomic_ok: 1'b0});
-        if (failed_compare) begin
-            wait (command_valid || (host_r_valid && host_wrsp_valid));
-            if (command_valid) begin
-                #1ps;
-                if (!command.write || command.addr != request.addr ||
-                    command.size != 3'($clog2(bytes)))
-                    $fatal(1, "Invalid failed-Compare write command");
-                wait (write_valid);
-                #1ps;
-                for (int i = 0; i < HostDataWidth/8; i++) begin
-                    if (expected_strb[i] && write.data[i*8 +: 8] != expected_data[i*8 +: 8])
-                        $fatal(1, "Failed Compare changed active lane %0d", i);
-                end
-                if (write.strb != expected_strb || !write.last)
-                    $fatal(1, "Failed Compare writeback had incorrect strobes or LAST");
-                send_write_rsp(1'b0);
-            end
-        end else begin
-            wait (command_valid);
-            #1ps;
-            if (!command.write || command.addr != request.addr ||
-                command.size != 3'($clog2(bytes)))
-                $fatal(1, "Invalid write command for %s/%0d/%0d", op.name(), bytes, offset);
-            wait (write_valid);
-            #1ps;
-            for (int i = 0; i < HostDataWidth/8; i++) begin
-                if (expected_strb[i] && write.data[i*8 +: 8] != expected_data[i*8 +: 8])
-                    $fatal(1, "%s bytes=%0d offset=%0d pattern=%0d active lane %0d mismatch",
-                        op.name(), bytes, offset, pattern, i);
-            end
-            if (write.strb != expected_strb || !write.last)
-                $fatal(1, "%s bytes=%0d offset=%0d pattern=%0d got=%h/%h expected=%h/%h",
-                    op.name(), bytes, offset, pattern, write.data, write.strb,
-                    expected_data, expected_strb);
-            send_write_rsp(1'b0);
-        end
-        wait (host_r_valid && host_wrsp_valid);
-        #1ps;
-        for (int i = 0; i < HostDataWidth/8; i++)
-            if (expected_strb[i] && host_r.data[i*8 +: 8] != old_data[i*8 +: 8])
-                $fatal(1, "Invalid original response lane %0d", i);
-        if (host_r.resp != hyperbus_pkg::HyperRespOkay ||
-            host_wrsp.resp != hyperbus_pkg::HyperRespOkay) $fatal(1, "Invalid original response");
-        repeat (pattern % 4) @(negedge clk);
-        @(negedge clk);
-        if (pattern % 2 != 0) host_wrsp_ready = 1; else host_r_ready = 1;
-        @(negedge clk);
-        repeat (2) @(negedge clk);
-        host_wrsp_ready = 1;
-        host_r_ready = 1;
-        @(negedge clk);
-        host_wrsp_ready = 0;
-        host_r_ready = 0;
-        wait (!active);
+        test_case = '0;
+        test_case.request.write = 1'b1;
+        test_case.request.addr = 32'h8000_1000 + offset;
+        test_case.request.beats = 1;
+        test_case.request.size = 3'($clog2(bytes) + int'(compare));
+        test_case.request.burst = hyperbus_pkg::HyperBurstIncr;
+        test_case.request.atomic_op = op;
+        test_case.request.atomic_return = 1'b1;
+        test_case.operand = '{data: operand_data, strb: operand_strb, last: 1'b1};
+        test_case.read_data = old_data;
+        test_case.expected_write = '{data: expected_data, strb: expected_strb, last: 1'b1};
+        test_case.command_size = 3'($clog2(bytes));
+        test_case.expected_response = hyperbus_pkg::HyperRespOkay;
+        test_case.optional_writeback = failed_compare;
+        test_case.operand_delay = pattern % 3;
+        test_case.response_delay = pattern % 4;
+        test_case.write_response_first = pattern % 2 != 0;
+        execute_case(test_case, $sformatf("%s bytes=%0d offset=%0d pattern=%0d",
+                                        op.name(), bytes, offset, pattern));
     endtask
 
     task automatic check_operation(
@@ -326,6 +375,7 @@ module hyperbus_atomic_handler_tb #(
         host_data_t operand_data;
         host_data_t expected_data;
         bit failed_compare;
+        atomic_case_t test_case;
 
         old_data      = upper_compare ? {old_value, UpperWord} : {UpperWord, old_value};
         operand_data  = compare ? (upper_compare ? {operand, swap_value} :
@@ -333,110 +383,28 @@ module hyperbus_atomic_handler_tb #(
         expected_data = upper_compare ? {expected, UpperWord} : {UpperWord, expected};
         failed_compare = compare && (old_value != operand);
 
-        @(negedge clk);
-        request               = '0;
-        request.write         = 1'b1;
-        request.addr          = upper_compare ? 32'h8000_0104 : 32'h8000_0100;
-        request.beats         = 1;
-        request.size          = compare ? 3'd3 : 3'd2;
-        request.burst         = hyperbus_pkg::HyperBurstIncr;
-        request.atomic_op     = operation;
-        request.atomic_return = 1'b1;
-        request.ordered       = 1'b1;
-        request_valid         = 1'b1;
-        start                 = 1'b1;
-
-        @(negedge clk);
-        request_valid = 1'b0;
-        start         = 1'b0;
-
-        send_host_w('{data: operand_data,
-                     strb: compare ? host_strb_t'(8'hff) : '1,
-                     last: 1'b1});
-
-        wait (command_valid);
-        #1ps;
-        if (command.write || (command.size != 2) || command.addr != request.addr) begin
-            $fatal(1, "Atomic %s issued an invalid read command", operation.name());
-        end
-
-        send_read('{data: old_data, resp: hyperbus_pkg::HyperRespOkay,
-                   last: 1'b1, atomic_ok: 1'b0});
-
-        if (failed_compare) begin
-            wait (command_valid || (host_r_valid && host_wrsp_valid));
-            if (command_valid) begin
-                #1ps;
-                if (!command.write || command.size != 2 || command.addr != request.addr)
-                    $fatal(1, "Failed Compare issued an invalid command");
-                wait (write_valid);
-                #1ps;
-                for (int lane = 0; lane < HostDataWidth/8; lane++)
-                    if ((upper_compare ? (lane >= 4 && lane < 8) : (lane < 4)) &&
-                        write.data[lane*8 +: 8] != old_data[lane*8 +: 8])
-                        $fatal(1, "Failed Compare changed active lane %0d", lane);
-                if (write.strb != (upper_compare ? host_strb_t'(8'hf0) :
-                                                 host_strb_t'(8'h0f)) || !write.last)
-                    $fatal(1, "Failed Compare writeback had invalid strobes or LAST");
-                send_write_rsp(write_error);
-            end
-        end else begin
-            wait (command_valid);
-            #1ps;
-            if (!command.write || (command.size != 2) || command.addr != request.addr)
-                $fatal(1, "Atomic %s issued an invalid write command", operation.name());
-            wait (write_valid);
-            #1ps;
-            for (int lane = 0; lane < HostDataWidth/8; lane++)
-                if ((upper_compare ? (lane >= 4 && lane < 8) : (lane < 4)) &&
-                    write.data[lane*8 +: 8] != expected_data[lane*8 +: 8])
-                    $fatal(1, "Atomic %s active write lane %0d mismatch", operation.name(), lane);
-            if ((write.strb != (upper_compare ? host_strb_t'(8'hf0) :
-                                                host_strb_t'(8'h0f))) || !write.last)
-                $fatal(1, "Atomic %s produced invalid write strobes or LAST", operation.name());
-            send_write_rsp(write_error);
-        end
-
-        wait (host_r_valid && host_wrsp_valid);
-        #1ps;
-        for (int i = 0; i < 4; i++) begin
-            int lane;
-            lane = (upper_compare ? 4 : 0) + i;
-            if (host_r.data[lane*8 +: 8] != old_data[lane*8 +: 8])
-                $fatal(1, "Atomic %s returned incorrect active read lane %0d", operation.name(), lane);
-        end
-        if (!host_r.last ||
-            (host_r.resp != (write_error ? hyperbus_pkg::HyperRespAccessError :
-                                           hyperbus_pkg::HyperRespOkay)) ||
-            (host_wrsp.resp != (write_error ? hyperbus_pkg::HyperRespAccessError :
-                                              hyperbus_pkg::HyperRespOkay)) ||
-            (host_r.atomic_ok == write_error) || (host_wrsp.atomic_ok == write_error)) begin
-            $fatal(1, "Atomic %s returned an invalid host response", operation.name());
-        end
-
-        // Accept the read response first and ensure the write response remains stable.
-        @(negedge clk);
-        host_r_ready = 1'b1;
-        #1ps;
-        if (completed) begin
-            $fatal(1, "Atomic %s completed before both host responses were accepted",
-                   operation.name());
-        end
-        @(negedge clk);
-        host_r_ready = 1'b0;
-        #1ps;
-        if (host_r_valid || !host_wrsp_valid || !active || completed) begin
-            $fatal(1, "Atomic %s did not hold its pending write response", operation.name());
-        end
-
-        host_wrsp_ready = 1'b1;
-        #1ps;
-        if (!completed) begin
-            $fatal(1, "Atomic %s did not complete with its final response", operation.name());
-        end
-        @(negedge clk);
-        host_wrsp_ready = 1'b0;
-        wait (!active);
+        test_case = '0;
+        test_case.request.write = 1'b1;
+        test_case.request.addr = upper_compare ? 32'h8000_0104 : 32'h8000_0100;
+        test_case.request.beats = 1;
+        test_case.request.size = compare ? 3'd3 : 3'd2;
+        test_case.request.burst = hyperbus_pkg::HyperBurstIncr;
+        test_case.request.atomic_op = operation;
+        test_case.request.atomic_return = 1'b1;
+        test_case.request.ordered = 1'b1;
+        test_case.operand = '{data: operand_data,
+                             strb: compare ? host_strb_t'(8'hff) : '1, last: 1'b1};
+        test_case.read_data = old_data;
+        test_case.expected_write = '{data: expected_data,
+                                    strb: upper_compare ? host_strb_t'(8'hf0) :
+                                                          host_strb_t'(8'h0f), last: 1'b1};
+        test_case.command_size = 3'd2;
+        test_case.expected_response = write_error ? hyperbus_pkg::HyperRespAccessError :
+                                                    hyperbus_pkg::HyperRespOkay;
+        test_case.optional_writeback = failed_compare;
+        test_case.write_error = write_error;
+        test_case.check_completion = 1'b1;
+        execute_case(test_case, $sformatf("Atomic %s", operation.name()));
     endtask
 
     task automatic check_read_error;

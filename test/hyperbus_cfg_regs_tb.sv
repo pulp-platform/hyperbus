@@ -2,19 +2,11 @@
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
 
+`include "register_interface/typedef.svh"
+
 module hyperbus_cfg_regs_tb;
-    typedef struct packed {
-        logic [31:0] addr;
-        logic        write;
-        logic [31:0] wdata;
-        logic [3:0]  wstrb;
-        logic        valid;
-    } reg_req_t;
-    typedef struct packed {
-        logic [31:0] rdata;
-        logic        error;
-        logic        ready;
-    } reg_rsp_t;
+    `REG_BUS_TYPEDEF_REQ(reg_req_t, logic [31:0], logic [31:0], logic [3:0])
+    `REG_BUS_TYPEDEF_RSP(reg_rsp_t, logic [31:0])
     typedef struct packed {
         logic [31:0] start_addr;
         logic [31:0] end_addr;
@@ -31,50 +23,29 @@ module hyperbus_cfg_regs_tb;
     hyperbus_pkg::phy_cfg_t phy_cfg;
     addr_rule_t [hyperbus_pkg::HyperNumChips-1:0] chip_rules;
 
-    task automatic reg_write(input logic [31:0] addr, input logic [31:0] data);
-      begin
+    task automatic reg_write(input logic [31:0] addr, input logic [31:0] data,
+                             input logic [3:0] strb = 4'hf, input bit expected_error = 1'b0);
         @(negedge clk);
-        reg_req <= '{addr: addr, write: 1'b1, wdata: data, wstrb: 4'hf, valid: 1'b1};
+        reg_req <= '{addr: addr, write: 1'b1, wdata: data, wstrb: strb, valid: 1'b1};
         do begin @(posedge clk); end while (!reg_rsp.ready);
-        if (reg_rsp.error) $fatal(1, "write failed at %h", addr);
+        if (reg_rsp.error !== expected_error)
+            $fatal(1, "write at %h returned error=%b, expected %b", addr,
+                   reg_rsp.error, expected_error);
         @(negedge clk);
         reg_req.valid <= 1'b0;
-      end
     endtask
 
-    task automatic reg_read(input logic [31:0] addr, output logic [31:0] data);
-      begin
+    task automatic reg_read(input logic [31:0] addr, output logic [31:0] data,
+                            input bit expected_error = 1'b0);
         @(negedge clk);
         reg_req <= '{addr: addr, write: 1'b0, wdata: '0, wstrb: '0, valid: 1'b1};
         do begin @(posedge clk); end while (!reg_rsp.ready);
         data = reg_rsp.rdata;
-        if (reg_rsp.error) $fatal(1, "read failed at %h", addr);
+        if (reg_rsp.error !== expected_error)
+            $fatal(1, "read at %h returned error=%b, expected %b", addr,
+                   reg_rsp.error, expected_error);
         @(negedge clk);
         reg_req.valid <= 1'b0;
-      end
-    endtask
-
-    task automatic reg_write_error(input logic [31:0] addr, input logic [31:0] data,
-                                   input logic [3:0] strb);
-      begin
-        @(negedge clk);
-        reg_req <= '{addr: addr, write: 1'b1, wdata: data, wstrb: strb, valid: 1'b1};
-        do begin @(posedge clk); end while (!reg_rsp.ready);
-        if (!reg_rsp.error) $error("invalid write to %h was accepted", addr);
-        @(negedge clk);
-        reg_req.valid <= 1'b0;
-      end
-    endtask
-
-    task automatic reg_read_error(input logic [31:0] addr);
-      begin
-        @(negedge clk);
-        reg_req <= '{addr: addr, write: 1'b0, wdata: '0, wstrb: '0, valid: 1'b1};
-        do begin @(posedge clk); end while (!reg_rsp.ready);
-        if (!reg_rsp.error) $error("unmapped read from %h was accepted", addr);
-        @(negedge clk);
-        reg_req.valid <= 1'b0;
-      end
     endtask
 
     initial begin clk = 1'b0; forever #5ns clk = ~clk; end
@@ -149,25 +120,25 @@ module hyperbus_cfg_regs_tb;
             $error("per-chip latency mapping mismatch");
         end
 
-        reg_write_error(32'h200, 32'h1, 4'b0001);
+        reg_write(32'h200, 32'h1, 4'b0001, 1'b1);
         reg_read(32'h200, data);
         if (data != 32'h8) $error("invalid divider write changed the register: %h", data);
-        reg_write_error(32'h44c, 32'h0000_0002, 4'b0001);
+        reg_write(32'h44c, 32'h0000_0002, 4'b0001, 1'b1);
         reg_read(32'h44c, data);
         if (data != 32'h0001_0307) $error("invalid latency write changed the register: %h", data);
-        reg_write_error(32'h304, 32'h0000_0010, 4'b0001);
-        reg_write_error(32'h408, 32'h0000_2000, 4'b0010);
-        reg_write_error(32'h44c, 32'h0000_0010, 4'b0001);
-        reg_write_error(32'h44c, 32'h0000_1000, 4'b0010);
-        reg_write_error(32'h454, 32'h0000_0010, 4'b0001);
-        reg_write_error(32'h454, 32'h0000_1000, 4'b0010);
-        reg_write_error(32'h454, 32'h0010_0000, 4'b0100);
+        reg_write(32'h304, 32'h0000_0010, 4'b0001, 1'b1);
+        reg_write(32'h408, 32'h0000_2000, 4'b0010, 1'b1);
+        reg_write(32'h44c, 32'h0000_0010, 4'b0001, 1'b1);
+        reg_write(32'h44c, 32'h0000_1000, 4'b0010, 1'b1);
+        reg_write(32'h454, 32'h0000_0010, 4'b0001, 1'b1);
+        reg_write(32'h454, 32'h0000_1000, 4'b0010, 1'b1);
+        reg_write(32'h454, 32'h0010_0000, 4'b0100, 1'b1);
         reg_read(32'h44c, data);
         if (data != 32'h0001_0307) $error("invalid narrow-field write changed the register: %h", data);
-        reg_read_error(32'h500);
-        reg_read_error(32'h104);
-        reg_read_error(32'h7fc);
-        reg_read_error(32'h1000);
+        reg_read(32'h500, data, 1'b1);
+        reg_read(32'h104, data, 1'b1);
+        reg_read(32'h7fc, data, 1'b1);
+        reg_read(32'h1000, data, 1'b1);
 
         reg_write(32'h00c, 32'h3);
         repeat (2) @(posedge clk);
